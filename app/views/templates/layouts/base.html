@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Commercial Dashboard - Airport{% endblock %}</title>
+
+    <!-- Mazer UI CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app-dark.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/iconly.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <script src="{{ url_for('static', filename='static/js/initTheme.js') }}"></script>
+    
+    <div id="app">
+        <!-- Load Sidebar Layout -->
+        {% include 'layouts/sidebar.html' %}
+
+        <div id="main" class="layout-horizontal-style">
+            <header class="mb-3">
+                <!-- Tombol Burger Toggle Sidebar (Aktif untuk Mobile & Desktop) -->
+                <a href="#" class="burger-btn d-block">
+                    <i class="bi bi-justify fs-3"></i>
+                </a>
+            </header>
+
+            <!-- Main Content Section -->
+            <div class="page-content">
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Footer -->
+            <footer class="mt-4">
+                <div class="footer clearfix mb-0 text-muted">
+                    <div class="float-start">
+                        <p>2026 &copy; Airport Commercial Dashboard</p>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Mazer UI & Bootstrap JS -->
+    <script src="{{ url_for('static', filename='static/js/components/dark.js') }}"></script>
+    <script src="{{ url_for('static', filename='extensions/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='compiled/js/app.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

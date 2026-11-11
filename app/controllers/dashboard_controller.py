@@ -4,7 +4,8 @@ dashboard_bp = Blueprint('dashboard', __name__)
 
 @dashboard_bp.route('/dashboard')
 def index():
-    if 'user_id' not in session:
+    if 'user' not in session:
         return redirect(url_for('auth.login'))
-        
-    return render_template('dashboard/index.html')
+    
+    # PERBAIKAN: Sertakan folder 'dashboard/' sebelum 'index.html'
+    return render_template('dashboard/index.html', user=session['user'])

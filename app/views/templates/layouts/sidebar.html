@@ -1,0 +1,333 @@
+<div id="sidebar" class="active">
+    <div class="sidebar-wrapper active d-flex flex-column justify-content-between h-100">
+        <div>
+            <!-- Header Sidebar: Logo & Toggle Button -->
+            <div class="sidebar-header position-relative">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="logo w-100 text-center">
+                        <a href="{{ url_for('dashboard.index') }}" class="d-inline-flex align-items-center justify-content-center">
+                            <!-- Logo Mode Normal (Light Mode) -->
+                            <img src="https://injourneyairports.id/assets/injourney-logo-grey-BHunbWo1.png" alt="Injourney Logo" class="theme-logo-light logo-full" style="height: 36px; width: auto;">
+                            <!-- Logo Mode Normal (Dark Mode) -->
+                            <img src="https://injourneyairports.id/assets/injourney-logo-white-Dl4T6LNj.png" alt="Injourney Logo" class="theme-logo-dark logo-full d-none" style="height: 36px; width: auto;">
+                            
+                            <!-- Logo Kawung (Hanya Muncul saat Sidebar Collapsed) -->
+                            <img src="https://injourneyairports.id/assets/kawung-logo-side-CktPU2GK.png" alt="Kawung Logo" class="logo-mini d-none" style="height: 34px; width: auto;">
+                        </a>
+                    </div>
+
+                    <!-- Switcher Theme & Tombol Hide/Show Burger -->
+                    <div class="d-flex gap-2 align-items-center sidebar-toggle-container">
+                        <div class="theme-toggle d-flex gap-2 align-items-center">
+                            <i class="bi bi-sun-fill fs-6 text-warning"></i>
+                            <div class="form-check form-switch fs-6 mb-0 p-0 me-0" style="min-height: auto;">
+                                <input class="form-check-input ms-0 me-0" type="checkbox" id="toggle-dark" style="cursor: pointer">
+                            </div>
+                            <i class="bi bi-moon-fill fs-6 text-info"></i>
+                        </div>
+                        
+                        <!-- Toggle Hide Sidebar Button -->
+                        <div class="sidebar-toggler x">
+                            <a href="#" class="sidebar-hide d-block text-secondary" id="btn-sidebar-hide"><i class="bi bi-x fs-3"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Info Widget -->
+            <div class="sidebar-profile px-3 py-2-5 mb-3 bg-body-tertiary rounded-4 mx-3 d-flex align-items-center gap-3 border shadow-sm">
+                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 40px; height: 40px;">
+                    <i class="bi bi-person-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <div class="sidebar-profile-info text-truncate d-flex flex-column justify-content-center">
+                    <h6 class="mb-0 fw-bold text-truncate" style="font-size: 0.9rem; line-height: 1.2;">
+                        {{ session['user']['email'].split('@')[0] | title if session.get('user') else 'User' }}
+                    </h6>
+                    <small class="text-body-secondary fw-medium text-truncate mt-1" style="font-size: 0.725rem; line-height: 1;">
+                        Administrator Commercial
+                    </small>
+                </div>
+            </div>
+
+            <!-- Menu Navigation -->
+            <div class="sidebar-menu">
+                <ul class="menu">
+                    <li class="sidebar-title">Menu Utama</li>
+
+                    <!-- 1. Dashboard -->
+                    <li class="sidebar-item active">
+                        <a href="{{ url_for('dashboard.index') }}" class='sidebar-link d-flex align-items-center gap-2' title="Dashboard">
+                            <i class="bi bi-grid-fill d-flex align-items-center justify-content-center"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <!-- 2. Commercial & Tenant -->
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Commercial & Tenant">
+                            <i class="bi bi-shop d-flex align-items-center justify-content-center"></i>
+                            <span>Commercial & Tenant</span>
+                        </a>
+                        <ul class="submenu">
+                            <li class="submenu-item">
+                                <a href="#">Daftar Tenant</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="#">Pendapatan/Revenue</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Floating Rounded User Button (Bottom) -->
+        <div class="sidebar-footer p-3">
+            <div class="dropup d-flex justify-content-center w-100">
+                <button class="btn btn-primary rounded-pill w-100 d-flex align-items-center justify-content-between px-3 py-2 shadow-sm border-0 dropdown-toggle text-white" type="button" id="dropdownUserFloating" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false">
+                    <div class="d-flex align-items-center gap-2 text-truncate me-1 user-btn-content">
+                        <div class="position-relative d-flex align-items-center justify-content-center flex-shrink-0">
+                            <div class="avatar bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                <i class="bi bi-person-fill fs-6 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                            </div>
+                            <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle"></span>
+                        </div>
+                        <span class="fw-semibold text-truncate small sidebar-user-name" style="line-height: 1;">
+                            {{ session['user']['email'].split('@')[0] if session.get('user') else 'Account' }}
+                        </span>
+                    </div>
+                    Meysa
+                </button>
+
+                <!-- Dropdown Menu Floating (Top Layer / Z-Index Fix) -->
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mb-2" aria-labelledby="dropdownUserFloating" style="z-index: 9999; min-width: 200px;">
+                    <li class="px-3 py-2 border-bottom mb-1">
+                        <p class="mb-0 fw-bold small text-truncate">{{ session['user']['email'] if session.get('user') else 'User' }}</p>
+                        <span class="badge bg-success-subtle text-success small" style="font-size: 0.65rem;">Active Session</span>
+                    </li>
+                    <li>
+                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2" href="#">
+                            <i class="bi bi-gear-fill text-secondary d-flex align-items-center"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 text-danger fw-semibold" href="{{ url_for('auth.logout') }}">
+                            <i class="bi bi-box-arrow-right text-danger d-flex align-items-center"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Strict Override CSS untuk Mode Collapsed / Hide -->
+<style>
+    /* Layering Z-Index & Overflow Fix */
+    #sidebar {
+        z-index: 1000 !important;
+    }
+    #sidebar .sidebar-wrapper {
+        overflow: visible !important;
+        z-index: 1001 !important;
+    }
+    #main {
+        position: relative;
+        z-index: 1 !important;
+    }
+
+    /* === STYLING KHUSUS SAAT SIDEBAR DI-HIDE (COLLAPSED) === */
+    #sidebar.collapsed {
+        width: 80px !important;
+    }
+    #sidebar.collapsed .sidebar-wrapper {
+        width: 80px !important;
+    }
+
+    /* 1. Toggle Switch Logo Kawung */
+    #sidebar.collapsed .logo-full {
+        display: none !important;
+    }
+    #sidebar.collapsed .logo-mini {
+        display: block !important;
+        margin: 0 auto !important;
+    }
+
+    /* 2. Sembunyikan Semua Elemen Teks & Submenu */
+    #sidebar.collapsed .sidebar-profile-info,
+    #sidebar.collapsed .sidebar-user-name,
+    #sidebar.collapsed .sidebar-user-dots,
+    #sidebar.collapsed .sidebar-toggle-container,
+    #sidebar.collapsed .sidebar-title,
+    #sidebar.collapsed .menu span,
+    #sidebar.collapsed .submenu,
+    #sidebar.collapsed .sidebar-item.has-sub .sidebar-link::after {
+        display: none !important;
+    }
+
+    /* 3. FIX MAIN MENU ICON (Menghapus Efek Cembung Lonjong Mazer UI) */
+    #sidebar.collapsed .sidebar-menu ul.menu {
+        padding: 0 10px !important;
+    }
+    #sidebar.collapsed .sidebar-item {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 8px 0 !important;
+        width: 100% !important;
+    }
+    #sidebar.collapsed .sidebar-link {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        max-width: 44px !important;
+        max-height: 44px !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        border-radius: 12px !important; /* Membuat kotak bulat sempurna, bukan lonjong cembung */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #sidebar.collapsed .sidebar-link i {
+        font-size: 1.25rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* 4. FIX USER WIDGET ATAS SAAT COLLAPSED */
+    #sidebar.collapsed .sidebar-profile {
+        justify-content: center !important;
+        padding: 4px !important;
+        margin: 0 auto 12px auto !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        width: 44px !important;
+    }
+
+    /* 5. FIX DROPDOWN BUTTON USER BOTTOM SAAT COLLAPSED (Lingkaran Bulat Presisi) */
+    #sidebar.collapsed .sidebar-footer {
+        padding: 12px 10px !important;
+    }
+    #sidebar.collapsed #dropdownUserFloating {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        max-width: 44px !important;
+        max-height: 44px !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        border-radius: 50% !important; /* Bulat bundar simetris */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #sidebar.collapsed #dropdownUserFloating::after {
+        display: none !important; /* Sembunyikan tanda panah dropdown */
+    }
+    #sidebar.collapsed .user-btn-content {
+        margin-right: 0 !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    /* Layout Main Shift saat Collapsed */
+    #main.sidebar-collapsed {
+        margin-left: 80px !important;
+    }
+</style>
+
+<!-- Script Logic Toggle Hide/Show (Persist via LocalStorage) & Theme Switcher -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggleDark = document.getElementById("toggle-dark");
+        const logoLight = document.querySelector(".theme-logo-light");
+        const logoDark = document.querySelector(".theme-logo-dark");
+        const sidebar = document.getElementById("sidebar");
+        const main = document.getElementById("main");
+        const btnHide = document.getElementById("btn-sidebar-hide");
+
+        // 1. Fungsi Update Logo Sesuai Tema (Terang/Gelap)
+        function updateLogo() {
+            const isDark = document.body.classList.contains("theme-dark");
+            if (isDark) {
+                if (logoLight) logoLight.classList.add("d-none");
+                if (logoDark) logoDark.classList.remove("d-none");
+            } else {
+                if (logoDark) logoDark.classList.add("d-none");
+                if (logoLight) logoLight.classList.remove("d-none");
+            }
+        }
+
+        // 2. Fungsi Terapkan Status Sidebar (Collapsed vs Active)
+        function applySidebarState(isCollapsed) {
+            if (isCollapsed) {
+                if (sidebar) {
+                    sidebar.classList.add("collapsed");
+                    sidebar.classList.remove("active");
+                }
+                if (main) {
+                    main.classList.add("sidebar-collapsed");
+                }
+            } else {
+                if (sidebar) {
+                    sidebar.classList.remove("collapsed");
+                    sidebar.classList.add("active");
+                }
+                if (main) {
+                    main.classList.remove("sidebar-collapsed");
+                }
+            }
+        }
+
+        // 3. Cek Status Sidebar dari LocalStorage saat Halaman Dimuat
+        const savedState = localStorage.getItem("sidebar_collapsed");
+        if (savedState === "true") {
+            applySidebarState(true);
+        } else if (savedState === "false") {
+            applySidebarState(false);
+        }
+
+        // 4. Toggle Status Sidebar & Simpan ke LocalStorage
+        function toggleSidebar() {
+            const willBeCollapsed = !sidebar.classList.contains("collapsed");
+            applySidebarState(willBeCollapsed);
+            localStorage.setItem("sidebar_collapsed", willBeCollapsed ? "true" : "false");
+        }
+
+        // Event Listener Tombol X / Hide di Sidebar
+        if (btnHide) {
+            btnHide.addEventListener("click", function (e) {
+                e.preventDefault();
+                toggleSidebar();
+            });
+        }
+
+        // Event Listener Burger Button
+        document.addEventListener("click", function (e) {
+            const burgerBtn = e.target.closest(".burger-btn");
+            if (burgerBtn) {
+                e.preventDefault();
+                toggleSidebar();
+            }
+        });
+
+        // Event Listener Switch Theme
+        if (toggleDark) {
+            toggleDark.addEventListener("change", function () {
+                setTimeout(updateLogo, 50);
+            });
+        }
+
+        updateLogo();
+    });
+</script>
