@@ -1,0 +1,611 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Master Data Airlines</h3>
+            <p class="text-subtitle text-muted mb-0">Manajemen daftar maskapai penerbangan (2-Code IATA, 3-Code ICAO, dan Logo) untuk seluruh cabang bandara.</p>
+        </div>
+        {% if can_write %}
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahAirline">
+            <i class="bi bi-plus-circle-fill me-2"></i>Tambah Airline
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<section class="section">
+    <!-- Ringkasan Statistik (Ringkas Sejajar di Mobile seperti Mitra Usaha) -->
+    {% set active_airlines = airline_list | selectattr('delete_at', 'none') | list %}
+    {% set deleted_airlines = airline_list | rejectattr('delete_at', 'none') | list %}
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="{{ 'col-6 col-md-4' if is_superadmin else 'col-12 col-md-6' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+                        <i class="bi bi-airplane-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Total Airlines</div>
+                        <h4 class="fw-bold mb-0">{{ active_airlines | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if is_superadmin %}
+        <div class="col-6 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+                        <i class="bi bi-trash3-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Data Terhapus</div>
+                        <h4 class="fw-bold text-danger mb-0">{{ deleted_airlines | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tabel Airlines -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
+            <div class="row g-2 align-items-center">
+                <!-- Pencarian + Tombol Filter Mobile -->
+                <div class="col-12 {{ 'col-md-5' if is_superadmin else 'col-md-6' }}">
+                    <div class="d-flex gap-2">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchAirlineInput" class="form-control border-start-0" placeholder="Cari Nama Airline, 2-Code (GA), 3-Code (GIA)...">
+                        </div>
+                        {% if is_superadmin %}
+                        <button type="button"
+                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#filterAirlineSheet"
+                                aria-controls="filterAirlineSheet"
+                                title="Filter Airlines">
+                            <i class="bi bi-sliders2 text-primary"></i>
+                            <span id="mobileAirlineFilterCount"
+                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                  style="font-size: 0.65rem;">0</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Filter Status Data (Desktop Superadmin) -->
+                {% if is_superadmin %}
+                <div class="col-md-3 d-none d-md-block">
+                    <select id="filterDeletedAirline" class="form-select">
+                        <option value="">Semua Data</option>
+                        <option value="active">Tersedia</option>
+                        <option value="deleted">Terhapus</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Counter -->
+                <div class="col-12 {{ 'col-md-4' if is_superadmin else 'col-md-6' }} d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                    <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                        Menampilkan: <span id="airlineCountLabel">{{ airline_list | length }}</span> Airlines
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body pt-2 pt-md-3">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 js-datatable"
+                    id="tableAirlines"
+                    data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                    <thead>
+                        <tr>
+                            <th style="width: 72px;">Logo</th>
+                            <th>Airline Name</th>
+                            <th class="text-center">2-Code (IATA)</th>
+                            <th class="text-center">3-Code (ICAO)</th>
+                            {% if is_superadmin %}
+                            <th>Terakhir Diperbarui</th>
+                            {% endif %}
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in airline_list %}
+                        {% set is_deleted = a.delete_at is not none %}
+                        <tr data-deleted="{{ 'deleted' if is_deleted else 'active' }}"
+                            class="{{ 'table-danger opacity-75' if is_deleted else '' }}">
+                            <td>
+                                <div class="airline-logo-box rounded-3 border bg-white d-flex align-items-center justify-content-center p-1 overflow-hidden" style="width: 48px; height: 48px;">
+                                    {% if a.logo %}
+                                        <img src="{{ url_for('static', filename=a.logo) }}" alt="{{ a.airline_name }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                    {% else %}
+                                        <i class="bi bi-airplane text-primary fs-5"></i>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-bold {{ 'text-decoration-line-through text-muted' if is_deleted else 'text-primary' }}">
+                                    {{ a.airline_name }}
+                                </div>
+                                <div class="small text-muted">ID: #{{ a.id_airline }}</div>
+                                {% if is_deleted and is_superadmin %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
+                                        <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if a.delete_by %} oleh {{ a.delete_by }}{% endif %}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if a.code_2 %}
+                                    <span class="badge bg-primary-subtle text-primary font-monospace fs-6 px-3 py-1">{{ a.code_2 }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if a.code_3 %}
+                                    <span class="badge bg-info-subtle text-info font-monospace fs-6 px-3 py-1">{{ a.code_3 }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            {% if is_superadmin %}
+                            <td class="small text-muted">
+                                <div>{{ a.updated_by or a.created_by or '-' }}</div>
+                                <div style="font-size: 0.75rem;">{{ (a.update_at or a.created_at or '')[:16].replace('T', ' ') }}</div>
+                            </td>
+                            {% endif %}
+                            <td class="text-center text-nowrap">
+                                <!-- Detail (Aktif untuk superadmin, pengawas, admin) -->
+                                <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailAirline{{ a.id_airline }}" title="Detail">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+
+                                {% if is_deleted %}
+                                    {% if is_superadmin %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-success rounded-3 btn-confirm-restore-airline"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmRestoreAirline"
+                                                data-action="{{ url_for('airline.restore', id_airline=a.id_airline) }}"
+                                                data-name="{{ a.airline_name }}"
+                                                data-code="{{ a.code_2 or '-' }} / {{ a.code_3 or '-' }}"
+                                                title="Restore Airline">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    {% if can_write %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditAirline{{ a.id_airline }}" title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-airline"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmDeleteAirline"
+                                                data-action="{{ url_for('airline.delete', id_airline=a.id_airline) }}"
+                                                data-name="{{ a.airline_name }}"
+                                                data-code="{{ a.code_2 or '-' }} / {{ a.code_3 or '-' }}"
+                                                title="Hapus">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ 6 if is_superadmin else 5 }}" class="text-center py-4 text-muted">Belum ada data Airline.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+{% if is_superadmin %}
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterAirlineSheet" aria-labelledby="filterAirlineSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterAirlineSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Master Airlines
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Data</label>
+            <select id="mobileFilterDeletedAirline" class="form-select">
+                <option value="">Semua Data</option>
+                <option value="active">Tersedia</option>
+                <option value="deleted">Terhapus</option>
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileAirlineFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Tambah Airline (Superadmin & Pengawas) -->
+{% if can_write %}
+<div class="modal fade" id="modalTambahAirline" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('airline.create') }}" method="POST" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Master Airline</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Airline Name <span class="text-danger">*</span></label>
+                        <input type="text" name="airline_name" class="form-control" placeholder="Contoh: Garuda Indonesia" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">2-Code (IATA) <span class="text-muted fw-normal">(Opsional)</span></label>
+                        <input type="text" name="code_2" maxlength="3" class="form-control font-monospace text-uppercase" placeholder="Contoh: GA">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">3-Code (ICAO) <span class="text-muted fw-normal">(Opsional)</span></label>
+                        <input type="text" name="code_3" maxlength="4" class="form-control font-monospace text-uppercase" placeholder="Contoh: GIA">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Logo Airline <span class="text-muted fw-normal">(PNG/JPG/WEBP/SVG, Maks. 5 MB)</span></label>
+                        <input type="file" name="logo" class="form-control airline-logo-input" accept="image/*">
+                        <div class="mt-2 d-none airline-logo-preview-wrap">
+                            <div class="p-2 border rounded-3 bg-light d-inline-flex align-items-center gap-2">
+                                <img src="" alt="Preview Logo" class="airline-logo-preview" style="height: 44px; width: auto; object-fit: contain;">
+                                <span class="small text-muted">Preview Logo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Airline</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Detail & Modal Edit per Airline -->
+{% for a in airline_list %}
+<!-- Modal Detail -->
+<div class="modal fade" id="modalDetailAirline{{ a.id_airline }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Detail Airline: {{ a.airline_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="mx-auto rounded-4 border bg-white d-flex align-items-center justify-content-center p-2 shadow-sm" style="width: 96px; height: 96px;">
+                        {% if a.logo %}
+                            <img src="{{ url_for('static', filename=a.logo) }}" alt="{{ a.airline_name }}" style="width: 100%; height: 100%; object-fit: contain;">
+                        {% else %}
+                            <i class="bi bi-airplane-fill text-primary fs-1"></i>
+                        {% endif %}
+                    </div>
+                </div>
+                <table class="table table-bordered table-sm mb-0">
+                    <tr><th class="w-40 bg-light">Airline Name</th><td class="fw-semibold">{{ a.airline_name }}</td></tr>
+                    <tr><th class="bg-light">2-Code (IATA)</th><td class="font-monospace fw-bold text-primary">{{ a.code_2 or '-' }}</td></tr>
+                    <tr><th class="bg-light">3-Code (ICAO)</th><td class="font-monospace fw-bold text-info">{{ a.code_3 or '-' }}</td></tr>
+                    {% if is_superadmin %}
+                    <tr><th class="bg-light">Dibuat Oleh</th><td>{{ a.created_by or '-' }} <span class="text-muted small">({{ (a.created_at or '')[:16].replace('T', ' ') }})</span></td></tr>
+                    <tr><th class="bg-light">Diperbarui Oleh</th><td>{{ a.updated_by or '-' }} <span class="text-muted small">({{ (a.update_at or '')[:16].replace('T', ' ') }})</span></td></tr>
+                    {% if a.delete_at %}
+                    <tr><th class="bg-light text-danger">Dihapus Oleh</th><td class="text-danger">{{ a.delete_by or '-' }} ({{ a.delete_at[:16].replace('T', ' ') }})</td></tr>
+                    {% endif %}
+                    {% endif %}
+                </table>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit (Superadmin & Pengawas) -->
+{% if can_write and a.delete_at is none %}
+<div class="modal fade" id="modalEditAirline{{ a.id_airline }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('airline.update', id_airline=a.id_airline) }}" method="POST" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Airline ({{ a.code_2 or a.code_3 or a.airline_name }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Airline Name <span class="text-danger">*</span></label>
+                        <input type="text" name="airline_name" class="form-control" value="{{ a.airline_name }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">2-Code (IATA) <span class="text-muted fw-normal">(Opsional)</span></label>
+                        <input type="text" name="code_2" maxlength="3" class="form-control font-monospace text-uppercase" placeholder="Contoh: GA" value="{{ a.code_2 or '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">3-Code (ICAO) <span class="text-muted fw-normal">(Opsional)</span></label>
+                        <input type="text" name="code_3" maxlength="4" class="form-control font-monospace text-uppercase" placeholder="Contoh: GIA" value="{{ a.code_3 or '' }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Ganti Logo Airline <span class="text-muted fw-normal">(Kosongkan jika tidak diganti)</span></label>
+                        <input type="file" name="logo" class="form-control airline-logo-input" accept="image/*">
+                        {% if a.logo %}
+                        <div class="mt-2">
+                            <div class="p-2 border rounded-3 bg-light d-inline-flex align-items-center gap-2">
+                                <img src="{{ url_for('static', filename=a.logo) }}" alt="Logo Saat Ini" style="height: 40px; width: auto; object-fit: contain;">
+                                <span class="small text-muted">Logo saat ini</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus -->
+{% if can_write %}
+<div class="modal fade" id="modalConfirmDeleteAirline" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteAirline" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus Airline?</h5>
+                <p class="text-muted small mb-1">Apakah Anda yakin ingin menghapus data maskapai ini?</p>
+                <div class="fw-semibold text-danger small mb-3" id="confirmDeleteAirlineInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Konfirmasi Restore (Khusus Superadmin) -->
+{% if is_superadmin %}
+<div class="modal fade" id="modalConfirmRestoreAirline" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmRestoreAirline" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-arrow-counterclockwise fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Restore Airline?</h5>
+                <p class="text-muted small mb-1">Data Airline ini akan diaktifkan kembali.</p>
+                <div class="fw-semibold text-success small mb-3" id="confirmRestoreAirlineInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">Ya, Restore</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    // Custom Mobile Card Renderer untuk Airlines
+    function renderAirlineMobileCards(dt) {
+        const tableEl = document.getElementById('tableAirlines');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        // Wajib agar CSS global menyembunyikan .table-responsive dan memunculkan .dt-mobile-cards-wrapper di < 768px
+        wrapper.classList.add('has-mobile-cards');
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data Airline tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 5) return;
+
+            const isDeleted = tr.getAttribute('data-deleted') === 'deleted';
+            const logoHtml = cells[0].innerHTML;
+            const nameHtml = cells[1].innerHTML;
+            const code2Html = cells[2].innerHTML;
+            const code3Html = cells[3].innerHTML;
+            const aksiHtml = cells[cells.length - 1].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.innerHTML = `
+                <div class="d-flex align-items-center gap-3">
+                    <div class="flex-shrink-0">${logoHtml}</div>
+                    <div class="min-w-0 flex-grow-1">
+                        ${nameHtml}
+                    </div>
+                </div>
+                <div class="dt-mobile-card-row mt-2">
+                    <span class="dt-mobile-card-label">2-Code / 3-Code</span>
+                    <div class="dt-mobile-card-value d-flex justify-content-end align-items-center gap-2">
+                        ${code2Html}
+                        ${code3Html}
+                    </div>
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initAirlineDataTable() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+        const $table = jQuery('#tableAirlines');
+        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
+
+        if (!jQuery.fn.DataTable.isDataTable('#tableAirlines') && typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+        if (!jQuery.fn.DataTable.isDataTable('#tableAirlines')) return;
+
+        const dt = $table.DataTable();
+        const searchInput = document.getElementById('searchAirlineInput');
+        const deletedFilter = document.getElementById('filterDeletedAirline');
+        const mobileDeletedFilter = document.getElementById('mobileFilterDeletedAirline');
+        const mobileBadge = document.getElementById('mobileAirlineFilterCount');
+        const btnResetMobile = document.getElementById('btnResetMobileAirlineFilter');
+        const countLabel = document.getElementById('airlineCountLabel');
+
+        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isAirlineFilter);
+
+        const airlineFilterFn = function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tableAirlines') return true;
+            const rowNode = settings.aoData[dataIndex].nTr;
+            if (!rowNode) return true;
+
+            const deletedVal = deletedFilter?.value || '';
+            const rowDeleted = rowNode.getAttribute('data-deleted') || '';
+            return !deletedVal || rowDeleted === deletedVal;
+        };
+        airlineFilterFn._isAirlineFilter = true;
+        jQuery.fn.dataTable.ext.search.push(airlineFilterFn);
+
+        const updateUI = () => {
+            if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+            const activeFilters = (deletedFilter?.value ? 1 : 0);
+            if (mobileBadge) {
+                mobileBadge.textContent = activeFilters;
+                mobileBadge.classList.toggle('d-none', activeFilters === 0);
+            }
+        };
+
+        // Jalankan setelah renderer generik base.html
+        dt.off('draw.airlineMobileCard').on('draw.airlineMobileCard', function () {
+            setTimeout(() => renderAirlineMobileCards(dt), 0);
+        });
+        renderAirlineMobileCards(dt);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateUI();
+            });
+        }
+        if (deletedFilter) {
+            deletedFilter.addEventListener('change', function () {
+                if (mobileDeletedFilter) mobileDeletedFilter.value = this.value;
+                dt.draw();
+                updateUI();
+            });
+        }
+        if (mobileDeletedFilter) {
+            mobileDeletedFilter.addEventListener('change', function () {
+                if (deletedFilter) deletedFilter.value = this.value;
+                dt.draw();
+                updateUI();
+            });
+        }
+        if (btnResetMobile) {
+            btnResetMobile.addEventListener('click', function () {
+                if (deletedFilter) deletedFilter.value = '';
+                if (mobileDeletedFilter) mobileDeletedFilter.value = '';
+                dt.draw();
+                updateUI();
+            });
+        }
+
+        updateUI();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAirlineDataTable);
+    } else {
+        initAirlineDataTable();
+    }
+
+    if (!window._airlineListenersBound) {
+        window._airlineListenersBound = true;
+
+        // Preview Logo sebelum upload
+        document.addEventListener('change', function (e) {
+            if (e.target && e.target.classList.contains('airline-logo-input')) {
+                const file = e.target.files[0];
+                const wrap = e.target.parentElement.querySelector('.airline-logo-preview-wrap');
+                const img = e.target.parentElement.querySelector('.airline-logo-preview');
+                if (!wrap || !img) return;
+
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (ev) {
+                        img.src = ev.target.result;
+                        wrap.classList.remove('d-none');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    wrap.classList.add('d-none');
+                }
+            }
+        });
+
+        // Modal Delete
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-delete-airline');
+            if (!btn) return;
+            document.getElementById('formConfirmDeleteAirline')?.setAttribute('action', btn.getAttribute('data-action'));
+            const info = document.getElementById('confirmDeleteAirlineInfo');
+            if (info) info.textContent = `${btn.getAttribute('data-name')} (${btn.getAttribute('data-code')})`;
+        });
+
+        // Modal Restore
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-restore-airline');
+            if (!btn) return;
+            document.getElementById('formConfirmRestoreAirline')?.setAttribute('action', btn.getAttribute('data-action'));
+            const info = document.getElementById('confirmRestoreAirlineInfo');
+            if (info) info.textContent = `${btn.getAttribute('data-name')} (${btn.getAttribute('data-code')})`;
+        });
+    }
+})();
+</script>
+{% endblock %}

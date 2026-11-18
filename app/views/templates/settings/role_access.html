@@ -1,0 +1,259 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Role Access</h3>
+            <p class="text-subtitle text-muted mb-0">Atur role pengguna beserta daftar menu yang diizinkan untuk setiap role.</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahRole">
+            <i class="bi bi-shield-plus me-2"></i>Tambah Role
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <!-- Tampilan Mobile Card View (< 768px) -->
+    <div class="d-md-none">
+        {% for r in roles %}
+        <div class="dt-mobile-card">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold text-uppercase text-body">{{ r.nama_role }}</span>
+                        <span class="badge bg-light-secondary text-secondary">#{{ r.id_role }}</span>
+                    </div>
+                    <div class="text-muted small mt-1">{{ r.deskripsi or '-' }}</div>
+                </div>
+            </div>
+
+            <div class="mt-2 pt-2 border-top border-light-subtle">
+                <div class="small text-muted fw-semibold mb-1" style="font-size: 0.74rem;">Menu yang Dapat Diakses:</div>
+                <div class="d-flex flex-wrap gap-1">
+                    {% set ns = namespace(has_menu=false) %}
+                    {% for m in available_menus %}
+                        {% if m.key in (r.allowed_menus or []) %}
+                            {% set ns.has_menu = true %}
+                            <span class="badge bg-light-primary text-primary">{{ m.label }}</span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not ns.has_menu %}
+                        <span class="text-muted small fst-italic">Belum ada menu dipilih</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="dt-mobile-card-actions">
+                <button type="button"
+                        class="btn btn-sm btn-outline-warning rounded-3 px-3"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEditRole{{ r.id_role }}">
+                    <i class="bi bi-pencil-square me-1"></i>Atur Akses
+                </button>
+                {% if r.nama_role not in ['superadmin', 'admin', 'pengawas', 'user'] %}
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-role"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalConfirmDeleteRole"
+                        data-action="{{ url_for('roles.delete', id_role=r.id_role) }}"
+                        data-nama="{{ r.nama_role }}"
+                        title="Hapus">
+                    <i class="bi bi-trash-fill"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body text-center py-4 text-muted">Belum ada data role.</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Tampilan Desktop Table View (>= 768px) -->
+    <div class="card border-0 shadow-sm rounded-4 d-none d-md-block">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nama Role</th>
+                            <th>Deskripsi</th>
+                            <th>Menu yang Dapat Diakses</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in roles %}
+                        <tr>
+                            <td><span class="badge bg-light-secondary text-secondary">#{{ r.id_role }}</span></td>
+                            <td class="fw-bold text-uppercase">{{ r.nama_role }}</td>
+                            <td class="text-muted small">{{ r.deskripsi or '-' }}</td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for m in available_menus %}
+                                        {% if m.key in (r.allowed_menus or []) %}
+                                            <span class="badge bg-light-primary text-primary">{{ m.label }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="text-center text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditRole{{ r.id_role }}" title="Atur Hak Akses">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                {% if r.nama_role not in ['superadmin', 'admin', 'pengawas', 'user'] %}
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-role"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmDeleteRole"
+                                        data-action="{{ url_for('roles.delete', id_role=r.id_role) }}"
+                                        data-nama="{{ r.nama_role }}"
+                                        title="Hapus">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Tambah Role -->
+<div class="modal fade" id="modalTambahRole" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('roles.create') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Role Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Role <span class="text-danger">*</span></label>
+                    <input type="text" name="nama_role" class="form-control" placeholder="Contoh: auditor" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Deskripsi</label>
+                    <input type="text" name="deskripsi" class="form-control" placeholder="Keterangan singkat role">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold d-block">Pilih Menu yang Dapat Diakses:</label>
+                    <div class="border rounded-3 p-3 bg-light" style="max-height: 240px; overflow-y: auto;">
+                        {% for m in available_menus %}
+                        <div class="form-check py-1 mb-1">
+                            <input class="form-check-input" type="checkbox" name="allowed_menus" value="{{ m.key }}" id="add_menu_{{ m.key }}">
+                            <label class="form-check-label small d-block" for="add_menu_{{ m.key }}">
+                                <span class="fw-semibold">{{ m.label }}</span> <span class="text-muted">({{ m.group }})</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit Role -->
+{% for r in roles %}
+<div class="modal fade" id="modalEditRole{{ r.id_role }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('roles.update', id_role=r.id_role) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Hak Akses ({{ r.nama_role | upper }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Role <span class="text-danger">*</span></label>
+                    <input type="text" name="nama_role" class="form-control" value="{{ r.nama_role }}" {% if r.nama_role in ['superadmin', 'admin', 'pengawas', 'user'] %}readonly{% endif %} required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Deskripsi</label>
+                    <input type="text" name="deskripsi" class="form-control" value="{{ r.deskripsi or '' }}">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold d-block">Menu yang Dapat Diakses:</label>
+                    <div class="border rounded-3 p-3 bg-light" style="max-height: 240px; overflow-y: auto;">
+                        {% for m in available_menus %}
+                        <div class="form-check py-1 mb-1">
+                            <input class="form-check-input" type="checkbox" name="allowed_menus" value="{{ m.key }}" id="edit_menu_{{ r.id_role }}_{{ m.key }}" {% if m.key in (r.allowed_menus or []) %}checked{% endif %}>
+                            <label class="form-check-label small d-block" for="edit_menu_{{ r.id_role }}_{{ m.key }}">
+                                <span class="fw-semibold">{{ m.label }}</span> <span class="text-muted">({{ m.group }})</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Hak Akses</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus Role -->
+<div class="modal fade" id="modalConfirmDeleteRole" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteRole" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus Role?</h5>
+                <p class="text-muted small mb-1">Apakah anda yakin ingin menghapus role ini?</p>
+                <div class="fw-semibold text-danger text-uppercase small mb-3" id="confirmDeleteRoleInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    if (!window._roleDeleteListenerBound) {
+        window._roleDeleteListenerBound = true;
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-delete-role');
+            if (!btn) return;
+
+            const actionUrl = btn.getAttribute('data-action');
+            const nama = btn.getAttribute('data-nama') || '';
+
+            const form = document.getElementById('formConfirmDeleteRole');
+            const infoEl = document.getElementById('confirmDeleteRoleInfo');
+
+            if (form) form.setAttribute('action', actionUrl);
+            if (infoEl) infoEl.textContent = nama;
+        });
+    }
+})();
+</script>
+{% endblock %}

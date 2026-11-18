@@ -1,0 +1,1157 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Mitra Usaha</h3>
+            <p class="text-subtitle text-muted mb-0">Manajemen kontrak, ruang komersial, dan status aktif mitra usaha bandara.</p>
+        </div>
+        {% if can_write %}
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahMitra">
+            <i class="bi bi-plus-circle-fill me-2"></i>Tambah Mitra Usaha
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <!-- Ringkasan Status (3 Kolom Ringkas di Mobile, 3 Kolom Standar di Desktop) -->
+    {% set non_deleted_list = mitra_list | selectattr('deleted_at', 'none') | list %}
+    {% set active_count = non_deleted_list | selectattr('status', 'equalto', 'Active') | list | length %}
+    {% set inactive_count = non_deleted_list | selectattr('status', 'equalto', 'Not Active') | list | length %}
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="col-4 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0 mitra-kpi-icon">
+                        <i class="bi bi-building fs-5 fs-md-4 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted mitra-kpi-label text-truncate">Total Mitra</div>
+                        <h4 class="fw-bold mb-0 mitra-kpi-val">{{ non_deleted_list | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-4 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0 mitra-kpi-icon">
+                        <i class="bi bi-check-circle-fill fs-5 fs-md-4 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted mitra-kpi-label text-truncate">Active</div>
+                        <h4 class="fw-bold text-success mb-0 mitra-kpi-val">{{ active_count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-4 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0 mitra-kpi-icon">
+                        <i class="bi bi-x-circle-fill fs-5 fs-md-4 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted mitra-kpi-label text-truncate">Not Active</div>
+                        <h4 class="fw-bold text-danger mb-0 mitra-kpi-val">{{ inactive_count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel Data Mitra Usaha -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
+            <div class="row g-2 align-items-center">
+                <!-- Pencarian + Tombol Filter Mobile -->
+                <div class="col-12 {{ 'col-md-3' if (can_select_cabang and is_superadmin) else ('col-md-4' if (can_select_cabang or is_superadmin) else 'col-md-5') }}">
+                    <div class="d-flex gap-2">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchMitraInput" class="form-control border-start-0" placeholder="Cari Brand, Nama PT, No. Contract, Ruang...">
+                        </div>
+                        <button type="button"
+                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#filterMitraSheet"
+                                aria-controls="filterMitraSheet"
+                                title="Filter Mitra Usaha">
+                            <i class="bi bi-sliders2 text-primary"></i>
+                            <span id="mobileMitraFilterCount"
+                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                  style="font-size: 0.65rem;">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Cabang (Desktop) -->
+                {% if can_select_cabang %}
+                <div class="col-md-3 d-none d-md-block">
+                    <select id="filterCabangMitra" class="form-select">
+                        <option value="">Semua Cabang</option>
+                        {% for c in cabang_list %}
+                            <option value="{{ c.kode_cabang }}">
+                                {{ c.kode_cabang }} - {{ c.nama_cabang }}{% if c.status %} ({{ c.status | join(' & ') }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Filter Status Kontrak (Desktop) -->
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterStatusMitra" class="form-select">
+                        <option value="">Semua Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Not Active">Not Active</option>
+                    </select>
+                </div>
+
+                <!-- Filter Status Data (Khusus Superadmin Desktop) -->
+                {% if is_superadmin %}
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterDeletedMitra" class="form-select">
+                        <option value="">Semua Data</option>
+                        <option value="active">Tersedia</option>
+                        <option value="deleted">Terhapus</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Counter & Chip Filter Aktif -->
+                <div class="col-12 {{ 'col-md-2' if (can_select_cabang and is_superadmin) else ('col-md-3' if (can_select_cabang or is_superadmin) else 'col-md-5') }} d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                    <div id="mobileMitraActiveChips" class="d-md-none d-none"></div>
+                    <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                        Menampilkan: <span id="mitraCountLabel">{{ mitra_list | length }}</span> Mitra
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body pt-2 pt-md-3">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 js-datatable"
+                    id="tableMitraUsaha"
+                    data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                    <thead>
+                        <tr>
+                            <th>Cabang</th>
+                            <th>Brand &amp; Perusahaan</th>
+                            <th>Type</th>
+                            <th>Contract &amp; No. BA</th>
+                            <th>Ruang &amp; Luas</th>
+                            <th>Kerjasama</th>
+                            <th>Jangka Waktu</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in mitra_list %}
+                        {% set is_deleted = m.deleted_at is not none %}
+                        <tr data-status="{{ m.status }}"
+                            data-cabang="{{ m.kode_cabang or '' }}"
+                            data-deleted="{{ 'deleted' if is_deleted else 'active' }}"
+                            class="{{ 'table-danger opacity-75' if is_deleted else '' }}">
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary fw-bold" title="{{ cabang_map.get(m.kode_cabang, '') }}">
+                                    {{ m.kode_cabang or '-' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-bold {{ 'text-decoration-line-through text-muted' if is_deleted else 'text-primary' }}">{{ m.brand }}</div>
+                                <div class="small text-muted">{{ m.nama_pt }}</div>
+                                {% if is_deleted %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.7rem;">
+                                            <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if m.deleted_by %} oleh {{ m.deleted_by }}{% endif %}
+                                        </span>
+                                        {% if m.deleted_reason %}
+                                            <div class="small text-danger mt-1" style="font-size: 0.73rem;">
+                                                <i class="bi bi-chat-left-quote me-1"></i>Alasan: {{ m.deleted_reason }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% elif m.file %}
+                                    <a href="{{ url_for('static', filename=m.file) }}" target="_blank" class="badge bg-light-info text-info text-decoration-none mt-1">
+                                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>File Kontrak
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light-secondary text-secondary">{{ m.type_mitra }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold font-monospace">{{ m.kode_contract }}</div>
+                                <div class="small text-muted">{{ m.no_ba }}</div>
+                                <div class="small text-muted" style="font-size: 0.75rem;">Tgl BA: {{ m.tgl_ba }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ m.kode_ruang or '-' }}</div>
+                                <div class="small text-muted">Luas: {{ "{:,.2f}".format(m.luas) if m.luas is not none else '-' }}</div>
+                            </td>
+                            <td>
+                                <span class="badge {{ 'bg-primary-subtle text-primary' if m.type_kerjasama == 'MOB' else 'bg-warning-subtle text-warning' }} mb-1">
+                                    {{ m.type_kerjasama }}{% if m.presentase_rs %} ({{ m.presentase_rs }}%){% endif %}
+                                </span>
+                                {% if m.nominal_kerjasama is not none %}
+                                    <div class="small fw-semibold">Rp {{ "{:,.0f}".format(m.nominal_kerjasama).replace(',', '.') }}</div>
+                                {% else %}
+                                    <div class="small text-muted">-</div>
+                                {% endif %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for p in (m.pola_kerjasama or []) %}
+                                        <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">{{ p }}</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="small text-nowrap">
+                                <div><i class="bi bi-calendar-check text-success me-1"></i>{{ m.jangkawaktu_awal }}</div>
+                                <div><i class="bi bi-calendar-x text-danger me-1"></i>{{ m.jangkawaktu_akhir }}</div>
+                            </td>
+                            <td class="text-center">
+                                {% if is_deleted %}
+                                    <span class="badge bg-danger rounded-pill px-3">Terhapus</span>
+                                {% elif m.status == 'Active' %}
+                                    <span class="badge bg-success rounded-pill px-3">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill px-3">Not Active</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center text-nowrap">
+                                <!-- Tombol Detail (Aktif untuk semua role: superadmin, pengawas, admin, users) -->
+                                <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailMitra{{ m.id_mitra }}" title="Detail">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+
+                                {% if is_deleted %}
+                                    <!-- Tombol Restore (Khusus Superadmin) -->
+                                    {% if is_superadmin %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-success rounded-3 btn-confirm-restore"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmRestore"
+                                                data-action="{{ url_for('mitra.restore', id_mitra=m.id_mitra) }}"
+                                                data-brand="{{ m.brand }}"
+                                                data-pt="{{ m.nama_pt }}"
+                                                title="Aktifkan Kembali Mitra (Superadmin)">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- Tombol Edit & Toggle Status (Superadmin & Pengawas) -->
+                                    {% if can_write %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditMitra{{ m.id_mitra }}" title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+
+                                        {% if m.status == 'Active' %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary rounded-3 me-1 btn-confirm-status"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalConfirmStatus"
+                                                    data-action="{{ url_for('mitra.toggle_status', id_mitra=m.id_mitra) }}"
+                                                    data-brand="{{ m.brand }}"
+                                                    data-pt="{{ m.nama_pt }}"
+                                                    data-target-status="Not Active"
+                                                    title="Nonaktifkan Mitra">
+                                                <i class="bi bi-toggle-on text-success"></i> Not Active
+                                            </button>
+                                        {% else %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-success rounded-3 me-1 btn-confirm-status"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalConfirmStatus"
+                                                    data-action="{{ url_for('mitra.toggle_status', id_mitra=m.id_mitra) }}"
+                                                    data-brand="{{ m.brand }}"
+                                                    data-pt="{{ m.nama_pt }}"
+                                                    data-target-status="Active"
+                                                    title="Aktifkan Kembali Mitra">
+                                                <i class="bi bi-toggle-off"></i> Active
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <!-- Tombol Hapus dengan Alasan (Superadmin & Pengawas) -->
+                                    {% if can_delete %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmDelete"
+                                                data-action="{{ url_for('mitra.delete', id_mitra=m.id_mitra) }}"
+                                                data-brand="{{ m.brand }}"
+                                                data-pt="{{ m.nama_pt }}"
+                                                title="Hapus Data">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">Belum ada data Mitra Usaha.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterMitraSheet" aria-labelledby="filterMitraSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterMitraSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Mitra Usaha
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if can_select_cabang %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Unit Cabang Bandara</label>
+            <select id="mobileFilterCabangMitra" class="form-select">
+                <option value="">Semua Cabang</option>
+                {% for c in cabang_list %}
+                    <option value="{{ c.kode_cabang }}">
+                        {{ c.kode_cabang }} - {{ c.nama_cabang }}{% if c.status %} ({{ c.status | join(' & ') }}){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Kontrak</label>
+            <select id="mobileFilterStatusMitra" class="form-select">
+                <option value="">Semua Status</option>
+                <option value="Active">Active</option>
+                <option value="Not Active">Not Active</option>
+            </select>
+        </div>
+        {% if is_superadmin %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Data</label>
+            <select id="mobileFilterDeletedMitra" class="form-select">
+                <option value="">Semua Data</option>
+                <option value="active">Tersedia</option>
+                <option value="deleted">Terhapus</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileMitraFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah Mitra Usaha (Hanya untuk Superadmin & Pengawas) -->
+{% if can_write %}
+<div class="modal fade" id="modalTambahMitra" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('mitra.create') }}" method="POST" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Mitra Usaha</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="row g-3">
+                    {% if can_select_cabang %}
+                    <div class="col-md-12">
+                        <label class="form-label small fw-semibold">Unit Cabang Bandara <span class="text-danger">*</span></label>
+                        <select name="kode_cabang" class="form-select" required>
+                            <option value="" disabled selected>-- Pilih Unit Cabang Bandara --</option>
+                            {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">
+                                    {{ c.kode_cabang }} - {{ c.nama_cabang }}{% if c.status %} ({{ c.status | join(' & ') }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <div class="col-md-12">
+                        <div class="alert alert-light-primary py-2 px-3 mb-0 small">
+                            <i class="bi bi-geo-alt-fill me-1"></i> Unit Cabang: <strong>{{ session.get('user', {}).get('kode_cabang') }} - {{ session.get('user', {}).get('nama_cabang') }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nama Perusahaan (PT) <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_pt" class="form-control" placeholder="Contoh: PT Indomarco Prismatama" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Brand <span class="text-danger">*</span></label>
+                        <input type="text" name="brand" class="form-control" placeholder="Contoh: Indomaret, KFC" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Type Mitra <span class="text-danger">*</span></label>
+                        <select name="type_mitra" class="form-select type-mitra-select" required>
+                            <option value="" disabled selected>-- Pilih Type Mitra --</option>
+                            {% for t in type_mitra_options %}
+                                <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                            <option value="__NEW__" class="fw-bold text-primary">+ Tambah Type Mitra Baru...</option>
+                        </select>
+                        <input type="text" name="type_mitra_custom" class="form-control mt-2 d-none type-mitra-custom-input" placeholder="Ketik nama Type Mitra baru...">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nomor Contract SAP<span class="text-danger">*</span></label>
+                        <input type="number" name="kode_contract" class="form-control font-monospace" placeholder="Contoh: 3020009966" required>
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold">No. BA / Perjanjian Kontrak <span class="text-danger">*</span></label>
+                        <input type="text" name="no_ba" class="form-control" placeholder="Contoh: PJJ.CAB.GMB.0000/KB.00/2000" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Tanggal BA <span class="text-danger">*</span></label>
+                        <input type="date" name="tgl_ba" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Kode Ruang</label>
+                        <input type="text" name="kode_ruang" class="form-control" placeholder="Contoh: FB-01-03">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Luas (m&sup2; / Titik)</label>
+                        <input type="number" step="0.01" name="luas" class="form-control" placeholder="Opsional (cth: 105.00)">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Tarif Sewa (Rp)</label>
+                        <input type="number" step="0.01" name="tarif_sewa" class="form-control" placeholder="Opsional">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold d-block">Pola Kerjasama <span class="text-muted fw-normal">(Bisa pilih lebih dari satu)</span></label>
+                        <div class="row g-2 bg-light p-3 rounded-3 border mx-0">
+                            {% for pola in pola_options %}
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="pola_kerjasama" value="{{ pola }}" id="add_pola_{{ loop.index }}">
+                                    <label class="form-check-label small" for="add_pola_{{ loop.index }}">{{ pola }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Type Kerjasama <span class="text-danger">*</span></label>
+                        <select name="type_kerjasama" class="form-select" required>
+                            <option value="MOB">MOB</option>
+                            <option value="MGRS">MGRS</option>
+                            <option value="Realisasi Omzet">Realisasi Omzet</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold">Nominal Kerjasama (Rp)</label>
+                        <input type="number" step="0.01" name="nominal_kerjasama" class="form-control" placeholder="Opsional">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Presentase RS (%)</label>
+                        <input type="number" step="0.01" name="presentase_rs" class="form-control" placeholder="Opsional (cth: 12)">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Jangka Waktu Awal <span class="text-danger">*</span></label>
+                        <input type="date" name="jangkawaktu_awal" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Jangka Waktu Akhir <span class="text-danger">*</span></label>
+                        <input type="date" name="jangkawaktu_akhir" class="form-control" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Upload File Perjanjian / Kontrak (PDF/Dokumen) <span class="text-muted fw-normal">(Maks. 30 MB)</span></label>
+                        <input type="file" name="file_kontrak" class="form-control" accept=".pdf,.doc,.docx,.jpg,.png">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Mitra Usaha</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Detail & Modal Edit untuk Setiap Mitra -->
+{% for m in mitra_list %}
+<!-- Modal Detail (Tersedia untuk semua role) -->
+<div class="modal fade" id="modalDetailMitra{{ m.id_mitra }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Detail Mitra: {{ m.brand }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                {% if m.deleted_at %}
+                <div class="alert alert-danger rounded-3 small mb-3">
+                    <div class="fw-bold"><i class="bi bi-trash3-fill me-1"></i>Data Ini Telah Dihapus</div>
+                    <div>Dihapus oleh: <strong>{{ m.deleted_by or '-' }}</strong></div>
+                    <div>Alasan penghapusan: <strong>{{ m.deleted_reason or '-' }}</strong></div>
+                </div>
+                {% endif %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm mb-0">
+                        <tr><th class="w-35 bg-light">Unit Cabang</th><td>{{ m.kode_cabang or '-' }} {% if cabang_map.get(m.kode_cabang) %}- {{ cabang_map.get(m.kode_cabang) }}{% endif %}</td></tr>
+                        <tr><th class="bg-light">Nama Perusahaan</th><td>{{ m.nama_pt }}</td></tr>
+                        <tr><th class="bg-light">Brand / Type Mitra</th><td>{{ m.brand }} ({{ m.type_mitra }})</td></tr>
+                        <tr><th class="bg-light">Nomor Contract SAP</th><td class="font-monospace">{{ m.kode_contract }}</td></tr>
+                        <tr><th class="bg-light">No. BA / Tanggal BA</th><td>{{ m.no_ba }} ({{ m.tgl_ba }})</td></tr>
+                        <tr><th class="bg-light">Kode Ruang / Luas</th><td>{{ m.kode_ruang or '-' }} / {{ "{:,.2f}".format(m.luas) if m.luas is not none else '-' }}</td></tr>
+                        <tr><th class="bg-light">Tarif Sewa</th><td>{{ 'Rp ' ~ "{:,.0f}".format(m.tarif_sewa).replace(',', '.') if m.tarif_sewa is not none else '-' }}</td></tr>
+                        <tr><th class="bg-light">Pola Kerjasama</th><td>{{ (m.pola_kerjasama or []) | join(', ') or '-' }}</td></tr>
+                        <tr><th class="bg-light">Type &amp; Nominal Kerjasama</th><td>{{ m.type_kerjasama }} &mdash; {% if m.nominal_kerjasama is not none %}Rp {{ "{:,.0f}".format(m.nominal_kerjasama).replace(',', '.') }} {% else %} - {% endif %}</td></tr>
+                        <tr><th class="bg-light">Presentase RS</th><td>{{ m.presentase_rs ~ '%' if m.presentase_rs else '-' }}</td></tr>
+                        <tr><th class="bg-light">Jangka Waktu</th><td>{{ m.jangkawaktu_awal }} s/d {{ m.jangkawaktu_akhir }}</td></tr>
+                        <tr><th class="bg-light">Status</th><td><strong>{{ 'Terhapus' if m.deleted_at else m.status }}</strong></td></tr>
+                        <tr>
+                            <th class="bg-light">File Kontrak</th>
+                            <td>
+                                {% if m.file %}
+                                    <a href="{{ url_for('static', filename=m.file) }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3">
+                                        <i class="bi bi-download me-1"></i>Buka / Unduh Dokumen
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Tidak ada file diunggah</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit (Hanya untuk Superadmin & Pengawas, dan data belum terhapus) -->
+{% if can_write and m.deleted_at is none %}
+<div class="modal fade" id="modalEditMitra{{ m.id_mitra }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('mitra.update', id_mitra=m.id_mitra) }}" method="POST" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Mitra Usaha ({{ m.brand }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="row g-3">
+                    {% if can_select_cabang %}
+                    <div class="col-md-12">
+                        <label class="form-label small fw-semibold">Unit Cabang Bandara <span class="text-danger">*</span></label>
+                        <select name="kode_cabang" class="form-select" required>
+                            {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}" {% if m.kode_cabang == c.kode_cabang %}selected{% endif %}>{{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <div class="col-md-12">
+                        <div class="alert alert-light-primary py-2 px-3 mb-0 small">
+                            <i class="bi bi-geo-alt-fill me-1"></i> Unit Cabang: <strong>{{ m.kode_cabang }} - {{ cabang_map.get(m.kode_cabang, '') }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nama Perusahaan (PT) <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_pt" class="form-control" value="{{ m.nama_pt }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Brand <span class="text-danger">*</span></label>
+                        <input type="text" name="brand" class="form-control" value="{{ m.brand }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Type Mitra <span class="text-danger">*</span></label>
+                        <select name="type_mitra" class="form-select type-mitra-select" required>
+                            {% for t in type_mitra_options %}
+                                <option value="{{ t }}" {% if m.type_mitra == t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                            <option value="__NEW__" class="fw-bold text-primary">+ Tambah Type Mitra Baru...</option>
+                        </select>
+                        <input type="text" name="type_mitra_custom" class="form-control mt-2 d-none type-mitra-custom-input" placeholder="Ketik nama Type Mitra baru...">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nomor Contract SAP<span class="text-danger">*</span></label>
+                        <input type="number" name="kode_contract" class="form-control font-monospace" value="{{ m.kode_contract }}" required>
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold">No. BA / Perjanjian Kontrak <span class="text-danger">*</span></label>
+                        <input type="text" name="no_ba" class="form-control" value="{{ m.no_ba }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Tanggal BA <span class="text-danger">*</span></label>
+                        <input type="date" name="tgl_ba" class="form-control" value="{{ m.tgl_ba }}" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Kode Ruang</label>
+                        <input type="text" name="kode_ruang" class="form-control" value="{{ m.kode_ruang or '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Luas (m&sup2; / Titik)</label>
+                        <input type="number" step="0.01" name="luas" class="form-control" value="{{ m.luas if m.luas is not none else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Tarif Sewa (Rp)</label>
+                        <input type="number" step="0.01" name="tarif_sewa" class="form-control" value="{{ m.tarif_sewa if m.tarif_sewa is not none else '' }}">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold d-block">Pola Kerjasama</label>
+                        <div class="row g-2 bg-light p-3 rounded-3 border mx-0">
+                            {% for pola in pola_options %}
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="pola_kerjasama" value="{{ pola }}"
+                                           id="edit_pola_{{ m.id_mitra }}_{{ loop.index }}"
+                                           {% if pola in (m.pola_kerjasama or []) %}checked{% endif %}>
+                                    <label class="form-check-label small" for="edit_pola_{{ m.id_mitra }}_{{ loop.index }}">{{ pola }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Type Kerjasama <span class="text-danger">*</span></label>
+                        <select name="type_kerjasama" class="form-select" required>
+                            <option value="MOB" {% if m.type_kerjasama == 'MOB' %}selected{% endif %}>MOB</option>
+                            <option value="MGRS" {% if m.type_kerjasama == 'MGRS' %}selected{% endif %}>MGRS</option>
+                            <option value="Realisasi Omzet" {% if m.type_kerjasama == 'Realisasi Omzet' %}selected{% endif %}>Realisasi Omzet</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold">Nominal Kerjasama (Rp)</label>
+                        <input type="number" step="0.01" name="nominal_kerjasama" class="form-control" value="{{ m.nominal_kerjasama if m.nominal_kerjasama is not none else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Presentase RS (%)</label>
+                        <input type="number" step="0.01" name="presentase_rs" class="form-control" value="{{ m.presentase_rs if m.presentase_rs is not none else '' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Jangka Waktu Awal <span class="text-danger">*</span></label>
+                        <input type="date" name="jangkawaktu_awal" class="form-control" value="{{ m.jangkawaktu_awal }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Jangka Waktu Akhir <span class="text-danger">*</span></label>
+                        <input type="date" name="jangkawaktu_akhir" class="form-control" value="{{ m.jangkawaktu_akhir }}" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Ganti File Perjanjian / Kontrak <span class="text-muted fw-normal">(Maks. 30 MB — Biarkan kosong jika tidak diganti)</span></label>
+                        <input type="file" name="file_kontrak" class="form-control" accept=".pdf,.doc,.docx,.jpg,.png">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Konfirmasi Ubah Status (Active / Not Active) -->
+{% if can_write %}
+<div class="modal fade" id="modalConfirmStatus" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmStatus" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div id="confirmStatusIconWrapper" class="mx-auto mb-3 rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i id="confirmStatusIcon" class="bi bi-exclamation-triangle-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Konfirmasi Status</h5>
+                <p class="text-muted small mb-1" id="confirmStatusMessage">
+                    Apakah anda yakin ingin menonaktifkan Mitra ini?
+                </p>
+                <div class="fw-semibold text-dark small mb-3" id="confirmStatusMitraInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" id="confirmStatusSubmitBtn" class="btn btn-warning rounded-pill px-4 fw-semibold">Ya, Lanjutkan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Konfirmasi Hapus Mitra dengan Alasan Wajib (Superadmin & Pengawas) -->
+{% if can_delete %}
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="formConfirmDelete" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body p-4">
+                <div class="text-center">
+                    <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                        <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1">Hapus Mitra Usaha?</h5>
+                    <p class="text-muted small mb-1">
+                        Data yang dihapus akan dinonaktifkan dari daftar aktif dan tercatat di riwayat penghapusan.
+                    </p>
+                    <div class="fw-semibold text-danger small mb-3" id="confirmDeleteMitraInfo"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="inputDeletedReasonMitra" class="form-label small fw-semibold">
+                        Alasan Menghapus Data <span class="text-danger">*</span>
+                    </label>
+                    <textarea name="deleted_reason"
+                              id="inputDeletedReasonMitra"
+                              rows="3"
+                              class="form-control"
+                              placeholder="Tuliskan alasan mengapa data mitra ini dihapus..."
+                              required></textarea>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Konfirmasi Restore Mitra (Khusus Superadmin) -->
+{% if is_superadmin %}
+<div class="modal fade" id="modalConfirmRestore" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmRestore" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-arrow-counterclockwise fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Restore Mitra Usaha?</h5>
+                <p class="text-muted small mb-1">
+                    Data Mitra Usaha ini akan diaktifkan kembali ke dalam daftar aktif.
+                </p>
+                <div class="fw-semibold text-success small mb-3" id="confirmRestoreMitraInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">Ya, Restore</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .mitra-kpi-icon {
+        width: 48px;
+        height: 48px;
+    }
+    .mitra-kpi-label {
+        font-size: 0.85rem;
+    }
+    @media (max-width: 767.98px) {
+        .mitra-kpi-icon {
+            width: 34px;
+            height: 34px;
+        }
+        .mitra-kpi-label {
+            font-size: 0.72rem;
+        }
+        .mitra-kpi-val {
+            font-size: 1.15rem;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    // Renderer Kartu Mobile khusus Mitra Usaha
+    function renderMitraMobileCards(dt) {
+        const tableEl = document.getElementById('tableMitraUsaha');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data Mitra Usaha tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 9) return;
+
+            const isDeleted = tr.getAttribute('data-deleted') === 'deleted';
+            const cabangHtml = cells[0].innerHTML;
+            const brandEl = cells[1].querySelector('.fw-bold');
+            const ptEl = cells[1].querySelector('.small.text-muted');
+            const deletedBadgeEl = cells[1].querySelector('.mt-1');
+            const fileLinkEl = cells[1].querySelector('a');
+            const brandText = brandEl ? brandEl.textContent.trim() : '-';
+            const ptText = ptEl ? ptEl.textContent.trim() : '-';
+            const deletedHtml = deletedBadgeEl ? deletedBadgeEl.outerHTML : '';
+            const fileHtml = fileLinkEl ? fileLinkEl.outerHTML : '';
+
+            const typeHtml = cells[2].innerHTML;
+            const contractText = cells[3].children[0]?.textContent.trim() || '-';
+            const noBaText = cells[3].children[1]?.textContent.trim() || '-';
+            const ruangText = cells[4].children[0]?.textContent.trim() || '-';
+            const luasText = cells[4].children[1]?.textContent.trim() || '';
+            const kerjasamaHtml = cells[5].innerHTML;
+            const jangkaWaktuHtml = cells[6].innerHTML;
+            const statusHtml = cells[7].innerHTML;
+            const aksiHtml = cells[8].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                    <div class="min-w-0">
+                        <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
+                            ${cabangHtml}
+                            ${typeHtml}
+                        </div>
+                        <div class="fw-bold ${isDeleted ? 'text-decoration-line-through text-muted' : 'text-primary'} text-truncate">${brandText}</div>
+                        <div class="small text-muted text-truncate">${ptText}</div>
+                        ${deletedHtml}
+                    </div>
+                    <div class="flex-shrink-0">${statusHtml}</div>
+                </div>
+
+                <div class="row g-2 small mt-2 pt-2 border-top border-light-subtle">
+                    <div class="col-6">
+                        <div class="text-muted" style="font-size: 0.7rem;">No. Contract</div>
+                        <div class="fw-semibold font-monospace">${contractText}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted" style="font-size: 0.7rem;">Ruang / Luas</div>
+                        <div class="fw-semibold">${ruangText}</div>
+                        <div class="text-muted" style="font-size: 0.72rem;">${luasText}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted" style="font-size: 0.7rem;">Kerjasama</div>
+                        <div>${kerjasamaHtml}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted" style="font-size: 0.7rem;">Jangka Waktu</div>
+                        <div>${jangkaWaktuHtml}</div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 pt-2 border-top border-light-subtle">
+                    <div class="small text-muted text-truncate" style="max-width: 65%; font-size: 0.72rem;">
+                        <i class="bi bi-file-text me-1"></i>${noBaText}
+                    </div>
+                    <div>${fileHtml}</div>
+                </div>
+
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    // 1. Integrasi Filter Custom (Search, Cabang, Status, Deleted) dengan jQuery DataTable
+    const searchInput = document.getElementById('searchMitraInput');
+    const cabangFilter = document.getElementById('filterCabangMitra');
+    const statusFilter = document.getElementById('filterStatusMitra');
+    const deletedFilter = document.getElementById('filterDeletedMitra');
+    const mobCabangFilter = document.getElementById('mobileFilterCabangMitra');
+    const mobStatusFilter = document.getElementById('mobileFilterStatusMitra');
+    const mobDeletedFilter = document.getElementById('mobileFilterDeletedMitra');
+    const btnResetMobile = document.getElementById('btnResetMobileMitraFilter');
+    const filterCountBadge = document.getElementById('mobileMitraFilterCount');
+    const activeChipsBox = document.getElementById('mobileMitraActiveChips');
+    const countLabel = document.getElementById('mitraCountLabel');
+
+    function initMitraDataTableFilter() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+        const $table = jQuery('#tableMitraUsaha');
+        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
+
+        if (!jQuery.fn.DataTable.isDataTable('#tableMitraUsaha') && typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+        if (!jQuery.fn.DataTable.isDataTable('#tableMitraUsaha')) return;
+
+        const dt = $table.DataTable();
+
+        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isMitraFilter);
+
+        const mitraFilterFn = function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tableMitraUsaha') return true;
+            const rowNode = settings.aoData[dataIndex].nTr;
+            if (!rowNode) return true;
+
+            const cabangVal = cabangFilter?.value || '';
+            const statusVal = statusFilter?.value || '';
+            const deletedVal = deletedFilter?.value || '';
+
+            const rowCabang = rowNode.getAttribute('data-cabang') || '';
+            const rowStatus = rowNode.getAttribute('data-status') || '';
+            const rowDeleted = rowNode.getAttribute('data-deleted') || '';
+
+            const matchCabang = !cabangVal || rowCabang === cabangVal;
+            const matchStatus = !statusVal || rowStatus === statusVal;
+            const matchDeleted = !deletedVal || rowDeleted === deletedVal;
+            return matchCabang && matchStatus && matchDeleted;
+        };
+        mitraFilterFn._isMitraFilter = true;
+        jQuery.fn.dataTable.ext.search.push(mitraFilterFn);
+
+        const syncMobileFilterUI = () => {
+            const labels = [];
+            if (cabangFilter?.value) labels.push(`Cabang: ${cabangFilter.value}`);
+            if (statusFilter?.value) labels.push(statusFilter.value);
+            if (deletedFilter?.value) labels.push(deletedFilter.value === 'deleted' ? 'Terhapus' : 'Tersedia');
+
+            if (filterCountBadge) {
+                filterCountBadge.textContent = labels.length;
+                filterCountBadge.classList.toggle('d-none', labels.length === 0);
+            }
+            if (activeChipsBox) {
+                if (labels.length) {
+                    activeChipsBox.innerHTML = labels
+                        .map(lbl => `<span class="badge bg-primary-subtle text-primary rounded-pill me-1">${lbl}</span>`)
+                        .join('');
+                    activeChipsBox.classList.remove('d-none');
+                } else {
+                    activeChipsBox.innerHTML = '';
+                    activeChipsBox.classList.add('d-none');
+                }
+            }
+        };
+
+        const updateCount = () => {
+            if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+        };
+
+        dt.off('draw.mitraMobileCard').on('draw.mitraMobileCard', function () {
+            renderMitraMobileCards(dt);
+        });
+        renderMitraMobileCards(dt);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateCount();
+            });
+        }
+
+        const bindSync = (desktopEl, mobileEl) => {
+            if (desktopEl) {
+                desktopEl.addEventListener('change', function () {
+                    if (mobileEl) mobileEl.value = this.value;
+                    syncMobileFilterUI();
+                    dt.draw();
+                    updateCount();
+                });
+            }
+            if (mobileEl) {
+                mobileEl.addEventListener('change', function () {
+                    if (desktopEl) desktopEl.value = this.value;
+                    syncMobileFilterUI();
+                    dt.draw();
+                    updateCount();
+                });
+            }
+        };
+
+        bindSync(cabangFilter, mobCabangFilter);
+        bindSync(statusFilter, mobStatusFilter);
+        bindSync(deletedFilter, mobDeletedFilter);
+
+        if (btnResetMobile) {
+            btnResetMobile.addEventListener('click', function () {
+                [cabangFilter, statusFilter, deletedFilter, mobCabangFilter, mobStatusFilter, mobDeletedFilter].forEach(el => {
+                    if (el) el.value = '';
+                });
+                syncMobileFilterUI();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        updateCount();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMitraDataTableFilter);
+    } else {
+        initMitraDataTableFilter();
+    }
+
+    // Global delegated listeners
+    if (!window._mitraListenersBound) {
+        window._mitraListenersBound = true;
+
+        // 2. Toggle input Type Mitra baru saat memilih "+ Tambah Type Mitra Baru..."
+        document.addEventListener('change', function (e) {
+            if (e.target && e.target.classList.contains('type-mitra-select')) {
+                const customInput = e.target.parentElement.querySelector('.type-mitra-custom-input');
+                if (!customInput) return;
+                if (e.target.value === '__NEW__') {
+                    customInput.classList.remove('d-none');
+                    customInput.required = true;
+                    customInput.focus();
+                } else {
+                    customInput.classList.add('d-none');
+                    customInput.required = false;
+                    customInput.value = '';
+                }
+            }
+        });
+
+        // 3. Validasi ukuran file maksimal 30 MB sebelum submit
+        const MAX_FILE_SIZE = 30 * 1024 * 1024;
+        document.addEventListener('change', function (e) {
+            if (e.target && e.target.name === 'file_kontrak' && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                if (file.size > MAX_FILE_SIZE) {
+                    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                    if (typeof Toastify !== 'undefined') {
+                        Toastify({
+                            text: `Ukuran file (${sizeMB} MB) melebihi batas maksimal 30 MB!`,
+                            duration: 4500,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            style: {
+                                background: 'linear-gradient(135deg, #dc3545, #b02a37)',
+                                borderRadius: '10px',
+                                boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+                                fontWeight: '500'
+                            }
+                        }).showToast();
+                    } else {
+                        alert(`Ukuran file (${sizeMB} MB) melebihi batas maksimal 30 MB!`);
+                    }
+                    e.target.value = '';
+                }
+            }
+        });
+
+        // 4. Isi dinamis Modal Konfirmasi Active / Not Active
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-status');
+            if (!btn) return;
+
+            const actionUrl = btn.getAttribute('data-action');
+            const brand = btn.getAttribute('data-brand') || '';
+            const pt = btn.getAttribute('data-pt') || '';
+            const targetStatus = btn.getAttribute('data-target-status');
+
+            const form = document.getElementById('formConfirmStatus');
+            const iconWrapper = document.getElementById('confirmStatusIconWrapper');
+            const icon = document.getElementById('confirmStatusIcon');
+            const messageEl = document.getElementById('confirmStatusMessage');
+            const infoEl = document.getElementById('confirmStatusMitraInfo');
+            const submitBtn = document.getElementById('confirmStatusSubmitBtn');
+
+            if (form) form.setAttribute('action', actionUrl);
+            if (infoEl) infoEl.textContent = `${brand} (${pt})`;
+
+            if (targetStatus === 'Not Active') {
+                if (iconWrapper) iconWrapper.className = 'mx-auto mb-3 rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center';
+                if (icon) icon.className = 'bi bi-exclamation-triangle-fill fs-2 d-flex align-items-center justify-content-center';
+                if (messageEl) messageEl.textContent = 'Apakah anda yakin ingin menonaktifkan Mitra ini?';
+                if (submitBtn) {
+                    submitBtn.className = 'btn btn-warning rounded-pill px-4 fw-semibold';
+                    submitBtn.textContent = 'Ya, Nonaktifkan';
+                }
+            } else {
+                if (iconWrapper) iconWrapper.className = 'mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center';
+                if (icon) icon.className = 'bi bi-check-circle-fill fs-2 d-flex align-items-center justify-content-center';
+                if (messageEl) messageEl.textContent = 'Apakah anda yakin ingin mengaktifkan kembali Mitra ini?';
+                if (submitBtn) {
+                    submitBtn.className = 'btn btn-success rounded-pill px-4 fw-semibold';
+                    submitBtn.textContent = 'Ya, Aktifkan';
+                }
+            }
+        });
+
+        // 5. Isi dinamis Modal Konfirmasi Hapus Mitra dengan Alasan Wajib (Superadmin & Pengawas)
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-delete');
+            if (!btn) return;
+
+            const actionUrl = btn.getAttribute('data-action');
+            const brand = btn.getAttribute('data-brand') || '';
+            const pt = btn.getAttribute('data-pt') || '';
+
+            const form = document.getElementById('formConfirmDelete');
+            const infoEl = document.getElementById('confirmDeleteMitraInfo');
+            const reasonInput = document.getElementById('inputDeletedReasonMitra');
+
+            if (form) form.setAttribute('action', actionUrl);
+            if (infoEl) infoEl.textContent = `${brand} (${pt})`;
+            if (reasonInput) reasonInput.value = '';
+        });
+
+        // 6. Isi dinamis Modal Konfirmasi Restore Mitra (Khusus Superadmin)
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-confirm-restore');
+            if (!btn) return;
+
+            const actionUrl = btn.getAttribute('data-action');
+            const brand = btn.getAttribute('data-brand') || '';
+            const pt = btn.getAttribute('data-pt') || '';
+
+            const form = document.getElementById('formConfirmRestore');
+            const infoEl = document.getElementById('confirmRestoreMitraInfo');
+
+            if (form) form.setAttribute('action', actionUrl);
+            if (infoEl) infoEl.textContent = `${brand} (${pt})`;
+        });
+    }
+})();
+</script>
+{% endblock %}

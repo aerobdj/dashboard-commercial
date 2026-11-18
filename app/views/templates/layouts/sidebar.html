@@ -1,22 +1,43 @@
 <div id="sidebar" class="active">
-    <div class="sidebar-wrapper active d-flex flex-column justify-content-between h-100">
-        <div>
-            <!-- Header Sidebar: Logo & Toggle Button -->
+    <script>
+        (function () {
+            const sidebar = document.getElementById('sidebar');
+            const isClosed = localStorage.getItem('sidebar_collapsed') === 'true';
+            if (sidebar) {
+                if (isClosed) {
+                    sidebar.classList.add('collapsed');
+                    sidebar.classList.remove('active');
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.add('active');
+                }
+            }
+        })();
+    </script>
+
+    <!-- Floating Toggle Hide/Show Button (Aktif di Desktop & Tablet >= 768px) -->
+    <button type="button" id="btn-sidebar-floating-toggle" class="btn-floating-toggle shadow-sm" title="Hide / Show Sidebar">
+        <i class="bi bi-chevron-left"></i>
+    </button>
+
+    <div class="sidebar-wrapper active d-flex flex-column justify-content-between">
+        <!-- Area Atas + Menu yang Bisa Di-scroll dengan Mulus -->
+        <div class="sidebar-scroll-area flex-grow-1">
+            <!-- Header Sidebar: Logo & Theme Switcher -->
             <div class="sidebar-header position-relative">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center sidebar-header-inner">
                     <div class="logo w-100 text-center">
-                        <a href="{{ url_for('dashboard.index') }}" class="d-inline-flex align-items-center justify-content-center">
+                        <a href="{{ url_for('dashboard.index') }}" class="d-inline-flex align-items-center justify-content-center logo-crop-wrapper">
                             <!-- Logo Mode Normal (Light Mode) -->
-                            <img src="https://injourneyairports.id/assets/injourney-logo-grey-BHunbWo1.png" alt="Injourney Logo" class="theme-logo-light logo-full" style="height: 36px; width: auto;">
+                            <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}" alt="InJourney Airports Logo" class="theme-logo-light logo-full">
                             <!-- Logo Mode Normal (Dark Mode) -->
-                            <img src="https://injourneyairports.id/assets/injourney-logo-white-Dl4T6LNj.png" alt="Injourney Logo" class="theme-logo-dark logo-full d-none" style="height: 36px; width: auto;">
-                            
+                            <img src="{{ url_for('static', filename='static/images/logo/white_injourneyairports.png') }}" alt="InJourney Airports Logo" class="theme-logo-dark logo-full d-none">
                             <!-- Logo Kawung (Hanya Muncul saat Sidebar Collapsed) -->
-                            <img src="https://injourneyairports.id/assets/kawung-logo-side-CktPU2GK.png" alt="Kawung Logo" class="logo-mini d-none" style="height: 34px; width: auto;">
+                            <img src="{{ url_for('static', filename='static/images/logo/mini_injourneyairports.png') }}" alt="InJourney Airports Logo mini" class="logo-mini d-none">
                         </a>
                     </div>
 
-                    <!-- Switcher Theme & Tombol Hide/Show Burger -->
+                    <!-- Switcher Theme -->
                     <div class="d-flex gap-2 align-items-center sidebar-toggle-container">
                         <div class="theme-toggle d-flex gap-2 align-items-center">
                             <i class="bi bi-sun-fill fs-6 text-warning"></i>
@@ -25,90 +46,192 @@
                             </div>
                             <i class="bi bi-moon-fill fs-6 text-info"></i>
                         </div>
-                        
-                        <!-- Toggle Hide Sidebar Button -->
-                        <div class="sidebar-toggler x">
-                            <a href="#" class="sidebar-hide d-block text-secondary" id="btn-sidebar-hide"><i class="bi bi-x fs-3"></i></a>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Profile Info Widget -->
-            <div class="sidebar-profile px-3 py-2-5 mb-3 bg-body-tertiary rounded-4 mx-3 d-flex align-items-center gap-3 border shadow-sm">
-                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 40px; height: 40px;">
-                    <i class="bi bi-person-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+            <!-- Profile Info Widget (Padding atas-bawah dilebarkan dengan py-3 agar tidak mepet) -->
+            <div class="sidebar-profile px-3 py-3 mb-3 bg-body-tertiary rounded-4 mx-3 d-flex align-items-center gap-3 border shadow-sm">
+                <div class="avatar bg-primary text-white rounded-circle overflow-hidden d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 42px; height: 42px;">
+                    {% if session.get('user', {}).get('imageprofil') %}
+                        <img src="{{ url_for('static', filename=session['user']['imageprofil']) }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                        <i class="bi bi-person-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    {% endif %}
                 </div>
                 <div class="sidebar-profile-info text-truncate d-flex flex-column justify-content-center">
-                    <h6 class="mb-0 fw-bold text-truncate" style="font-size: 0.9rem; line-height: 1.2;">
-                        {{ session['user']['email'].split('@')[0] | title if session.get('user') else 'User' }}
+                    <h6 class="mb-0 fw-bold text-truncate" style="font-size: 0.9rem; line-height: 1.25;">
+                        {{ session['user']['nama_lengkap'] if session.get('user') else 'User' }}
                     </h6>
-                    <small class="text-body-secondary fw-medium text-truncate mt-1" style="font-size: 0.725rem; line-height: 1;">
-                        Administrator Commercial
+                    <small class="text-body-secondary fw-medium text-truncate mt-1" style="font-size: 0.725rem; line-height: 1.1;">
+                        {% if session.get('user') %}
+                            {{ session['user']['jabatan'] }}{% if session['user'].get('kode_cabang') %} ({{ session['user']['kode_cabang'] }}){% endif %}
+                        {% else %}
+                            Administrator
+                        {% endif %}
                     </small>
                 </div>
             </div>
 
-            <!-- Menu Navigation -->
+            <!-- Menu Navigation (Difilter Sesuai Role Access) -->
+            {% set user_data = session.get('user', {}) %}
+            {% set allowed_menus = user_data.get('allowed_menus') if user_data.get('allowed_menus') is not none else (['dashboard', 'commercial', 'users', 'cabang', 'role_access'] if user_data.get('role') == 'superadmin' else ['dashboard']) %}
             <div class="sidebar-menu">
                 <ul class="menu">
                     <li class="sidebar-title">Menu Utama</li>
 
                     <!-- 1. Dashboard -->
-                    <li class="sidebar-item active">
+                    {% if 'dashboard' in allowed_menus %}
+                    <li class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
                         <a href="{{ url_for('dashboard.index') }}" class='sidebar-link d-flex align-items-center gap-2' title="Dashboard">
                             <i class="bi bi-grid-fill d-flex align-items-center justify-content-center"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
+                    {% endif %}
 
-                    <!-- 2. Commercial & Tenant -->
-                    <li class="sidebar-item has-sub">
-                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Commercial & Tenant">
-                            <i class="bi bi-shop d-flex align-items-center justify-content-center"></i>
-                            <span>Commercial & Tenant</span>
+                    <!-- 2. Commercial -->
+                    {% if 'mitra_usaha' in allowed_menus or 'commercial' in allowed_menus %}
+                    {% set is_commercial_active = request.endpoint and (request.endpoint in ['mitra.index']) %}
+                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_commercial_active else '' }}">
+                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Commercial">
+                            <i class="bi bi-shop d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                            <span>Commercial</span>
                         </a>
-                        <ul class="submenu">
-                            <li class="submenu-item">
-                                <a href="#">Daftar Tenant</a>
+                        <ul class="submenu {{ 'submenu-open active' if is_commercial_active else '' }}">
+                            {% if 'mitra_usaha' in allowed_menus %}
+                            <li class="submenu-item {{ 'active' if request.endpoint == 'mitra.index' else '' }}">
+                                <a href="{{ url_for('mitra.index') }}">Mitra Usaha</a>
                             </li>
+                            {% endif %}
                             <li class="submenu-item">
                                 <a href="#">Pendapatan/Revenue</a>
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
+
+                    <!-- 2A. Aeronautika -->
+                    {% set user_role = (user_data.get('role') or '') | lower %}
+                    {% set can_see_airlines = ('airlines' in allowed_menus) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
+                    {% set can_see_airlines_users = ('airlines_users' in allowed_menus) and (user_role in ['superadmin', 'pengawas']) %}
+                    {% set can_see_aero_admin = ('aeronautika_admin' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+                    {% set can_see_aero_ops = ('aeronautika_ops' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+
+                    {% if can_see_airlines or can_see_airlines_users or can_see_aero_admin or can_see_aero_ops %}
+                    {% set is_aero_active = request.endpoint and (request.endpoint in ['airline.index', 'airline_user.index']) %}
+                    {% set is_aero_setting_active = request.endpoint and (request.endpoint in ['airline.index', 'airline_user.index']) %}
+                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_aero_active else '' }}">
+                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Aeronautika">
+                            <i class="bi bi-airplane-engines-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                            <span>Aeronautika</span>
+                        </a>
+                        <ul class="submenu {{ 'submenu-open active' if is_aero_active else '' }}">
+                            {% if can_see_aero_admin %}
+                            <li class="submenu-item">
+                                <a href="#">Administrasi</a>
+                            </li>
+                            {% endif %}
+
+                            {% if can_see_aero_ops %}
+                            <li class="submenu-item">
+                                <a href="#">Operasional</a>
+                            </li>
+                            {% endif %}
+
+                            {% if can_see_airlines or can_see_airlines_users %}
+                            <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_setting_active else '' }}">
+                                <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
+                                    <span>Setting</span>
+                                    <i class="bi bi-chevron-right small nested-arrow"></i>
+                                </a>
+                                <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_setting_active else '' }}">
+                                    {% if can_see_airlines %}
+                                    <li class="submenu-item {{ 'active' if request.endpoint == 'airline.index' else '' }}">
+                                        <a href="{{ url_for('airline.index') }}">Airlines</a>
+                                    </li>
+                                    {% endif %}
+                                    {% if can_see_airlines_users %}
+                                    <li class="submenu-item {{ 'active' if request.endpoint == 'airline_user.index' else '' }}">
+                                        <a href="{{ url_for('airline_user.index') }}">Airlines Users</a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 3. Setting > Users, Cabang Perusahaan, & Role Access -->
+                    {% if 'users' in allowed_menus or 'cabang' in allowed_menus or 'role_access' in allowed_menus or 'coa_pendapatan' in allowed_menus %}
+                    {% set is_setting_active = request.endpoint and (request.endpoint in ['users.index', 'cabang.index', 'coa.index', 'roles.index']) %}
+                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_setting_active else '' }}">
+                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Setting">
+                            <i class="bi bi-gear-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                            <span>Setting</span>
+                        </a>
+                        <ul class="submenu {{ 'submenu-open active' if is_setting_active else '' }}">
+                            {% if 'users' in allowed_menus %}
+                            <li class="submenu-item {{ 'active' if request.endpoint == 'users.index' else '' }}">
+                                <a href="{{ url_for('users.index') }}">Users</a>
+                            </li>
+                            {% endif %}
+                            {% if 'cabang' in allowed_menus %}
+                            <li class="submenu-item {{ 'active' if request.endpoint == 'cabang.index' else '' }}">
+                                <a href="{{ url_for('cabang.index') }}">Cabang Perusahaan</a>
+                            </li>
+                            {% endif %}
+                            {% if 'coa_pendapatan' in allowed_menus %}
+                            <li class="submenu-item {{ 'active' if request.endpoint == 'coa.index' else '' }}">
+                                <a href="{{ url_for('coa.index') }}">COA Pendapatan</a>
+                            </li>
+                            {% endif %}
+                            {% if 'role_access' in allowed_menus %}
+                            <li class="submenu-item {{ 'active' if request.endpoint == 'roles.index' else '' }}">
+                                <a href="{{ url_for('roles.index') }}">Role Access</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
 
-        <!-- Floating Rounded User Button (Bottom) -->
-        <div class="sidebar-footer p-3">
+        <!-- Floating Rounded User Button (Bottom - Tetap di bawah saat menu di-scroll) -->
+        <div class="sidebar-footer p-3 flex-shrink-0">
             <div class="dropup d-flex justify-content-center w-100">
                 <button class="btn btn-primary rounded-pill w-100 d-flex align-items-center justify-content-between px-3 py-2 shadow-sm border-0 dropdown-toggle text-white" type="button" id="dropdownUserFloating" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false">
                     <div class="d-flex align-items-center gap-2 text-truncate me-1 user-btn-content">
                         <div class="position-relative d-flex align-items-center justify-content-center flex-shrink-0">
-                            <div class="avatar bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                <i class="bi bi-person-fill fs-6 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                            <div class="avatar bg-white text-primary rounded-circle overflow-hidden d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                {% if session.get('user', {}).get('imageprofil') %}
+                                    <img src="{{ url_for('static', filename=session['user']['imageprofil']) }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    <i class="bi bi-person-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                                {% endif %}
                             </div>
                             <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle"></span>
                         </div>
                         <span class="fw-semibold text-truncate small sidebar-user-name" style="line-height: 1;">
-                            {{ session['user']['email'].split('@')[0] if session.get('user') else 'Account' }}
+                            {{ session['user']['nama_lengkap'] if session.get('user') else 'Account' }}
                         </span>
                     </div>
-                    Meysa
                 </button>
 
-                <!-- Dropdown Menu Floating (Top Layer / Z-Index Fix) -->
-                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mb-2" aria-labelledby="dropdownUserFloating" style="z-index: 9999; min-width: 200px;">
+                <!-- Dropdown Menu Floating -->
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mb-2" aria-labelledby="dropdownUserFloating" style="z-index: 9999; min-width: 205px;">
                     <li class="px-3 py-2 border-bottom mb-1">
-                        <p class="mb-0 fw-bold small text-truncate">{{ session['user']['email'] if session.get('user') else 'User' }}</p>
-                        <span class="badge bg-success-subtle text-success small" style="font-size: 0.65rem;">Active Session</span>
+                        <p class="mb-0 fw-bold small text-truncate">{{ session['user']['nama_lengkap'] if session.get('user') else 'User' }}</p>
+                        <span class="badge bg-primary-subtle text-primary small text-uppercase" style="font-size: 0.65rem;">
+                            {{ session['user']['role'] if session.get('user') else 'Active Session' }}
+                        </span>
                     </li>
                     <li>
-                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2" href="#">
-                            <i class="bi bi-gear-fill text-secondary d-flex align-items-center"></i>
-                            <span>Settings</span>
+                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {{ 'active' if request.endpoint == 'users.profile' else '' }}" href="{{ url_for('users.profile') }}">
+                            <i class="bi bi-person-gear text-secondary d-flex align-items-center"></i>
+                            <span>Users Setting</span>
                         </a>
                     </li>
                     <li>
@@ -123,19 +246,194 @@
     </div>
 </div>
 
-<!-- Strict Override CSS untuk Mode Collapsed / Hide -->
+<!-- Strict Override CSS: Floating Sidebar, Scroll Fix, Tablet Support & Centered Mini Logo -->
+<!-- Ganti bagian <style> dan <script> pada layouts/sidebar.html dengan kode berikut -->
 <style>
-    /* Layering Z-Index & Overflow Fix */
-    #sidebar {
+    /* === SMOOTH TRANSITION SIDEBAR & MAIN CONTENT === */
+    #sidebar,
+    #sidebar .sidebar-wrapper {
+        transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         z-index: 1000 !important;
     }
+
+    /* Nonaktifkan PerfectScrollbar bawaan Mazer */
     #sidebar .sidebar-wrapper {
         overflow: visible !important;
         z-index: 1001 !important;
     }
+    #sidebar .sidebar-wrapper > .ps__rail-x,
+    #sidebar .sidebar-wrapper > .ps__rail-y,
+    #sidebar .ps__rail-x,
+    #sidebar .ps__rail-y {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Area scroll mandiri untuk bagian atas + menu utama */
+    #sidebar .sidebar-scroll-area {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        min-height: 0 !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    #sidebar .sidebar-scroll-area::-webkit-scrollbar {
+        display: none;
+    }
+
     #main {
         position: relative;
         z-index: 1 !important;
+        transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    width 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* === SMOOTH FADE IN / OUT DROPDOWN FOOTER USER === */
+    #sidebar .dropdown-menu {
+        display: block !important;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px) scale(0.97);
+        transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                    visibility 0.2s;
+        pointer-events: none;
+    }
+    #sidebar .dropdown-menu.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    /* === FLOATING TOGGLE BUTTON DI SISI KANAN FLOATING SIDEBAR === */
+    .btn-floating-toggle {
+        position: fixed;
+        top: 84px;
+        left: 279px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: var(--bs-body-bg, #ffffff);
+        color: var(--bs-primary, #435ebe);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1050;
+        transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.2s ease,
+                    background-color 0.2s ease,
+                    color 0.2s ease;
+    }
+
+    .btn-floating-toggle:hover {
+        background-color: var(--bs-primary, #435ebe);
+        color: #ffffff;
+        border-color: var(--bs-primary, #435ebe);
+    }
+    .btn-floating-toggle i {
+        font-size: 0.9rem;
+        line-height: 1;
+        display: flex;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Saat collapsed: tombol berada di 79px */
+    #sidebar.collapsed .btn-floating-toggle {
+        left: 79px;
+    }
+    #sidebar.collapsed .btn-floating-toggle i {
+        transform: rotate(180deg);
+    }
+    @media (hover: hover) and (pointer: fine) {
+        #sidebar.collapsed .btn-floating-toggle {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #sidebar.collapsed:hover .btn-floating-toggle {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
+    /* Crop ruang kosong bagian atas & bawah logo utama */
+    #sidebar:not(.collapsed) .logo-crop-wrapper {
+        height: 36px !important;
+        overflow: hidden !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #sidebar:not(.collapsed) .logo-full {
+        height: 58px !important;
+        width: auto !important;
+        object-fit: cover !important;
+    }
+
+    /* Fix Panah Submenu & Ukuran Font Main Menu */
+    #sidebar:not(.collapsed) .sidebar-menu ul.menu {
+        padding: 0 0.85rem !important;
+    }
+    #sidebar:not(.collapsed) .sidebar-link {
+        padding: 0.65rem 0.75rem !important;
+        transition: all 0.25s ease !important;
+    }
+    #sidebar:not(.collapsed) .sidebar-link span {
+        font-size: 0.825rem !important;
+        white-space: nowrap !important;
+        line-height: 1.2 !important;
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .sidebar-link {
+        position: relative !important;
+        padding-right: 1.8rem !important;
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .sidebar-link::after {
+        position: absolute !important;
+        right: 10px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* === SMOOTH ANIMATION SUBMENU === */
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu {
+        display: block !important;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding-top: 0;
+        padding-bottom: 0;
+        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.25s ease,
+                    padding 0.35s ease !important;
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open .submenu,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.submenu-open,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.active {
+        max-height: 300px;
+        opacity: 1;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu .submenu-item {
+        transform: translateY(-6px);
+        transition: transform 0.3s ease;
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open .submenu .submenu-item,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.submenu-open .submenu-item,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.active .submenu-item {
+        transform: translateY(0);
+    }
+    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open > .sidebar-link::after {
+        transform: translateY(-50%) rotate(90deg) !important;
     }
 
     /* === STYLING KHUSUS SAAT SIDEBAR DI-HIDE (COLLAPSED) === */
@@ -146,13 +444,45 @@
         width: 80px !important;
     }
 
-    /* 1. Toggle Switch Logo Kawung */
+    /* 1. Logo Kawung Presisi Tengah */
+    #sidebar.collapsed .sidebar-header {
+        padding: 1.25rem 0 0.75rem 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+    #sidebar.collapsed .sidebar-header-inner {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    #sidebar.collapsed .logo {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #sidebar.collapsed .logo-crop-wrapper {
+        width: 44px !important;
+        height: 44px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
     #sidebar.collapsed .logo-full {
         display: none !important;
     }
     #sidebar.collapsed .logo-mini {
         display: block !important;
+        width: 34px !important;
+        height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        object-fit: contain !important;
         margin: 0 auto !important;
+        padding: 0 !important;
     }
 
     /* 2. Sembunyikan Semua Elemen Teks & Submenu */
@@ -167,7 +497,7 @@
         display: none !important;
     }
 
-    /* 3. FIX MAIN MENU ICON (Menghapus Efek Cembung Lonjong Mazer UI) */
+    /* 3. Main Menu Icon */
     #sidebar.collapsed .sidebar-menu ul.menu {
         padding: 0 10px !important;
     }
@@ -187,7 +517,7 @@
         max-height: 44px !important;
         padding: 0 !important;
         margin: 0 auto !important;
-        border-radius: 12px !important; /* Membuat kotak bulat sempurna, bukan lonjong cembung */
+        border-radius: 12px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -202,10 +532,10 @@
         justify-content: center !important;
     }
 
-    /* 4. FIX USER WIDGET ATAS SAAT COLLAPSED */
+    /* 4. User Widget Atas saat Collapsed */
     #sidebar.collapsed .sidebar-profile {
         justify-content: center !important;
-        padding: 4px !important;
+        padding: 6px 0 !important;
         margin: 0 auto 12px auto !important;
         border: none !important;
         background: transparent !important;
@@ -213,7 +543,7 @@
         width: 44px !important;
     }
 
-    /* 5. FIX DROPDOWN BUTTON USER BOTTOM SAAT COLLAPSED (Lingkaran Bulat Presisi) */
+    /* 5. Dropdown Button User Bottom saat Collapsed */
     #sidebar.collapsed .sidebar-footer {
         padding: 12px 10px !important;
     }
@@ -226,13 +556,13 @@
         max-height: 44px !important;
         padding: 0 !important;
         margin: 0 auto !important;
-        border-radius: 50% !important; /* Bulat bundar simetris */
+        border-radius: 50% !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
     #sidebar.collapsed #dropdownUserFloating::after {
-        display: none !important; /* Sembunyikan tanda panah dropdown */
+        display: none !important;
     }
     #sidebar.collapsed .user-btn-content {
         margin-right: 0 !important;
@@ -240,13 +570,34 @@
         width: 100% !important;
     }
 
-    /* Layout Main Shift saat Collapsed */
-    #main.sidebar-collapsed {
-        margin-left: 80px !important;
+    /* Sembunyikan tombol melayang hanya di Mobile (< 768px) */
+    @media (max-width: 767.98px) {
+        .btn-floating-toggle {
+            display: none !important;
+        }
+    }
+
+    /* === NESTED SUBMENU (Aeronautika > Setting > Airlines) === */
+    #sidebar:not(.collapsed) .submenu .nested-submenu {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+    #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open > .nested-submenu,
+    #sidebar:not(.collapsed) .submenu .nested-submenu.open {
+        max-height: 200px;
+        opacity: 1;
+    }
+    #sidebar:not(.collapsed) .submenu .nested-arrow {
+        transition: transform 0.25s ease;
+        font-size: 0.72rem;
+    }
+    #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open .nested-arrow {
+        transform: rotate(90deg);
     }
 </style>
 
-<!-- Script Logic Toggle Hide/Show (Persist via LocalStorage) & Theme Switcher -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const toggleDark = document.getElementById("toggle-dark");
@@ -254,11 +605,20 @@
         const logoDark = document.querySelector(".theme-logo-dark");
         const sidebar = document.getElementById("sidebar");
         const main = document.getElementById("main");
-        const btnHide = document.getElementById("btn-sidebar-hide");
+        const btnFloatingToggle = document.getElementById("btn-sidebar-floating-toggle");
 
-        // 1. Fungsi Update Logo Sesuai Tema (Terang/Gelap)
+        // Hapus backdrop & kunci scroll bawaan Mazer di tablet (< 1200px)
+        function clearMazerBackdrop() {
+            document.querySelectorAll(".sidebar-backdrop").forEach(el => el.remove());
+            document.body.style.overflowY = "";
+            document.body.classList.remove("sidebar-open");
+        }
+
         function updateLogo() {
-            const isDark = document.body.classList.contains("theme-dark");
+            const isDarkHtml = document.documentElement.getAttribute("data-bs-theme") === "dark";
+            const isDarkBody = document.body.classList.contains("theme-dark") || document.body.getAttribute("data-bs-theme") === "dark";
+            const isDark = isDarkHtml || isDarkBody || (toggleDark && toggleDark.checked);
+
             if (isDark) {
                 if (logoLight) logoLight.classList.add("d-none");
                 if (logoDark) logoDark.classList.remove("d-none");
@@ -268,12 +628,16 @@
             }
         }
 
-        // 2. Fungsi Terapkan Status Sidebar (Collapsed vs Active)
+        const themeObserver = new MutationObserver(updateLogo);
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme", "class"] });
+        themeObserver.observe(document.body, { attributes: true, attributeFilter: ["data-bs-theme", "class"] });
+
+        // Terapkan Status Sidebar (Collapsed vs Expanded) tanpa memicu backdrop Mazer
         function applySidebarState(isCollapsed) {
+            clearMazerBackdrop();
             if (isCollapsed) {
                 if (sidebar) {
-                    sidebar.classList.add("collapsed");
-                    sidebar.classList.remove("active");
+                    sidebar.classList.add("collapsed", "active");
                 }
                 if (main) {
                     main.classList.add("sidebar-collapsed");
@@ -289,45 +653,77 @@
             }
         }
 
-        // 3. Cek Status Sidebar dari LocalStorage saat Halaman Dimuat
         const savedState = localStorage.getItem("sidebar_collapsed");
-        if (savedState === "true") {
-            applySidebarState(true);
-        } else if (savedState === "false") {
-            applySidebarState(false);
-        }
+        applySidebarState(savedState === "true");
 
-        // 4. Toggle Status Sidebar & Simpan ke LocalStorage
         function toggleSidebar() {
             const willBeCollapsed = !sidebar.classList.contains("collapsed");
             applySidebarState(willBeCollapsed);
             localStorage.setItem("sidebar_collapsed", willBeCollapsed ? "true" : "false");
+            setTimeout(clearMazerBackdrop, 50);
         }
 
-        // Event Listener Tombol X / Hide di Sidebar
-        if (btnHide) {
-            btnHide.addEventListener("click", function (e) {
+        if (btnFloatingToggle) {
+            btnFloatingToggle.addEventListener("click", function (e) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 toggleSidebar();
-            });
+            }, true);
         }
 
-        // Event Listener Burger Button
+        // Tangkap klik burger-btn (jika masih ada) dan cegah handler Mazer membuat backdrop
         document.addEventListener("click", function (e) {
             const burgerBtn = e.target.closest(".burger-btn");
             if (burgerBtn) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 toggleSidebar();
             }
+        }, true);
+
+        // Awasi jika Mazer mencoba menyuntikkan .sidebar-backdrop secara otomatis saat resize tablet
+        const bodyObserver = new MutationObserver(function () {
+            if (window.innerWidth >= 768 && document.querySelector(".sidebar-backdrop")) {
+                clearMazerBackdrop();
+            }
+        });
+        bodyObserver.observe(document.body, { childList: true });
+
+        // Smooth Submenu Toggle Handler
+        const subMenuLinks = document.querySelectorAll("#sidebar .sidebar-item.has-sub > .sidebar-link");
+        subMenuLinks.forEach(function (link) {
+            link.addEventListener("click", function (e) {
+                if (sidebar && sidebar.classList.contains("collapsed")) {
+                    e.preventDefault();
+                    return;
+                }
+                e.preventDefault();
+                const parentItem = this.parentElement;
+                const submenu = parentItem.querySelector(".submenu");
+
+                parentItem.classList.toggle("submenu-open");
+                if (submenu) {
+                    submenu.classList.toggle("submenu-open");
+                }
+            });
         });
 
-        // Event Listener Switch Theme
         if (toggleDark) {
-            toggleDark.addEventListener("change", function () {
-                setTimeout(updateLogo, 50);
-            });
+            toggleDark.addEventListener("change", updateLogo);
         }
 
         updateLogo();
+    });
+
+    // Handler toggle nested submenu (Setting > Airlines)
+    document.querySelectorAll("#sidebar .nested-toggle").forEach(function (nLink) {
+        nLink.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const parentLi = this.closest(".has-sub-nested");
+            const nestedUl = parentLi?.querySelector(".nested-submenu");
+            parentLi?.classList.toggle("submenu-open");
+            nestedUl?.classList.toggle("open");
+        });
     });
 </script>

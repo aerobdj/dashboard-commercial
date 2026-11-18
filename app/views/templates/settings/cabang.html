@@ -1,0 +1,665 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Cabang Perusahaan</h3>
+            <p class="text-subtitle text-muted mb-0">Kelola hierarki Head Office (HO), Regional, dan Bandara Cabang.</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahCabang">
+            <i class="bi bi-building-add me-2"></i>Tambah Cabang
+        </button>
+    </div>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
+            <div class="row g-2 align-items-center">
+                <!-- Pencarian + Tombol Filter Mobile -->
+                <div class="col-12 {{ 'col-md-3' if is_superadmin else 'col-md-4' }}">
+                    <div class="d-flex gap-2">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchCabangInput" class="form-control border-start-0" placeholder="Cari Kode, Nama Cabang, Kota...">
+                        </div>
+                        <button type="button"
+                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#filterCabangSheet"
+                                aria-controls="filterCabangSheet"
+                                title="Filter Cabang">
+                            <i class="bi bi-sliders2 text-primary"></i>
+                            <span id="mobileCabangFilterCount"
+                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                  style="font-size: 0.65rem;">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Tipe Unit (Desktop) -->
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterTipeUnitCabang" class="form-select">
+                        <option value="">Semua Tipe Unit</option>
+                        <option value="HO">HO</option>
+                        <option value="REGIONAL">REGIONAL</option>
+                        <option value="CABANG">CABANG</option>
+                    </select>
+                </div>
+
+                <!-- Filter Induk / Parent (Desktop) -->
+                <div class="col-md-3 d-none d-md-block">
+                    <select id="filterParentCabang" class="form-select">
+                        <option value="">Semua Induk (Parent)</option>
+                        {% for p in parents %}
+                            <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Filter Status Bandara (Desktop) -->
+                <div class="{{ 'col-md-2' if is_superadmin else 'col-md-3' }} d-none d-md-block">
+                    <select id="filterStatusBandaraCabang" class="form-select">
+                        <option value="">Semua Status Bandara</option>
+                        <option value="Domestik">Domestik</option>
+                        <option value="Internasional">Internasional</option>
+                    </select>
+                </div>
+
+                <!-- Filter Status Data (Khusus Superadmin Desktop) -->
+                {% if is_superadmin %}
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterDeletedCabang" class="form-select">
+                        <option value="">Semua Data</option>
+                        <option value="active">Tersedia</option>
+                        <option value="deleted">Terhapus</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Chip Indikator Filter Aktif Khusus Mobile -->
+                <div class="col-12 d-md-none d-none" id="mobileCabangActiveChips"></div>
+            </div>
+        </div>
+
+        <div class="card-body pt-2 pt-md-3">
+            <table class="table table-hover align-middle mb-0 js-datatable"
+                   id="tableCabangPerusahaan"
+                   data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                <thead>
+                    <tr>
+                        <th>Kode</th>
+                        <th>Nama Cabang / Unit</th>
+                        <th>Tipe Unit</th>
+                        <th>Induk (Parent)</th>
+                        <th>Kota</th>
+                        <th>Status Bandara</th>
+                        <th>Status</th>
+                        <th class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cabang_list %}
+                    {% set is_deleted = c.deleted_at is not none %}
+                    <tr data-tipe="{{ c.tipe_unit or '' }}"
+                        data-parent="{{ c.parent_kode or '' }}"
+                        data-status-bandara="{{ (c.status or []) | join(',') }}"
+                        data-deleted="{{ 'deleted' if is_deleted else 'active' }}"
+                        class="{{ 'table-danger opacity-75' if is_deleted else '' }}">
+                        <td><span class="badge bg-light-primary text-primary fw-bold">{{ c.kode_cabang }}</span></td>
+                        <td>
+                            <div class="fw-semibold {{ 'text-decoration-line-through text-muted' if is_deleted else '' }}">{{ c.nama_cabang }}</div>
+                            {% if is_deleted %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
+                                    <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if c.deleted_by %} oleh {{ c.deleted_by }}{% endif %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.tipe_unit == 'HO' %}
+                                <span class="badge bg-dark">HO</span>
+                            {% elif c.tipe_unit == 'REGIONAL' %}
+                                <span class="badge bg-info">REGIONAL</span>
+                            {% else %}
+                                <span class="badge bg-primary">CABANG</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.parent_kode %}
+                                <span class="badge bg-light-secondary text-secondary">{{ c.parent_kode }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ c.kota or '-' }}</td>
+                        <td>
+                            {% for st in (c.status or []) %}
+                                <span class="badge {{ 'bg-primary-subtle text-primary' if st == 'Internasional' else 'bg-info-subtle text-info' }} me-1">
+                                    {{ st }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if is_deleted %}
+                                <span class="badge bg-danger text-white">Terhapus</span>
+                            {% elif c.status_aktif %}
+                                <span class="badge bg-success-subtle text-success">Aktif</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Nonaktif</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-nowrap">
+                            {% if is_deleted %}
+                                {% if is_superadmin %}
+                                <button type="button"
+                                        class="btn btn-sm btn-success rounded-3 btn-confirm-restore-cabang"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmRestoreCabang"
+                                        data-action="{{ url_for('cabang.restore', kode_cabang=c.kode_cabang) }}"
+                                        data-kode="{{ c.kode_cabang }}"
+                                        data-nama="{{ c.nama_cabang }}"
+                                        title="Aktifkan Kembali Cabang">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Aktifkan
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditCabang{{ c.kode_cabang }}" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-cabang"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmDeleteCabang"
+                                        data-action="{{ url_for('cabang.delete', kode_cabang=c.kode_cabang) }}"
+                                        data-kode="{{ c.kode_cabang }}"
+                                        data-nama="{{ c.nama_cabang }}"
+                                        title="Hapus">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">Belum ada data cabang perusahaan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterCabangSheet" aria-labelledby="filterCabangSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterCabangSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Cabang Perusahaan
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Tipe Unit</label>
+            <select id="mobileFilterTipeUnit" class="form-select">
+                <option value="">Semua Tipe Unit</option>
+                <option value="HO">HO</option>
+                <option value="REGIONAL">REGIONAL</option>
+                <option value="CABANG">CABANG</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Induk (Parent)</label>
+            <select id="mobileFilterParent" class="form-select">
+                <option value="">Semua Induk (Parent)</option>
+                {% for p in parents %}
+                    <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Bandara</label>
+            <select id="mobileFilterStatusBandara" class="form-select">
+                <option value="">Semua Status Bandara</option>
+                <option value="Domestik">Domestik</option>
+                <option value="Internasional">Internasional</option>
+            </select>
+        </div>
+        {% if is_superadmin %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Data</label>
+            <select id="mobileFilterDeletedCabang" class="form-select">
+                <option value="">Semua Data</option>
+                <option value="active">Tersedia</option>
+                <option value="deleted">Terhapus</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileCabangFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah Cabang -->
+<div class="modal fade" id="modalTambahCabang" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('cabang.create') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Cabang / Unit Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="row">
+                    <div class="col-5 col-md-5 mb-3">
+                        <label class="form-label small fw-semibold">Kode Unit / IATA</label>
+                        <input type="text" name="kode_cabang" class="form-control text-uppercase" placeholder="Cth: BDJ" maxlength="15" required>
+                    </div>
+                    <div class="col-7 col-md-7 mb-3">
+                        <label class="form-label small fw-semibold">Tipe Unit</label>
+                        <select name="tipe_unit" class="form-select" required>
+                            <option value="CABANG" selected>CABANG (Bandara)</option>
+                            <option value="REGIONAL">REGIONAL</option>
+                            <option value="HO">HO (Head Office)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Cabang / Unit</label>
+                    <input type="text" name="nama_cabang" class="form-control" placeholder="Cth: Bandara Internasional Syamsudin Noor" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Unit Induk (Parent)</label>
+                    <select name="parent_kode" class="form-select">
+                        <option value="">-- Tidak Ada (Khusus HO) --</option>
+                        {% for p in parents %}
+                            <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text small">Pilih <b>HO</b> untuk Regional, atau pilih <b>REG1/REG2</b> untuk Cabang.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Kota / Lokasi</label>
+                    <input type="text" name="kota" class="form-control" placeholder="Cth: Banjarbaru">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold d-block">Status Bandara <span class="text-muted fw-normal">(Bisa pilih lebih dari satu)</span></label>
+                    <div class="d-flex gap-4 bg-light p-3 rounded-3 border">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Domestik" id="add_status_domestik">
+                            <label class="form-check-label small fw-semibold" for="add_status_domestik">Domestik</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Internasional" id="add_status_internasional">
+                            <label class="form-check-label small fw-semibold" for="add_status_internasional">Internasional</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="status_aktif" id="statusAktifTambah" checked>
+                    <label class="form-check-label small fw-semibold" for="statusAktifTambah">Status Aktif</label>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Cabang</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit Cabang (Hanya untuk data yang tidak terhapus) -->
+{% for c in cabang_list if c.deleted_at is none %}
+<div class="modal fade" id="modalEditCabang{{ c.kode_cabang }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('cabang.update', old_kode=c.kode_cabang) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Cabang ({{ c.kode_cabang }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="row">
+                    <div class="col-5 col-md-5 mb-3">
+                        <label class="form-label small fw-semibold">Kode Unit / IATA</label>
+                        <input type="text" name="kode_cabang" class="form-control text-uppercase" value="{{ c.kode_cabang }}" maxlength="15" required>
+                    </div>
+                    <div class="col-7 col-md-7 mb-3">
+                        <label class="form-label small fw-semibold">Tipe Unit</label>
+                        <select name="tipe_unit" class="form-select" required>
+                            {% for t in tipe_units %}
+                                <option value="{{ t }}" {% if c.tipe_unit == t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Cabang / Unit</label>
+                    <input type="text" name="nama_cabang" class="form-control" value="{{ c.nama_cabang }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Unit Induk (Parent)</label>
+                    <select name="parent_kode" class="form-select">
+                        <option value="">-- Tidak Ada (Khusus HO) --</option>
+                        {% for p in parents %}
+                            {% if p.kode_cabang != c.kode_cabang %}
+                                <option value="{{ p.kode_cabang }}" {% if c.parent_kode == p.kode_cabang %}selected{% endif %}>
+                                    {{ p.kode_cabang }} - {{ p.nama_cabang }}
+                                </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Kota / Lokasi</label>
+                    <input type="text" name="kota" class="form-control" value="{{ c.kota or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold d-block">Status Bandara <span class="text-muted fw-normal">(Bisa pilih lebih dari satu)</span></label>
+                    <div class="d-flex gap-4 bg-light p-3 rounded-3 border">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Domestik"
+                                   id="edit_status_domestik_{{ c.kode_cabang }}"
+                                   {% if 'Domestik' in (c.status or []) %}checked{% endif %}>
+                            <label class="form-check-label small fw-semibold" for="edit_status_domestik_{{ c.kode_cabang }}">Domestik</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Internasional"
+                                   id="edit_status_internasional_{{ c.kode_cabang }}"
+                                   {% if 'Internasional' in (c.status or []) %}checked{% endif %}>
+                            <label class="form-check-label small fw-semibold" for="edit_status_internasional_{{ c.kode_cabang }}">Internasional</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="status_aktif" id="statusAktifEdit{{ c.kode_cabang }}" {% if c.status_aktif %}checked{% endif %}>
+                    <label class="form-check-label small fw-semibold" for="statusAktifEdit{{ c.kode_cabang }}">Status Aktif</label>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus Cabang -->
+<div class="modal fade" id="modalConfirmDeleteCabang" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteCabang" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus Cabang?</h5>
+                <p class="text-muted small mb-1">Apakah anda yakin ingin menghapus unit/cabang ini?</p>
+                <div class="fw-semibold text-danger small mb-3" id="confirmDeleteCabangInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Aktifkan Kembali Cabang (Khusus Superadmin) -->
+{% if is_superadmin %}
+<div class="modal fade" id="modalConfirmRestoreCabang" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmRestoreCabang" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-arrow-counterclockwise fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Aktifkan Kembali Cabang?</h5>
+                <p class="text-muted small mb-1">Unit/cabang ini akan dipulihkan dan tampil kembali di sistem.</p>
+                <div class="fw-semibold text-success small mb-3" id="confirmRestoreCabangInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">Ya, Aktifkan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    // Renderer Kartu Mobile khusus Cabang Perusahaan
+    function renderCabangMobileCards(dt) {
+        const tableEl = document.getElementById('tableCabangPerusahaan');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data cabang tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 8) return;
+
+            const isDeleted = tr.getAttribute('data-deleted') === 'deleted';
+            const kodeHtml = cells[0].innerHTML;
+            const namaHtml = cells[1].innerHTML;
+            const tipeHtml = cells[2].innerHTML;
+            const parentText = cells[3].textContent.trim();
+            const kotaText = cells[4].textContent.trim();
+            const statusBandaraHtml = cells[5].innerHTML;
+            const statusAktifHtml = cells[6].innerHTML;
+            const aksiHtml = cells[7].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                        ${kodeHtml}
+                        ${tipeHtml}
+                    </div>
+                    <div class="flex-shrink-0">${statusAktifHtml}</div>
+                </div>
+                <div class="fw-bold text-body mb-1">${namaHtml}</div>
+                <div class="d-flex flex-wrap align-items-center gap-3 text-muted small mb-2">
+                    <span><i class="bi bi-geo-alt me-1"></i>${kotaText}</span>
+                    ${parentText && parentText !== '-' ? `<span><i class="bi bi-diagram-3 me-1"></i>Induk: <strong>${parentText}</strong></span>` : ''}
+                </div>
+                <div class="d-flex flex-wrap gap-1 pt-2 border-top border-light-subtle">
+                    ${statusBandaraHtml}
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initCabangDataTableFilter() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+        const $table = jQuery('#tableCabangPerusahaan');
+        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
+
+        if (!jQuery.fn.DataTable.isDataTable('#tableCabangPerusahaan') && typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+        if (!jQuery.fn.DataTable.isDataTable('#tableCabangPerusahaan')) return;
+
+        const dt = $table.DataTable();
+        const searchInput = document.getElementById('searchCabangInput');
+        const tipeFilter = document.getElementById('filterTipeUnitCabang');
+        const parentFilter = document.getElementById('filterParentCabang');
+        const statusBandaraFilter = document.getElementById('filterStatusBandaraCabang');
+        const deletedFilter = document.getElementById('filterDeletedCabang');
+
+        const mobTipe = document.getElementById('mobileFilterTipeUnit');
+        const mobParent = document.getElementById('mobileFilterParent');
+        const mobStatusBandara = document.getElementById('mobileFilterStatusBandara');
+        const mobDeleted = document.getElementById('mobileFilterDeletedCabang');
+        const btnResetMobile = document.getElementById('btnResetMobileCabangFilter');
+        const filterCountBadge = document.getElementById('mobileCabangFilterCount');
+        const activeChipsBox = document.getElementById('mobileCabangActiveChips');
+
+        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isCabangFilter);
+
+        const cabangFilterFn = function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tableCabangPerusahaan') return true;
+            const rowNode = settings.aoData[dataIndex].nTr;
+            if (!rowNode) return true;
+
+            const tipeVal = tipeFilter?.value || '';
+            const parentVal = parentFilter?.value || '';
+            const statusBandaraVal = statusBandaraFilter?.value || '';
+            const deletedVal = deletedFilter?.value || '';
+
+            const rowTipe = rowNode.getAttribute('data-tipe') || '';
+            const rowParent = rowNode.getAttribute('data-parent') || '';
+            const rowStatusList = (rowNode.getAttribute('data-status-bandara') || '').split(',');
+            const rowDeleted = rowNode.getAttribute('data-deleted') || '';
+
+            const matchTipe = !tipeVal || rowTipe === tipeVal;
+            const matchParent = !parentVal || rowParent === parentVal;
+            const matchStatusBandara = !statusBandaraVal || rowStatusList.includes(statusBandaraVal);
+            const matchDeleted = !deletedVal || rowDeleted === deletedVal;
+
+            return matchTipe && matchParent && matchStatusBandara && matchDeleted;
+        };
+        cabangFilterFn._isCabangFilter = true;
+        jQuery.fn.dataTable.ext.search.push(cabangFilterFn);
+
+        const syncMobileFilterUI = () => {
+            const activeLabels = [];
+            if (tipeFilter?.value) activeLabels.push(`Tipe: ${tipeFilter.value}`);
+            if (parentFilter?.value) activeLabels.push(`Induk: ${parentFilter.value}`);
+            if (statusBandaraFilter?.value) activeLabels.push(statusBandaraFilter.value);
+            if (deletedFilter?.value) activeLabels.push(deletedFilter.value === 'deleted' ? 'Terhapus' : 'Tersedia');
+
+            if (filterCountBadge) {
+                filterCountBadge.textContent = activeLabels.length;
+                filterCountBadge.classList.toggle('d-none', activeLabels.length === 0);
+            }
+            if (activeChipsBox) {
+                if (activeLabels.length) {
+                    activeChipsBox.innerHTML = activeLabels
+                        .map(lbl => `<span class="badge bg-primary-subtle text-primary rounded-pill me-1">${lbl}</span>`)
+                        .join('');
+                    activeChipsBox.classList.remove('d-none');
+                } else {
+                    activeChipsBox.innerHTML = '';
+                    activeChipsBox.classList.add('d-none');
+                }
+            }
+        };
+
+        dt.off('draw.cabangMobileCard').on('draw.cabangMobileCard', function () {
+            renderCabangMobileCards(dt);
+        });
+        renderCabangMobileCards(dt);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                dt.search(this.value).draw();
+            });
+        }
+
+        const bindSync = (desktopEl, mobileEl) => {
+            if (desktopEl) {
+                desktopEl.addEventListener('change', () => {
+                    if (mobileEl) mobileEl.value = desktopEl.value;
+                    syncMobileFilterUI();
+                    dt.draw();
+                });
+            }
+            if (mobileEl) {
+                mobileEl.addEventListener('change', () => {
+                    if (desktopEl) desktopEl.value = mobileEl.value;
+                    syncMobileFilterUI();
+                    dt.draw();
+                });
+            }
+        };
+
+        bindSync(tipeFilter, mobTipe);
+        bindSync(parentFilter, mobParent);
+        bindSync(statusBandaraFilter, mobStatusBandara);
+        bindSync(deletedFilter, mobDeleted);
+
+        if (btnResetMobile) {
+            btnResetMobile.addEventListener('click', () => {
+                [tipeFilter, parentFilter, statusBandaraFilter, deletedFilter, mobTipe, mobParent, mobStatusBandara, mobDeleted].forEach(el => {
+                    if (el) el.value = '';
+                });
+                syncMobileFilterUI();
+                dt.draw();
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCabangDataTableFilter);
+    } else {
+        initCabangDataTableFilter();
+    }
+
+    if (!window._cabangActionListenersBound) {
+        window._cabangActionListenersBound = true;
+        document.addEventListener('click', function (e) {
+            const delBtn = e.target.closest('.btn-confirm-delete-cabang');
+            if (delBtn) {
+                const form = document.getElementById('formConfirmDeleteCabang');
+                const infoEl = document.getElementById('confirmDeleteCabangInfo');
+                if (form) form.setAttribute('action', delBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${delBtn.getAttribute('data-kode') || ''} - ${delBtn.getAttribute('data-nama') || ''}`;
+                return;
+            }
+
+            const restoreBtn = e.target.closest('.btn-confirm-restore-cabang');
+            if (restoreBtn) {
+                const form = document.getElementById('formConfirmRestoreCabang');
+                const infoEl = document.getElementById('confirmRestoreCabangInfo');
+                if (form) form.setAttribute('action', restoreBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${restoreBtn.getAttribute('data-kode') || ''} - ${restoreBtn.getAttribute('data-nama') || ''}`;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

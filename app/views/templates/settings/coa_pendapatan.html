@@ -1,0 +1,529 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">COA Pendapatan</h3>
+            <p class="text-subtitle text-muted mb-0">Master Chart of Accounts (COA) pendapatan Aeronautika &amp; Non-Aeronautika.</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahCoa">
+            <i class="bi bi-plus-circle-fill me-2"></i>Tambah COA
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
+            <div class="row g-2 align-items-center">
+                <!-- Pencarian COA + Tombol Filter Mobile -->
+                <div class="col-12 {{ 'col-md-4' if is_superadmin else 'col-md-5' }}">
+                    <div class="d-flex gap-2">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchCoaInput" class="form-control border-start-0" placeholder="Cari Kode Account, Sub Klasifikasi, Deskripsi...">
+                        </div>
+                        <button type="button"
+                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#filterCoaSheet"
+                                aria-controls="filterCoaSheet"
+                                title="Filter COA">
+                            <i class="bi bi-sliders2 text-primary"></i>
+                            <span id="mobileCoaFilterDot"
+                                  class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle d-none">
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Klasifikasi (Desktop) -->
+                <div class="col-md-3 d-none d-md-block">
+                    <select id="filterKlasifikasi" class="form-select">
+                        <option value="">Semua Klasifikasi</option>
+                        <option value="Aeronautika">Aeronautika</option>
+                        <option value="Non-Aeronautika">Non-Aeronautika</option>
+                    </select>
+                </div>
+
+                <!-- Filter Status Data (Khusus Superadmin Desktop) -->
+                {% if is_superadmin %}
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterStatusCoa" class="form-select">
+                        <option value="">Semua Status</option>
+                        <option value="active">Aktif</option>
+                        <option value="deleted">Terhapus</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Counter & Info Filter Aktif -->
+                <div class="col-12 {{ 'col-md-3' if is_superadmin else 'col-md-4' }} d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                    <span id="mobileCoaActiveChip" class="badge bg-primary-subtle text-primary rounded-pill d-none d-md-none"></span>
+                    <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                        Menampilkan: <span id="coaCountLabel">{{ coa_list | length }}</span> Data
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body pt-2 pt-md-3">
+            <table class="table table-hover align-middle mb-0 js-datatable"
+                   id="tableCoaPendapatan"
+                   data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                <thead>
+                    <tr>
+                        <th>Kode Account</th>
+                        <th>Klasifikasi</th>
+                        <th>Sub Klasifikasi</th>
+                        <th>Deskripsi COA</th>
+                        <th class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in coa_list %}
+                    {% set is_deleted = item.deleted_at is not none %}
+                    <tr data-klasifikasi="{{ item.klasifikasi }}"
+                        data-status="{{ 'deleted' if is_deleted else 'active' }}"
+                        class="{{ 'table-danger opacity-75' if is_deleted else '' }}">
+                        <td>
+                            <div class="fw-bold font-monospace {{ 'text-decoration-line-through text-muted' if is_deleted else 'text-primary' }}">
+                                {{ item.kode_account }}
+                            </div>
+                            {% if is_deleted %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
+                                    <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if item.deleted_by %} oleh {{ item.deleted_by }}{% endif %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.klasifikasi == 'Aeronautika' %}
+                                <span class="badge bg-info-subtle text-info">Aeronautika</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success">Non-Aeronautika</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-semibold">{{ item.sub_klasifikasi }}</td>
+                        <td>{{ item.deskripsi_coa }}</td>
+                        <td class="text-center text-nowrap">
+                            {% if is_deleted %}
+                                {% if is_superadmin %}
+                                <button type="button"
+                                        class="btn btn-sm btn-success rounded-3 btn-confirm-restore-coa"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmRestoreCoa"
+                                        data-action="{{ url_for('coa.restore', id_coa=item.id_coa) }}"
+                                        data-kode="{{ item.kode_account }}"
+                                        data-deskripsi="{{ item.deskripsi_coa }}"
+                                        title="Aktifkan Kembali COA">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Aktifkan
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditCoa{{ item.id_coa }}" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-coa"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmDeleteCoa"
+                                        data-action="{{ url_for('coa.delete', id_coa=item.id_coa) }}"
+                                        data-kode="{{ item.kode_account }}"
+                                        data-deskripsi="{{ item.deskripsi_coa }}"
+                                        title="Hapus">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Belum ada data COA Pendapatan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterCoaSheet" aria-labelledby="filterCoaSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterCoaSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter COA Pendapatan
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Klasifikasi Pendapatan</label>
+            <select id="mobileFilterKlasifikasi" class="form-select form-select-lg fs-6">
+                <option value="">Semua Klasifikasi</option>
+                <option value="Aeronautika">Aeronautika</option>
+                <option value="Non-Aeronautika">Non-Aeronautika</option>
+            </select>
+        </div>
+        {% if is_superadmin %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Data</label>
+            <select id="mobileFilterStatusCoa" class="form-select form-select-lg fs-6">
+                <option value="">Semua Status</option>
+                <option value="active">Aktif</option>
+                <option value="deleted">Terhapus</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileCoaFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Datalist Sub Klasifikasi untuk Input Cepat -->
+<datalist id="datalistSubKlasifikasi">
+    {% for sk in sub_klasifikasi_list %}
+        <option value="{{ sk }}">
+    {% endfor %}
+</datalist>
+
+<!-- Modal Tambah COA -->
+<div class="modal fade" id="modalTambahCoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('coa.create') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah COA Pendapatan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Kode Account <span class="text-danger">*</span></label>
+                    <input type="text" name="kode_account" class="form-control font-monospace" placeholder="Contoh: 4110010001" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Klasifikasi <span class="text-danger">*</span></label>
+                    <select name="klasifikasi" class="form-select" required>
+                        <option value="" disabled selected>-- Pilih Klasifikasi --</option>
+                        <option value="Aeronautika">Aeronautika</option>
+                        <option value="Non-Aeronautika">Non-Aeronautika</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Sub Klasifikasi <span class="text-danger">*</span></label>
+                    <input type="text" name="sub_klasifikasi" list="datalistSubKlasifikasi" class="form-control" placeholder="Contoh: PJP4U, Sewa, Revenue Sharing" required>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold">Deskripsi COA <span class="text-danger">*</span></label>
+                    <input type="text" name="deskripsi_coa" class="form-control" placeholder="Masukkan deskripsi lengkap akun" required>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan COA</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit COA (Hanya untuk COA aktif) -->
+{% for item in coa_list if item.deleted_at is none %}
+<div class="modal fade" id="modalEditCoa{{ item.id_coa }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('coa.update', id_coa=item.id_coa) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit COA ({{ item.kode_account }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Kode Account <span class="text-danger">*</span></label>
+                    <input type="text" name="kode_account" class="form-control font-monospace" value="{{ item.kode_account }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Klasifikasi <span class="text-danger">*</span></label>
+                    <select name="klasifikasi" class="form-select" required>
+                        <option value="Aeronautika" {% if item.klasifikasi == 'Aeronautika' %}selected{% endif %}>Aeronautika</option>
+                        <option value="Non-Aeronautika" {% if item.klasifikasi == 'Non-Aeronautika' %}selected{% endif %}>Non-Aeronautika</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Sub Klasifikasi <span class="text-danger">*</span></label>
+                    <input type="text" name="sub_klasifikasi" list="datalistSubKlasifikasi" class="form-control" value="{{ item.sub_klasifikasi }}" required>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold">Deskripsi COA <span class="text-danger">*</span></label>
+                    <input type="text" name="deskripsi_coa" class="form-control" value="{{ item.deskripsi_coa }}" required>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus COA -->
+<div class="modal fade" id="modalConfirmDeleteCoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteCoa" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus COA?</h5>
+                <p class="text-muted small mb-1">Apakah anda yakin ingin menghapus akun COA ini?</p>
+                <div class="fw-semibold text-danger small mb-3" id="confirmDeleteCoaInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Aktifkan Kembali COA (Khusus Superadmin) -->
+{% if is_superadmin %}
+<div class="modal fade" id="modalConfirmRestoreCoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmRestoreCoa" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-arrow-counterclockwise fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Aktifkan Kembali COA?</h5>
+                <p class="text-muted small mb-1">Data COA ini akan dipulihkan dan dapat digunakan kembali.</p>
+                <div class="fw-semibold text-success small mb-3" id="confirmRestoreCoaInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">Ya, Aktifkan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    // Renderer Kartu Mobile khusus COA Pendapatan
+    function renderCoaMobileCards(dt) {
+        const tableEl = document.getElementById('tableCoaPendapatan');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data COA tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 5) return;
+
+            const isDeleted = tr.getAttribute('data-status') === 'deleted';
+            const kodeHtml = cells[0].innerHTML;
+            const klasifikasiHtml = cells[1].innerHTML;
+            const subKlasifikasiText = cells[2].textContent.trim();
+            const deskripsiText = cells[3].textContent.trim();
+            const aksiHtml = cells[4].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                    <div>${kodeHtml}</div>
+                    <div class="flex-shrink-0">${klasifikasiHtml}</div>
+                </div>
+                <div class="fw-semibold text-body small mb-1">${subKlasifikasiText}</div>
+                <div class="text-muted small">${deskripsiText}</div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initCoaDataTableFilter() {
+        if (typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.DataTable) return;
+        const $table = window.jQuery('#tableCoaPendapatan');
+        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
+
+        if (!window.jQuery.fn.DataTable.isDataTable('#tableCoaPendapatan') && typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+        if (!window.jQuery.fn.DataTable.isDataTable('#tableCoaPendapatan')) return;
+
+        const dt = $table.DataTable();
+        const searchInput = document.getElementById('searchCoaInput');
+        const filterSelect = document.getElementById('filterKlasifikasi');
+        const statusFilterSelect = document.getElementById('filterStatusCoa');
+        const mobileFilterSelect = document.getElementById('mobileFilterKlasifikasi');
+        const mobileStatusFilterSelect = document.getElementById('mobileFilterStatusCoa');
+        const btnResetMobile = document.getElementById('btnResetMobileCoaFilter');
+        const filterDot = document.getElementById('mobileCoaFilterDot');
+        const activeChip = document.getElementById('mobileCoaActiveChip');
+        const countLabel = document.getElementById('coaCountLabel');
+
+        window.jQuery.fn.dataTable.ext.search = window.jQuery.fn.dataTable.ext.search.filter(fn => !fn._isCoaFilter);
+
+        const coaFilterFn = function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tableCoaPendapatan') return true;
+            const rowNode = settings.aoData[dataIndex].nTr;
+            if (!rowNode) return true;
+
+            const klasifikasiVal = filterSelect?.value || '';
+            const statusVal = statusFilterSelect?.value || '';
+            const rowKlasifikasi = rowNode.getAttribute('data-klasifikasi') || '';
+            const rowStatus = rowNode.getAttribute('data-status') || '';
+
+            const matchKlasifikasi = !klasifikasiVal || rowKlasifikasi === klasifikasiVal;
+            const matchStatus = !statusVal || rowStatus === statusVal;
+            return matchKlasifikasi && matchStatus;
+        };
+        coaFilterFn._isCoaFilter = true;
+        window.jQuery.fn.dataTable.ext.search.push(coaFilterFn);
+
+        const syncFilterIndicators = () => {
+            const kVal = filterSelect?.value || '';
+            const sVal = statusFilterSelect?.value || '';
+            const chips = [];
+            if (kVal) chips.push(kVal);
+            if (sVal) chips.push(sVal === 'deleted' ? 'Terhapus' : 'Aktif');
+
+            if (filterDot) filterDot.classList.toggle('d-none', chips.length === 0);
+            if (activeChip) {
+                if (chips.length) {
+                    activeChip.textContent = chips.join(' • ');
+                    activeChip.classList.remove('d-none');
+                } else {
+                    activeChip.classList.add('d-none');
+                }
+            }
+        };
+
+        const updateCount = () => {
+            if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+        };
+
+        dt.off('draw.coaMobileCard').on('draw.coaMobileCard', function () {
+            renderCoaMobileCards(dt);
+        });
+        renderCoaMobileCards(dt);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateCount();
+            });
+        }
+        if (filterSelect) {
+            filterSelect.addEventListener('change', function () {
+                if (mobileFilterSelect) mobileFilterSelect.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+        if (mobileFilterSelect) {
+            mobileFilterSelect.addEventListener('change', function () {
+                if (filterSelect) filterSelect.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+        if (statusFilterSelect) {
+            statusFilterSelect.addEventListener('change', function () {
+                if (mobileStatusFilterSelect) mobileStatusFilterSelect.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+        if (mobileStatusFilterSelect) {
+            mobileStatusFilterSelect.addEventListener('change', function () {
+                if (statusFilterSelect) statusFilterSelect.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+        if (btnResetMobile) {
+            btnResetMobile.addEventListener('click', function () {
+                [filterSelect, statusFilterSelect, mobileFilterSelect, mobileStatusFilterSelect].forEach(el => {
+                    if (el) el.value = '';
+                });
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        updateCount();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCoaDataTableFilter);
+    } else {
+        initCoaDataTableFilter();
+    }
+
+    if (!window._coaActionListenersBound) {
+        window._coaActionListenersBound = true;
+        document.addEventListener('click', function (e) {
+            const delBtn = e.target.closest('.btn-confirm-delete-coa');
+            if (delBtn) {
+                const form = document.getElementById('formConfirmDeleteCoa');
+                const infoEl = document.getElementById('confirmDeleteCoaInfo');
+                if (form) form.setAttribute('action', delBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${delBtn.getAttribute('data-kode') || ''} - ${delBtn.getAttribute('data-deskripsi') || ''}`;
+                return;
+            }
+
+            const restoreBtn = e.target.closest('.btn-confirm-restore-coa');
+            if (restoreBtn) {
+                const form = document.getElementById('formConfirmRestoreCoa');
+                const infoEl = document.getElementById('confirmRestoreCoaInfo');
+                if (form) form.setAttribute('action', restoreBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${restoreBtn.getAttribute('data-kode') || ''} - ${restoreBtn.getAttribute('data-deskripsi') || ''}`;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

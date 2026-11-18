@@ -1,0 +1,606 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Manajemen Users</h3>
+            <p class="text-subtitle text-muted mb-0">Kelola akun email pengguna, cabang penempatan, jabatan, dan role akses.</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahUser">
+            <i class="bi bi-person-plus-fill me-2"></i>Tambah User
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
+            <!-- Toolbar Pencarian & Filter -->
+            <div class="row g-2 align-items-center">
+                <!-- Pencarian User + Tombol Filter Mobile -->
+                {% set search_col = 'col-md-4' if (can_select_cabang and is_superadmin) else ('col-md-5' if (can_select_cabang or is_superadmin) else 'col-md-7') %}
+                <div class="col-12 {{ search_col }}">
+                    <div class="d-flex gap-2">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchUserInput" class="form-control border-start-0" placeholder="Cari Email, Nama, Jabatan, Role...">
+                        </div>
+                        {% if can_select_cabang or is_superadmin %}
+                        <button type="button"
+                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#filterUserSheet"
+                                aria-controls="filterUserSheet"
+                                title="Filter User">
+                            <i class="bi bi-sliders2 text-primary"></i>
+                            <span id="mobileFilterBadgeDot"
+                                  class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle d-none">
+                            </span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Filter Cabang (Desktop - hanya tampil jika memiliki akses > 1 cabang) -->
+                {% if can_select_cabang %}
+                <div class="{{ 'col-md-3' if is_superadmin else 'col-md-4' }} d-none d-md-block">
+                    <select id="filterCabangUser" class="form-select">
+                        <option value="">Semua Cabang / Unit</option>
+                        {% for c in cabang_list %}
+                            <option value="{{ c.kode_cabang }}">[{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Filter Status Akun (Khusus Superadmin Desktop) -->
+                {% if is_superadmin %}
+                <div class="col-md-2 d-none d-md-block">
+                    <select id="filterStatusUser" class="form-select">
+                        <option value="">Semua Status</option>
+                        <option value="active">Aktif</option>
+                        <option value="deleted">Terhapus</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Counter & Info Filter Aktif -->
+                <div class="col-12 {{ 'col-md-3' if (can_select_cabang or is_superadmin) else 'col-md-5' }} d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                    <span id="mobileActiveFilterChip" class="badge bg-primary-subtle text-primary rounded-pill d-none d-md-none"></span>
+                    <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                        Menampilkan: <span id="userCountLabel">{{ users | length }}</span> User
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body pt-2 pt-md-3">
+            <table class="table table-hover align-middle mb-0 js-datatable"
+                   id="tableManajemenUser"
+                   data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                <thead>
+                    <tr>
+                        <th>Kode</th>
+                        <th>Email</th>
+                        <th>Nama Lengkap</th>
+                        <th>Cabang / Unit</th>
+                        <th>Jabatan</th>
+                        <th>Role</th>
+                        <th class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    {% set is_deleted = u.deleted_at is not none %}
+                    <tr data-cabang="{{ u.kode_cabang or '' }}"
+                        data-status="{{ 'deleted' if is_deleted else 'active' }}"
+                        class="{{ 'table-danger opacity-75' if is_deleted else '' }}">
+                        <td><span class="badge bg-light-secondary text-secondary">#{{ u.kd_user }}</span></td>
+                        <td>
+                            <div class="fw-bold {{ 'text-decoration-line-through text-muted' if is_deleted else '' }}">{{ u.email }}</div>
+                            {% if is_deleted %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
+                                    <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if u.deleted_by %} oleh {{ u.deleted_by }}{% endif %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.nama_lengkap }}</td>
+                        <td>
+                            {% if u.kode_cabang %}
+                                <span class="badge bg-light-primary text-primary fw-bold">{{ u.kode_cabang }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.jabatan }}</td>
+                        <td>
+                            {% if u.role == 'superadmin' %}
+                                <span class="badge bg-danger text-uppercase">{{ u.role }}</span>
+                            {% elif u.role == 'admin' %}
+                                <span class="badge bg-primary text-uppercase">{{ u.role }}</span>
+                            {% elif u.role == 'pengawas' %}
+                                <span class="badge bg-info text-uppercase">{{ u.role }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-uppercase">{{ u.role }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-nowrap">
+                            {% if is_deleted %}
+                                {% if is_superadmin %}
+                                <button type="button"
+                                        class="btn btn-sm btn-success rounded-3 btn-confirm-restore-user"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmRestoreUser"
+                                        data-action="{{ url_for('users.restore', kd_user=u.kd_user) }}"
+                                        data-email="{{ u.email }}"
+                                        data-nama="{{ u.nama_lengkap }}"
+                                        title="Aktifkan Kembali User">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Aktifkan
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditUser{{ u.kd_user }}" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-user"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmDeleteUser"
+                                        data-action="{{ url_for('users.delete', kd_user=u.kd_user) }}"
+                                        data-email="{{ u.email }}"
+                                        data-nama="{{ u.nama_lengkap }}"
+                                        title="Hapus">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">Belum ada data user.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+{% if can_select_cabang or is_superadmin %}
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterUserSheet" aria-labelledby="filterUserSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterUserSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Daftar User
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if can_select_cabang %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabang / Unit Penempatan</label>
+            <select id="mobileFilterCabangUser" class="form-select form-select-lg fs-6">
+                <option value="">Semua Cabang / Unit</option>
+                {% for c in cabang_list %}
+                    <option value="{{ c.kode_cabang }}">[{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        {% if is_superadmin %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Status Akun</label>
+            <select id="mobileFilterStatusUser" class="form-select form-select-lg fs-6">
+                <option value="">Semua Status</option>
+                <option value="active">Aktif</option>
+                <option value="deleted">Terhapus</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileUserFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Tambah User -->
+<div class="modal fade" id="modalTambahUser" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('users.create') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah User Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control" placeholder="nama@injourneyairports.id" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Password <span class="text-danger">*</span></label>
+                    <input type="password" name="password" class="form-control" placeholder="Masukkan password" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
+                    <input type="text" name="nama_lengkap" class="form-control" placeholder="Masukkan nama lengkap" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Cabang / Unit Penempatan <span class="text-danger">*</span></label>
+                    {% if can_select_cabang %}
+                    <select name="kode_cabang" class="form-select" required>
+                        <option value="" disabled selected>-- Pilih Cabang / Unit --</option>
+                        {% for c in cabang_list %}
+                            <option value="{{ c.kode_cabang }}">[{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    {% set fixed_cabang = cabang_list[0] if cabang_list else {} %}
+                    <input type="hidden" name="kode_cabang" value="{{ fixed_cabang.get('kode_cabang', session.get('user', {}).get('kode_cabang', '')) }}">
+                    <div class="alert alert-light-primary py-2 px-3 mb-0 small">
+                        <i class="bi bi-geo-alt-fill me-1"></i>
+                        <strong>[{{ fixed_cabang.get('tipe_unit', 'CABANG') }}] {{ fixed_cabang.get('kode_cabang', session.get('user', {}).get('kode_cabang', '')) }} - {{ fixed_cabang.get('nama_cabang', session.get('user', {}).get('nama_cabang', '')) }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Jabatan <span class="text-danger">*</span></label>
+                    <input type="text" name="jabatan" class="form-control" placeholder="Contoh: Commercial Officer" required>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
+                    <select name="role" class="form-select" required>
+                        <option value="" disabled selected>-- Pilih Role --</option>
+                        {% for r in roles %}
+                            <option value="{{ r.nama_role }}">{{ r.nama_role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit User (Hanya untuk user aktif) -->
+{% for u in users if u.deleted_at is none %}
+<div class="modal fade" id="modalEditUser{{ u.kd_user }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('users.update', kd_user=u.kd_user) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit User ({{ u.email }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control" value="{{ u.email }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Password Baru <span class="text-muted fw-normal">(Kosongkan jika tidak diubah)</span></label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
+                    <input type="text" name="nama_lengkap" class="form-control" value="{{ u.nama_lengkap }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Cabang / Unit Penempatan <span class="text-danger">*</span></label>
+                    {% if can_select_cabang %}
+                    <select name="kode_cabang" class="form-select" required>
+                        <option value="" disabled>-- Pilih Cabang / Unit --</option>
+                        {% for c in cabang_list %}
+                            <option value="{{ c.kode_cabang }}" {% if u.kode_cabang == c.kode_cabang %}selected{% endif %}>
+                                [{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    {% set fixed_cabang = cabang_list[0] if cabang_list else {} %}
+                    <input type="hidden" name="kode_cabang" value="{{ u.kode_cabang }}">
+                    <div class="alert alert-light-primary py-2 px-3 mb-0 small">
+                        <i class="bi bi-geo-alt-fill me-1"></i>
+                        <strong>[{{ fixed_cabang.get('tipe_unit', 'CABANG') }}] {{ u.kode_cabang }} - {{ fixed_cabang.get('nama_cabang', '') }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Jabatan <span class="text-danger">*</span></label>
+                    <input type="text" name="jabatan" class="form-control" value="{{ u.jabatan }}" required>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
+                    <select name="role" class="form-select" required>
+                        {% for r in roles %}
+                            <option value="{{ r.nama_role }}" {% if u.role == r.nama_role %}selected{% endif %}>{{ r.nama_role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus User -->
+<div class="modal fade" id="modalConfirmDeleteUser" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteUser" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus User?</h5>
+                <p class="text-muted small mb-1">Apakah anda yakin ingin menghapus akun user ini?</p>
+                <div class="fw-semibold text-danger small mb-3" id="confirmDeleteUserInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Aktifkan Kembali User (Khusus Superadmin) -->
+{% if is_superadmin %}
+<div class="modal fade" id="modalConfirmRestoreUser" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmRestoreUser" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-arrow-counterclockwise fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Aktifkan Kembali User?</h5>
+                <p class="text-muted small mb-1">Akun ini akan dipulihkan dan dapat digunakan kembali untuk login.</p>
+                <div class="fw-semibold text-success small mb-3" id="confirmRestoreUserInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">Ya, Aktifkan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    function renderUserMobileCards(dt) {
+        const tableEl = document.getElementById('tableManajemenUser');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data user tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 7) return;
+
+            const isDeleted = tr.getAttribute('data-status') === 'deleted';
+            const kodeHtml = cells[0].innerHTML;
+            const emailHtml = cells[1].innerHTML;
+            const namaText = cells[2].textContent.trim();
+            const cabangHtml = cells[3].innerHTML;
+            const jabatanText = cells[4].textContent.trim();
+            const roleHtml = cells[5].innerHTML;
+            const aksiHtml = cells[6].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                    <div class="min-w-0">
+                        <div class="fw-bold text-body text-truncate">${namaText}</div>
+                        <div class="small text-muted text-truncate">${emailHtml}</div>
+                    </div>
+                    <div class="flex-shrink-0">${roleHtml}</div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top border-light-subtle small">
+                    ${kodeHtml}
+                    ${cabangHtml}
+                    <span class="text-muted"><i class="bi bi-briefcase me-1"></i>${jabatanText || '-'}</span>
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initUserDataTableFilter() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+        const $table = jQuery('#tableManajemenUser');
+        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
+
+        if (!jQuery.fn.DataTable.isDataTable('#tableManajemenUser') && typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+        if (!jQuery.fn.DataTable.isDataTable('#tableManajemenUser')) return;
+
+        const dt = $table.DataTable();
+        const searchInput = document.getElementById('searchUserInput');
+        const cabangFilter = document.getElementById('filterCabangUser');
+        const statusFilter = document.getElementById('filterStatusUser');
+        const mobileCabangFilter = document.getElementById('mobileFilterCabangUser');
+        const mobileStatusFilter = document.getElementById('mobileFilterStatusUser');
+        const btnResetMobile = document.getElementById('btnResetMobileUserFilter');
+        const filterBadgeDot = document.getElementById('mobileFilterBadgeDot');
+        const activeFilterChip = document.getElementById('mobileActiveFilterChip');
+        const countLabel = document.getElementById('userCountLabel');
+
+        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isUserFilter);
+
+        const userFilterFn = function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tableManajemenUser') return true;
+            const rowNode = settings.aoData[dataIndex].nTr;
+            if (!rowNode) return true;
+
+            const cabangVal = cabangFilter?.value || '';
+            const statusVal = statusFilter?.value || '';
+            const rowCabang = rowNode.getAttribute('data-cabang') || '';
+            const rowStatus = rowNode.getAttribute('data-status') || '';
+
+            const matchCabang = !cabangVal || rowCabang === cabangVal;
+            const matchStatus = !statusVal || rowStatus === statusVal;
+            return matchCabang && matchStatus;
+        };
+        userFilterFn._isUserFilter = true;
+        jQuery.fn.dataTable.ext.search.push(userFilterFn);
+
+        const syncFilterIndicators = () => {
+            const cVal = cabangFilter?.value || '';
+            const sVal = statusFilter?.value || '';
+            const chips = [];
+            if (cVal) chips.push(`Cabang: ${cVal}`);
+            if (sVal) chips.push(sVal === 'deleted' ? 'Terhapus' : 'Aktif');
+
+            if (filterBadgeDot) filterBadgeDot.classList.toggle('d-none', chips.length === 0);
+            if (activeFilterChip) {
+                if (chips.length) {
+                    activeFilterChip.textContent = chips.join(' • ');
+                    activeFilterChip.classList.remove('d-none');
+                } else {
+                    activeFilterChip.classList.add('d-none');
+                }
+            }
+        };
+
+        const updateCount = () => {
+            if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+        };
+
+        dt.off('draw.userMobileCard').on('draw.userMobileCard', function () {
+            renderUserMobileCards(dt);
+        });
+        renderUserMobileCards(dt);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateCount();
+            });
+        }
+
+        if (cabangFilter) {
+            cabangFilter.addEventListener('change', function () {
+                if (mobileCabangFilter) mobileCabangFilter.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        if (mobileCabangFilter) {
+            mobileCabangFilter.addEventListener('change', function () {
+                if (cabangFilter) cabangFilter.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        if (statusFilter) {
+            statusFilter.addEventListener('change', function () {
+                if (mobileStatusFilter) mobileStatusFilter.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        if (mobileStatusFilter) {
+            mobileStatusFilter.addEventListener('change', function () {
+                if (statusFilter) statusFilter.value = this.value;
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        if (btnResetMobile) {
+            btnResetMobile.addEventListener('click', function () {
+                [cabangFilter, statusFilter, mobileCabangFilter, mobileStatusFilter].forEach(el => {
+                    if (el) el.value = '';
+                });
+                syncFilterIndicators();
+                dt.draw();
+                updateCount();
+            });
+        }
+
+        updateCount();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initUserDataTableFilter);
+    } else {
+        initUserDataTableFilter();
+    }
+
+    if (!window._userActionListenersBound) {
+        window._userActionListenersBound = true;
+        document.addEventListener('click', function (e) {
+            const delBtn = e.target.closest('.btn-confirm-delete-user');
+            if (delBtn) {
+                const form = document.getElementById('formConfirmDeleteUser');
+                const infoEl = document.getElementById('confirmDeleteUserInfo');
+                if (form) form.setAttribute('action', delBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${delBtn.getAttribute('data-nama') || ''} (${delBtn.getAttribute('data-email') || ''})`;
+                return;
+            }
+
+            const restoreBtn = e.target.closest('.btn-confirm-restore-user');
+            if (restoreBtn) {
+                const form = document.getElementById('formConfirmRestoreUser');
+                const infoEl = document.getElementById('confirmRestoreUserInfo');
+                if (form) form.setAttribute('action', restoreBtn.getAttribute('data-action'));
+                if (infoEl) infoEl.textContent = `${restoreBtn.getAttribute('data-nama') || ''} (${restoreBtn.getAttribute('data-email') || ''})`;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

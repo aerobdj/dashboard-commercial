@@ -1,0 +1,257 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3 class="mb-1">Account Profile</h3>
+                <p class="text-subtitle text-muted mb-0">Kelola informasi pribadi, foto profil, dan keamanan akun Anda.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="section">
+    <div class="row g-3 g-lg-4">
+        <!-- Kolom Kiri: Kartu Foto Profil & Editor Posisi Gambar -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body py-3 py-md-4">
+                    <div class="d-flex justify-content-center align-items-center flex-column text-center">
+                        <div class="position-relative mb-2 mb-md-3">
+                            <div class="rounded-circle overflow-hidden border border-3 border-primary shadow-sm d-flex align-items-center justify-content-center bg-light account-avatar-box">
+                                {% if user.imageprofil %}
+                                    <img id="avatarPreviewDisplay" src="{{ url_for('static', filename=user.imageprofil) }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    <img id="avatarPreviewDisplay" src="{{ url_for('static', filename='static/images/faces/1.jpg') }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <h5 class="mt-1 mb-1 fw-bold">{{ user.nama_lengkap }}</h5>
+                        <p class="small text-muted mb-3">
+                            {{ user.jabatan }} {% if user.kode_cabang %}({{ user.kode_cabang }}){% endif %}
+                        </p>
+
+                        <!-- Tombol Ganti Foto Profil -->
+                        <input type="file" id="avatarFileInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-4 py-2" id="btnTriggerAvatarInput">
+                            <i class="bi bi-camera-fill me-2"></i>Ganti Foto Profil
+                        </button>
+                        <small class="text-muted mt-2" style="font-size: 0.74rem;">Format JPG/PNG. Anda dapat menggeser &amp; zoom posisi foto.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Form Detail Biodata -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-3 p-md-4">
+                    <form action="{{ url_for('users.profile') }}" method="POST" id="formAccountProfile">
+                        <input type="hidden" name="cropped_avatar" id="croppedAvatarInput">
+
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="nama_lengkap" class="form-label fw-semibold small">Nama Lengkap</label>
+                                <input type="text" name="nama_lengkap" id="nama_lengkap" class="form-control" value="{{ user.nama_lengkap }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="email" class="form-label fw-semibold small">Email</label>
+                                <input type="email" name="email" id="email" class="form-control" value="{{ user.email }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="phone" class="form-label fw-semibold small">Phone / No. HP <span class="text-danger">*</span></label>
+                                <input type="tel" inputmode="tel" name="phone" id="phone" class="form-control" placeholder="Contoh: 081234567890" value="{{ user.phone or '' }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="tgl_lahir" class="form-label fw-semibold small">Tanggal Lahir <span class="text-danger">*</span></label>
+                                <input type="date" name="tgl_lahir" id="tgl_lahir" class="form-control" value="{{ user.tgl_lahir or '' }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="gender" class="form-label fw-semibold small">Gender <span class="text-danger">*</span></label>
+                                <select name="gender" id="gender" class="form-select" required>
+                                    <option value="" disabled {% if not user.gender %}selected{% endif %}>-- Pilih Gender --</option>
+                                    <option value="Laki-laki" {% if user.gender == 'Laki-laki' %}selected{% endif %}>Laki-laki</option>
+                                    <option value="Perempuan" {% if user.gender == 'Perempuan' %}selected{% endif %}>Perempuan</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label class="form-label fw-semibold small">Jabatan &amp; Unit</label>
+                                <input type="text" class="form-control bg-light" value="{{ user.jabatan }} ({{ user.kode_cabang or '-' }})" readonly>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="password" class="form-label fw-semibold small">Password Baru <span class="text-muted fw-normal">(Kosongkan jika tidak ingin mengubah password)</span></label>
+                                <input type="password" name="password" id="password" class="form-control" placeholder="Masukkan password baru...">
+                            </div>
+                        </div>
+
+                        <div class="mt-2 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm w-100 w-md-auto">
+                                <i class="bi bi-check-circle me-2"></i>Simpan Perubahan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Crop & Atur Posisi Gambar -->
+<div class="modal fade" id="modalAvatarCropper" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Atur Posisi Foto Profil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted small mb-3">Geser gambar di dalam lingkaran dan atur zoom agar posisi wajah pas.</p>
+                <div class="d-flex justify-content-center mb-3">
+                    <canvas id="avatarCropCanvas" width="230" height="230" class="rounded-circle border border-3 border-primary shadow-sm" style="cursor: grab; touch-action: none;"></canvas>
+                </div>
+                <div class="px-3 px-md-4">
+                    <label class="form-label small fw-semibold d-flex justify-content-between">
+                        <span>Zoom</span>
+                        <span id="zoomPercentLabel">100%</span>
+                    </label>
+                    <input type="range" id="avatarZoomSlider" class="form-range" min="0.5" max="3" step="0.05" value="1">
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="btnApplyAvatarCrop">Gunakan Foto Ini</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .account-avatar-box {
+        width: 140px;
+        height: 140px;
+    }
+    @media (max-width: 767.98px) {
+        .account-avatar-box {
+            width: 104px;
+            height: 104px;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    const fileInput = document.getElementById('avatarFileInput');
+    const triggerBtn = document.getElementById('btnTriggerAvatarInput');
+    const canvas = document.getElementById('avatarCropCanvas');
+    const zoomSlider = document.getElementById('avatarZoomSlider');
+    const zoomLabel = document.getElementById('zoomPercentLabel');
+    const btnApply = document.getElementById('btnApplyAvatarCrop');
+    const previewDisplay = document.getElementById('avatarPreviewDisplay');
+    const hiddenInput = document.getElementById('croppedAvatarInput');
+    const modalEl = document.getElementById('modalAvatarCropper');
+
+    if (!fileInput || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    let img = new Image();
+    let scale = 1, minScale = 1, offsetX = 0, offsetY = 0;
+    let isDragging = false, startX = 0, startY = 0;
+
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', function () {
+            fileInput.value = '';
+            fileInput.click();
+        });
+    }
+
+    function drawCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#f1f3f5';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, offsetX, offsetY, w, h);
+    }
+
+    fileInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+            img.onload = function () {
+                minScale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                scale = minScale;
+                zoomSlider.min = (minScale * 0.8).toFixed(2);
+                zoomSlider.max = (minScale * 3).toFixed(2);
+                zoomSlider.step = '0.02';
+                zoomSlider.value = scale;
+                zoomLabel.textContent = '100%';
+                offsetX = (canvas.width - img.width * scale) / 2;
+                offsetY = (canvas.height - img.height * scale) / 2;
+                drawCanvas();
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    zoomSlider.addEventListener('input', function () {
+        const prevScale = scale;
+        scale = parseFloat(this.value);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        offsetX = centerX - ((centerX - offsetX) / prevScale) * scale;
+        offsetY = centerY - ((centerY - offsetY) / prevScale) * scale;
+        zoomLabel.textContent = Math.round((scale / minScale) * 100) + '%';
+        drawCanvas();
+    });
+
+    // Hentikan propagasi touchstart agar gesture geser foto di canvas tidak menutup modal bottom sheet
+    canvas.addEventListener('touchstart', function (e) {
+        e.stopPropagation();
+    }, { passive: true });
+
+    canvas.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        isDragging = true;
+        startX = e.clientX - offsetX;
+        startY = e.clientY - offsetY;
+        canvas.style.cursor = 'grabbing';
+        canvas.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener('pointermove', function (e) {
+        if (!isDragging) return;
+        offsetX = e.clientX - startX;
+        offsetY = e.clientY - startY;
+        drawCanvas();
+    });
+
+    canvas.addEventListener('pointerup', function () {
+        isDragging = false;
+        canvas.style.cursor = 'grab';
+    });
+
+    btnApply.addEventListener('click', function () {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        previewDisplay.src = dataUrl;
+        hiddenInput.value = dataUrl;
+        bootstrap.Modal.getInstance(modalEl)?.hide();
+    });
+})();
+</script>
+{% endblock %}

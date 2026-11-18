@@ -1,49 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Commercial Dashboard Airport</title>
-    
+    <title>Login - Commercial Dashboard | InJourney Airports</title>
+
     <!-- Mazer UI CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app-dark.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='extensions/toastify-js/src/toastify.css') }}">
+
+    <style>
+        html, body, #auth {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        /* Styling Logo InJourney Airports */
+        .auth-logo img {
+            height: 80px !important;
+            width: auto;
+            object-fit: contain;
+        }
+
+        /* Panel Kanan: Siap Video Autoplay + Fallback Visual */
+        #auth-right {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f294a 0%, #1d4e89 55%, #008080 100%);
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding: 3.5rem;
+        }
+
+        #auth-right video.bg-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* Overlay gelap tipis agar teks di atas video tetap terbaca jelas */
+        #auth-right .video-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(10, 25, 47, 0.85) 0%, rgba(10, 25, 47, 0.25) 60%, rgba(10, 25, 47, 0.1) 100%);
+            z-index: 2;
+        }
+
+        #auth-right .hero-caption {
+            position: relative;
+            z-index: 3;
+            color: #ffffff;
+            max-width: 540px;
+        }
+
+        /* Dekorasi halus saat video belum diisi */
+        #auth-right::before {
+            content: "";
+            position: absolute;
+            width: 480px;
+            height: 480px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
+            top: -120px;
+            right: -120px;
+            z-index: 0;
+        }
+    </style>
 </head>
+
 <body>
+    <script src="{{ url_for('static', filename='static/js/initTheme.js') }}"></script>
+
+    <!-- Wadah Flash Messages tersembunyi untuk Toastify -->
+    <div id="login-flash-messages" class="d-none"
+         data-messages='{{ get_flashed_messages(with_categories=true) | tojson | safe }}'>
+    </div>
+
     <div id="auth">
-        <div class="row h-100">
-            <div class="col-lg-5 col-12 ms-auto me-auto mt-5">
-                <div id="auth-left">
-                    <h1 class="auth-title">Log in.</h1>
-                    <p class="auth-subtitle mb-4">Masuk ke Commercial Dashboard Airport.</p>
+        <div class="row h-100 g-0">
+            <!-- Panel Kiri: Form Login -->
+            <div class="col-lg-5 col-12 d-flex align-items-center">
+                <div id="auth-left" class="w-100 px-4 px-sm-5 py-5">
+                    <div class="auth-logo mb-4">
+                        <a href="{{ url_for('auth.login') }}">
+                            <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}" alt="InJourney Airports Logo">
+                        </a>
+                    </div>
 
-                    {% with messages = get_flashed_messages() %}
-                      {% if messages %}
-                        <div class="alert alert-danger py-2 mb-3">
-                          {{ messages[0] }}
-                        </div>
-                      {% endif %}
-                    {% endwith %}
+                    <h1 class="auth-title fs-2 fw-bold mb-1">Log in.</h1>
+                    <p class="auth-subtitle text-muted fs-6 mb-4">
+                        Commercial Dashboard &mdash; InJourney Airports
+                    </p>
 
-                    <form action="/login" method="POST">
-                        <div class="form-group position-relative has-icon-left mb-4">
-                            <input type="email" name="email" class="form-control form-control-xl" placeholder="Email" required>
+                    <form action="{{ url_for('auth.login') }}" method="POST">
+                        <div class="form-group position-relative has-icon-left mb-3">
+                            <input type="email" name="email" class="form-control form-control-lg rounded-3" placeholder="Email Perusahaan" required autofocus>
                             <div class="form-control-icon">
-                                <i class="bi bi-person"></i>
+                                <i class="bi bi-envelope"></i>
                             </div>
                         </div>
-                        <div class="form-group position-relative has-icon-left mb-4">
-                            <input type="password" name="password" class="form-control form-control-xl" placeholder="Password" required>
+
+                        <div class="form-group position-relative has-icon-left mb-3">
+                            <input type="password" name="password" class="form-control form-control-lg rounded-3" placeholder="Password" required>
                             <div class="form-control-icon">
                                 <i class="bi bi-shield-lock"></i>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block btn-lg shadow-lg mt-3 w-100">Log in</button>
+
+                        <div class="form-check d-flex align-items-center mb-4">
+                            <input class="form-check-input me-2" type="checkbox" name="remember" id="flexCheckDefault">
+                            <label class="form-check-label text-muted small" for="flexCheckDefault">
+                                Keep me logged in
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block btn-lg w-100 rounded-3 shadow-sm fw-semibold">
+                            Log in
+                        </button>
                     </form>
+
+                    <div class="text-center mt-5">
+                        <p class="text-muted small mb-0">&copy; 2026 InJourney Airports. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Kanan: Video Background Autoplay (dengan Fallback Gradient) -->
+            <div class="col-lg-7 d-none d-lg-block">
+                <div id="auth-right">
+                    <video class="bg-video" autoplay muted loop playsinline onerror="this.style.display='none'">
+                        <source src="{{ url_for('static', filename='static/videos/airport-bg.mp4') }}" type="video/mp4">
+                    </video>
+
+                    <div class="video-overlay"></div>
+
+                    <div class="hero-caption">
+                        <span class="badge bg-white bg-opacity-25 text-white fw-semibold px-3 py-2 rounded-pill mb-3">
+                            Commercial Performance Portal
+                        </span>
+                        <h2 class="text-white fw-bold mb-2">Elevating Airport Commercial Excellence</h2>
+                        <p class="text-white-50 mb-0">
+                            Integrated monitoring for non-aeronautical revenue, tenant performance, and airport commercial operations across regions.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='compiled/js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='extensions/toastify-js/src/toastify.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const flashEl = document.getElementById('login-flash-messages');
+            if (!flashEl || typeof Toastify === 'undefined') return;
+
+            let messages = [];
+            try {
+                messages = JSON.parse(flashEl.getAttribute('data-messages') || '[]');
+            } catch (e) {
+                messages = [];
+            }
+
+            const bgColors = {
+                danger: 'linear-gradient(135deg, #dc3545, #b02a37)',
+                warning: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                success: 'linear-gradient(135deg, #198754, #146c43)',
+                info: 'linear-gradient(135deg, #0d6efd, #0a58ca)'
+            };
+
+            messages.forEach(function (item) {
+                const category = item[0];
+                const text = item[1];
+                Toastify({
+                    text: text,
+                    duration: 3500,
+                    close: true,
+                    gravity: "top",
+                    position: "right",
+                    stopOnFocus: true,
+                    style: {
+                        background: bgColors[category] || 'linear-gradient(135deg, #435ebe, #25396f)',
+                        borderRadius: '10px',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+                        fontWeight: '500'
+                    }
+                }).showToast();
+            });
+        });
+    </script>
 </body>
+
 </html>
