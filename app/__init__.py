@@ -61,6 +61,7 @@ def create_app():
     from app.controllers.airline_registration_controller import airline_registration_bp
     from app.controllers.ppn_controller import ppn_bp
     from app.controllers.tarif_aeronautika_controller import tarif_aero_bp
+    from app.controllers.tools_controller import tools_aero_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -77,6 +78,7 @@ def create_app():
     app.register_blueprint(airline_registration_bp)
     app.register_blueprint(ppn_bp)
     app.register_blueprint(tarif_aero_bp)
+    app.register_blueprint(tools_aero_bp)
 
     # Handler jika file yang diunggah melebihi batas 30 MB
     @app.errorhandler(RequestEntityTooLarge)

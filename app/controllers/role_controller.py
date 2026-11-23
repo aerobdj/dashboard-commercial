@@ -12,6 +12,7 @@ AVAILABLE_MENUS = [
     {'key': 'mitra_usaha', 'label': 'Mitra Usaha', 'group': 'Commercial'},
     {'key': 'aeronautika_admin', 'label': 'Administrasi', 'group': 'Aeronautika'},
     {'key': 'aeronautika_ops', 'label': 'Operasional', 'group': 'Aeronautika'},
+    {'key': 'aeronautika_tools', 'label': 'Operasional - Tools (Picture to PDF & Pax Rekon)', 'group': 'Aeronautika'},
     {'key': 'airlines', 'label': 'Setting - Airlines', 'group': 'Aeronautika'},
     {'key': 'airlines_users', 'label': 'Setting - Airlines Users', 'group': 'Aeronautika'},
     {'key': 'tarif_aeronautika', 'label': 'Setting - Tarif', 'group': 'Aeronautika'},

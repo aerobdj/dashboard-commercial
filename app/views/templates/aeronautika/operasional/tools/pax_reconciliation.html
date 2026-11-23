@@ -1,0 +1,876 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<style>
+    .sticky-flight-bar {
+        position: sticky;
+        top: 64px;
+        z-index: 1015;
+        background-color: var(--bs-body-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .aero-kpi-card {
+        background-color: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-left: 4px solid #0284c7;
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        height: 100%;
+    }
+    .aero-kpi-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--bs-secondary-color);
+        margin-bottom: 0.15rem;
+    }
+    .aero-kpi-value {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #0284c7;
+        word-break: break-word;
+    }
+
+    /* Kartu Filter Status Interaktif */
+    .status-filter-card {
+        background-color: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+        width: 100%;
+        height: 100%;
+    }
+    .status-filter-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .status-filter-card.active-filter {
+        background-color: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+    }
+    .border-left-scan { border-left: 4px solid #38bdf8 !important; }
+    .border-left-mnf { border-left: 4px solid #a855f7 !important; }
+    .border-left-match { border-left: 4px solid #22c55e !important; }
+    .border-left-offload { border-left: 4px solid #ef4444 !important; }
+    .border-left-change { border-left: 4px solid #f97316 !important; }
+    .border-left-notscan { border-left: 4px solid #94a3b8 !important; }
+    .border-left-infant { border-left: 4px solid #3b82f6 !important; }
+    .border-left-confirm { border-left: 4px solid #eab308 !important; }
+
+    /* Badge Hasil Rekonsiliasi */
+    .badge-rekon {
+        font-size: 0.73rem;
+        font-weight: 700;
+        padding: 0.35em 0.65em;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .badge-match { background-color: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.35); }
+    .badge-offload { background-color: rgba(239, 68, 68, 0.15); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .badge-change { background-color: rgba(249, 115, 22, 0.15); color: #c2410c; border: 1px solid rgba(249, 115, 22, 0.35); }
+    .badge-notscan { background-color: rgba(148, 163, 184, 0.2); color: #475569; border: 1px solid rgba(148, 163, 184, 0.4); }
+    .badge-infant { background-color: rgba(59, 130, 246, 0.15); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.35); }
+    .badge-confirm { background-color: rgba(234, 179, 8, 0.18); color: #a16207; border: 1px solid rgba(234, 179, 8, 0.4); }
+
+    .rekon-table-scroll {
+        max-height: 560px;
+        overflow: auto;
+    }
+    .rekon-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: var(--bs-tertiary-bg);
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    .rekon-table-scroll tbody td {
+        font-size: 0.8rem;
+        vertical-align: middle;
+    }
+
+    .rekon-dropzone {
+        border: 2px dashed var(--bs-border-color);
+        border-radius: 0.9rem;
+        padding: 1.25rem 1rem;
+        text-align: center;
+        background-color: var(--bs-tertiary-bg);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .rekon-dropzone:hover,
+    .rekon-dropzone.dragover {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary-bg-subtle);
+    }
+    .rekon-dropzone.has-files {
+        border-style: solid;
+        border-color: rgba(2, 132, 199, 0.45);
+        background-color: rgba(2, 132, 199, 0.04);
+    }
+    .rekon-file-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        max-width: 100%;
+    }
+
+    @media (max-width: 767.98px) {
+        .sticky-flight-bar {
+            position: static;
+        }
+    }
+</style>
+
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb small mb-1">
+                    <li class="breadcrumb-item text-muted">Aeronautika</li>
+                    <li class="breadcrumb-item text-muted">Operasional</li>
+                    <li class="breadcrumb-item text-muted">Tools</li>
+                    <li class="breadcrumb-item active fw-semibold text-primary" aria-current="page">Pax Reconciliation</li>
+                </ol>
+            </nav>
+            <h3 class="mb-1">Passenger Reconciliation System</h3>
+            <p class="text-subtitle text-muted mb-0">Rekonsiliasi otomatis data Gate Tapping vs Passenger Manifest (34 Maskapai • Data bersifat sementara / tidak disimpan di server).</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-info rounded-pill px-3 btn-sm" data-bs-toggle="modal" data-bs-target="#modalSupportedAirlines">
+                <i class="bi bi-info-circle-fill me-1"></i>Maskapai Terdukung (34)
+            </button>
+            <button type="button" id="btnResetRekon" class="btn btn-outline-danger rounded-pill px-3 btn-sm d-none" onclick="resetPaxReconciliation()">
+                <i class="bi bi-trash3-fill me-1"></i>Reset / Mulai Awal
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="section">
+    <!-- FORM UPLOAD DOKUMEN -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+        <div class="card-body p-3 p-md-4">
+            <div id="formPaxRekon">
+                <div class="row g-3 align-items-stretch">
+                    <!-- Dropzone 1: Gate Tapping (Multi-File) -->
+                    <div class="col-12 col-md-5">
+                        <div class="rekon-dropzone" id="dropzoneTapping" onclick="document.getElementById('inputTappingFiles').click()">
+                            <input type="file" id="inputTappingFiles" class="d-none" accept=".txt,.csv,.xlsx,.xls" multiple>
+                            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mb-2" style="width: 42px; height: 42px;">
+                                <i class="bi bi-upc-scan fs-5"></i>
+                            </div>
+                            <div class="fw-bold small mb-1">1. File Gate Tapping <span class="text-primary">(Multi-File)</span></div>
+                            <div class="text-muted" style="font-size: 0.74rem;" id="tappingPlaceholderText">
+                                Tarik & lepas file ke sini, atau klik untuk memilih (.txt, .csv, .xlsx, .xls)
+                            </div>
+                            <div id="tappingFileList" class="d-flex flex-wrap justify-content-center gap-1 mt-2 w-100" onclick="event.stopPropagation()"></div>
+                        </div>
+                    </div>
+
+                    <!-- Dropzone 2: Passenger Manifest (Single PDF/TXT) -->
+                    <div class="col-12 col-md-4">
+                        <div class="rekon-dropzone" id="dropzoneManifest" onclick="document.getElementById('inputManifestFile').click()">
+                            <input type="file" id="inputManifestFile" class="d-none" accept=".pdf,.txt">
+                            <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center mb-2" style="width: 42px; height: 42px;">
+                                <i class="bi bi-file-earmark-pdf-fill fs-5"></i>
+                            </div>
+                            <div class="fw-bold small mb-1">2. File Passenger Manifest</div>
+                            <div class="text-muted" style="font-size: 0.74rem;" id="manifestPlaceholderText">
+                                Tarik & lepas file Manifest ke sini, atau klik untuk memilih (.pdf / .txt)
+                            </div>
+                            <div id="manifestFileBadge" class="d-flex justify-content-center mt-2 w-100" onclick="event.stopPropagation()"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Proses -->
+                    <div class="col-12 col-md-3 d-flex flex-column justify-content-center">
+                        <button type="button" id="btnProcessRekon" class="btn btn-primary w-100 rounded-pill py-2 fw-semibold shadow-sm" onclick="processPaxReconciliation()">
+                            <i class="bi bi-cpu-fill me-1"></i>Proses Rekonsiliasi
+                        </button>
+                        <div class="text-center text-muted mt-2" style="font-size: 0.72rem;">
+                            <i class="bi bi-shield-check text-success me-1"></i>100% Temporary di Memori
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALERT ERROR -->
+    <div id="rekonErrorAlert" class="alert alert-danger rounded-4 d-none" role="alert"></div>
+
+    <!-- WELCOME CARD (AWAL SEBELUM UPLOAD) -->
+    <div id="rekonWelcomeCard" class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold text-primary mb-2">Selamat Datang di E-Reconciliation System InJourney Airports</h5>
+            <p class="text-muted small mb-0">
+                Silakan unggah file <strong>Gate Tapping</strong> dan <strong>Passenger Manifest</strong> pada form di atas, lalu klik <strong>Proses Rekonsiliasi</strong>.
+                Seluruh proses pencocokan berjalan sementara di memori (temporary) dan tidak menyimpan dokumen di server maupun database.
+            </p>
+        </div>
+    </div>
+
+    <!-- SKELETON LOADING SAAT PROSES REKONSILIASI -->
+    <div id="rekonProcessSkeleton" class="d-none placeholder-glow">
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+            <div class="col-6 col-md-2"><div class="placeholder w-100 rounded-3" style="height: 62px;"></div></div>
+        </div>
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <span class="placeholder col-4 rounded-pill mb-3" style="height: 20px;"></span>
+                <span class="placeholder w-100 rounded-3 mb-2" style="height: 40px;"></span>
+                <span class="placeholder w-100 rounded-3 mb-2" style="height: 36px;"></span>
+                <span class="placeholder w-100 rounded-3 mb-2" style="height: 36px;"></span>
+                <span class="placeholder w-100 rounded-3" style="height: 36px;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTAINER HASIL REKONSILIASI -->
+    <div id="rekonResultContainer" class="d-none">
+
+        <!-- STICKY DETAIL PENERBANGAN -->
+        <div class="sticky-flight-bar rounded-3 px-2">
+            <div class="small fw-bold mb-2"><i class="bi bi-airplane-fill text-primary me-1"></i>Detail Penerbangan</div>
+            <div class="row g-2">
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card">
+                        <div class="aero-kpi-label">Airline</div>
+                        <div class="aero-kpi-value" id="kpiAirline">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card">
+                        <div class="aero-kpi-label">No Flight</div>
+                        <div class="aero-kpi-value" id="kpiFlightNo">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card" style="border-left-color: #eab308;">
+                        <div class="aero-kpi-label">Rute</div>
+                        <div class="aero-kpi-value" id="kpiRoute">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card">
+                        <div class="aero-kpi-label">Tanggal</div>
+                        <div class="aero-kpi-value" id="kpiDate">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card" style="border-left-color: #38bdf8;">
+                        <div class="aero-kpi-label">Data Scan</div>
+                        <div class="aero-kpi-value" id="kpiScanSummary">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="aero-kpi-card" style="border-left-color: #a855f7;">
+                        <div class="aero-kpi-label">Manifest</div>
+                        <div class="aero-kpi-value" id="kpiManifestSummary">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RINGKASAN HASIL REKONSILIASI (8 KARTU INTERAKTIF) -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-fill text-primary me-1"></i>Ringkasan Hasil Rekonsiliasi</h6>
+                <span class="text-muted small">Klik kartu status untuk memfilter tabel</span>
+            </div>
+            <div class="row g-2">
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-scan" onclick="applyStatusFilter('ALL')">
+                        <div class="aero-kpi-label">Pax Scan</div>
+                        <div class="fw-bold fs-6 text-info" id="cntScan">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-mnf" onclick="applyStatusFilter('ALL')">
+                        <div class="aero-kpi-label">Pax Manifest</div>
+                        <div class="fw-bold fs-6" style="color: #a855f7;" id="cntManifest">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-match" data-filter-btn="MATCH" onclick="applyStatusFilter('MATCH')">
+                        <div class="aero-kpi-label">🟢 Match</div>
+                        <div class="fw-bold fs-6 text-success" id="cntMatch">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-offload" data-filter-btn="OFFLOAD" onclick="applyStatusFilter('OFFLOAD')">
+                        <div class="aero-kpi-label">🔴 Offload</div>
+                        <div class="fw-bold fs-6 text-danger" id="cntOffload">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-change" data-filter-btn="CHANGE SEAT" onclick="applyStatusFilter('CHANGE SEAT')">
+                        <div class="aero-kpi-label">🟠 Change Seat</div>
+                        <div class="fw-bold fs-6 text-warning" id="cntChangeSeat">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-notscan" data-filter-btn="NOT SCAN" onclick="applyStatusFilter('NOT SCAN')">
+                        <div class="aero-kpi-label">⚪ Not Scan</div>
+                        <div class="fw-bold fs-6 text-secondary" id="cntNotScan">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-infant" data-filter-btn="INFANT" onclick="applyStatusFilter('INFANT')">
+                        <div class="aero-kpi-label">👶 Infant</div>
+                        <div class="fw-bold fs-6 text-primary" id="cntInfant">0 Pax</div>
+                    </button>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-3 col-xl">
+                    <button type="button" class="status-filter-card border-left-confirm" data-filter-btn="CONFIRMATION" onclick="applyStatusFilter('CONFIRMATION')">
+                        <div class="aero-kpi-label">🟨 Confirm</div>
+                        <div class="fw-bold fs-6 text-warning" id="cntConfirm">0 Pax</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RINGKASAN TYPE PAX -->
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-6">
+                <div class="card border shadow-none rounded-4 h-100 mb-0">
+                    <div class="card-body p-3">
+                        <div class="small fw-bold text-primary mb-2"><i class="bi bi-qr-code-scan me-1"></i>DATA SCAN (TYPE PAX)</div>
+                        <div class="row text-center g-2">
+                            <div class="col-3">
+                                <div class="small text-muted">Adult</div>
+                                <div class="fw-bold fs-5" id="scanAdult">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Child</div>
+                                <div class="fw-bold fs-5" id="scanChild">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Infant</div>
+                                <div class="fw-bold fs-5" id="scanInfant">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Transit</div>
+                                <div class="fw-bold fs-5" id="scanTransit">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="card border shadow-none rounded-4 h-100 mb-0">
+                    <div class="card-body p-3">
+                        <div class="small fw-bold mb-2" style="color: #a855f7;"><i class="bi bi-file-earmark-text-fill me-1"></i>DATA MANIFEST (TYPE PAX)</div>
+                        <div class="row text-center g-2">
+                            <div class="col-3">
+                                <div class="small text-muted">Adult</div>
+                                <div class="fw-bold fs-5" id="mnfAdult">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Child</div>
+                                <div class="fw-bold fs-5" id="mnfChild">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Infant</div>
+                                <div class="fw-bold fs-5" id="mnfInfant">0</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="small text-muted">Transit</div>
+                                <div class="fw-bold fs-5" id="mnfTransit">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABEL HASIL & PREVIEW PDF SIDE-BY-SIDE -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-3 p-md-4">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0">
+                            <i class="bi bi-table text-primary me-1"></i>Detail Pencocokan Penumpang
+                            <span class="badge bg-primary-subtle text-primary ms-1" id="activeFilterBadge">Filter: ALL</span>
+                        </h6>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto justify-content-lg-end">
+                        <input type="text" id="searchRekonInput" class="form-control form-control-sm" style="max-width: 210px;" placeholder="Cari nama / seat / PNR..." oninput="renderRekonTable()">
+                        <div class="form-check form-switch mb-0" id="togglePdfWrapper">
+                            <input class="form-check-input" type="checkbox" id="togglePdfPreview" onchange="toggleSideBySidePdf()">
+                            <label class="form-check-label small fw-semibold" for="togglePdfPreview">Preview PDF</label>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="applyStatusFilter('ALL')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filter
+                        </button>
+                        <button type="button" id="btnExportExcel" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" onclick="downloadRekonExcel()">
+                            <i class="bi bi-file-earmark-excel-fill me-1"></i>Download .XLSX
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3" id="rekonSplitLayout">
+                    <div class="col-12" id="rekonTableCol">
+                        <div class="table-responsive rekon-table-scroll border rounded-3">
+                            <table class="table table-hover table-sm mb-0" id="rekonResultTable">
+                                <thead>
+                                    <tr>
+                                        <th>NO</th>
+                                        <th>NAMA SCAN</th>
+                                        <th>SEAT SCAN</th>
+                                        <th>PNR SCAN</th>
+                                        <th>TYPE SCAN</th>
+                                        <th>NAMA MANIFEST</th>
+                                        <th>SEAT MNF</th>
+                                        <th>PNR MNF</th>
+                                        <th>TYPE MNF</th>
+                                        <th>HASIL</th>
+                                        <th>CATATAN</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rekonTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6 d-none" id="rekonPdfCol">
+                        <div class="border rounded-3 overflow-hidden bg-dark" style="height: 560px;">
+                            <iframe id="manifestPdfIframe" class="w-100 h-100 border-0" title="Preview Manifest PDF"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MODAL MASKAPAI TERDUKUNG -->
+<div class="modal fade" id="modalSupportedAirlines" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h6 class="modal-title fw-bold"><i class="bi bi-airplane-engines text-primary me-2"></i>Maskapai Terdukung (34 Format)</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body small">
+                <p class="text-muted mb-2">Sistem mendeteksi format maskapai secara otomatis dari isi file PDF/TXT:</p>
+                <ol class="ps-3 mb-0">
+                    {% for airline_name, format_desc in supported_airlines %}
+                    <li class="mb-1"><strong>{{ airline_name }}</strong> — <span class="text-muted">{{ format_desc }}</span></li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let rekonState = {
+    records: [],
+    airline: 'Rekonsiliasi',
+    filterStatus: 'ALL',
+    pdfBlobUrl: null,
+    tappingFiles: [],
+    manifestFile: null
+};
+
+(function initRekonDropzones() {
+    const dzTapping = document.getElementById('dropzoneTapping');
+    const inpTapping = document.getElementById('inputTappingFiles');
+    const dzManifest = document.getElementById('dropzoneManifest');
+    const inpManifest = document.getElementById('inputManifestFile');
+
+    if (!dzTapping || !dzManifest) return;
+
+    function setupDragEvents(zone, onDropCallback) {
+        ['dragenter', 'dragover'].forEach(evt => {
+            zone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            zone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+            });
+        });
+        zone.addEventListener('drop', e => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                onDropCallback(e.dataTransfer.files);
+            }
+        });
+    }
+
+    setupDragEvents(dzTapping, files => addTappingFiles(files));
+    setupDragEvents(dzManifest, files => setManifestFile(files[0]));
+
+    inpTapping.addEventListener('change', e => {
+        if (e.target.files.length) {
+            addTappingFiles(e.target.files);
+            inpTapping.value = '';
+        }
+    });
+
+    inpManifest.addEventListener('change', e => {
+        if (e.target.files.length) {
+            setManifestFile(e.target.files[0]);
+            inpManifest.value = '';
+        }
+    });
+})();
+
+function addTappingFiles(fileList) {
+    const allowedExt = ['.txt', '.csv', '.xlsx', '.xls'];
+    Array.from(fileList).forEach(file => {
+        const lower = file.name.toLowerCase();
+        if (!allowedExt.some(ext => lower.endsWith(ext))) return;
+        const exists = rekonState.tappingFiles.some(f => f.name === file.name && f.size === file.size);
+        if (!exists) {
+            rekonState.tappingFiles.push(file);
+        }
+    });
+    renderTappingChips();
+}
+
+function removeTappingFile(index) {
+    rekonState.tappingFiles.splice(index, 1);
+    renderTappingChips();
+}
+
+function renderTappingChips() {
+    const listEl = document.getElementById('tappingFileList');
+    const zoneEl = document.getElementById('dropzoneTapping');
+    const placeholderEl = document.getElementById('tappingPlaceholderText');
+
+    if (!rekonState.tappingFiles.length) {
+        zoneEl.classList.remove('has-files');
+        placeholderEl.textContent = 'Tarik & lepas file ke sini, atau klik untuk memilih (.txt, .csv, .xlsx, .xls)';
+        listEl.innerHTML = '';
+        return;
+    }
+
+    zoneEl.classList.add('has-files');
+    placeholderEl.textContent = `${rekonState.tappingFiles.length} file dipilih (klik/tarik lagi untuk menambah)`;
+    listEl.innerHTML = rekonState.tappingFiles.map((f, idx) => `
+        <span class="rekon-file-chip">
+            <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+            <span class="text-truncate" style="max-width: 150px;" title="${f.name}">${f.name}</span>
+            <i class="bi bi-x-circle-fill text-danger" style="cursor:pointer;" onclick="removeTappingFile(${idx})" title="Hapus file ini"></i>
+        </span>
+    `).join('');
+}
+
+function setManifestFile(file) {
+    if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.txt')) {
+        alert('Format file Manifest harus .pdf atau .txt');
+        return;
+    }
+    rekonState.manifestFile = file;
+    renderManifestChip();
+}
+
+function clearManifestFile() {
+    rekonState.manifestFile = null;
+    renderManifestChip();
+}
+
+function renderManifestChip() {
+    const badgeEl = document.getElementById('manifestFileBadge');
+    const zoneEl = document.getElementById('dropzoneManifest');
+    const placeholderEl = document.getElementById('manifestPlaceholderText');
+
+    if (!rekonState.manifestFile) {
+        zoneEl.classList.remove('has-files');
+        placeholderEl.textContent = 'Tarik & lepas file Manifest ke sini, atau klik untuk memilih (.pdf / .txt)';
+        badgeEl.innerHTML = '';
+        return;
+    }
+
+    zoneEl.classList.add('has-files');
+    placeholderEl.textContent = 'Klik atau tarik file lain untuk mengganti';
+    badgeEl.innerHTML = `
+        <span class="rekon-file-chip">
+            <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+            <span class="text-truncate" style="max-width: 180px;" title="${rekonState.manifestFile.name}">${rekonState.manifestFile.name}</span>
+            <i class="bi bi-x-circle-fill text-danger" style="cursor:pointer;" onclick="clearManifestFile()" title="Hapus file"></i>
+        </span>
+    `;
+}
+
+async function processPaxReconciliation() {
+    const btnProcess = document.getElementById('btnProcessRekon');
+    const errorAlert = document.getElementById('rekonErrorAlert');
+
+    if (!rekonState.tappingFiles.length) {
+        errorAlert.textContent = 'Silakan tarik atau pilih minimal 1 file Gate Tapping.';
+        errorAlert.classList.remove('d-none');
+        return;
+    }
+    if (!rekonState.manifestFile) {
+        errorAlert.textContent = 'Silakan tarik atau pilih file Passenger Manifest (.pdf / .txt).';
+        errorAlert.classList.remove('d-none');
+        return;
+    }
+
+    if (rekonState.pdfBlobUrl) {
+        URL.revokeObjectURL(rekonState.pdfBlobUrl);
+        rekonState.pdfBlobUrl = null;
+    }
+
+    const manifestFile = rekonState.manifestFile;
+    const isPdf = manifestFile.name.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+        rekonState.pdfBlobUrl = URL.createObjectURL(manifestFile);
+    }
+
+    const formData = new FormData();
+    rekonState.tappingFiles.forEach(file => {
+        formData.append('tapping_files', file);
+    });
+    formData.append('manifest_file', manifestFile);
+
+    errorAlert.classList.add('d-none');
+    document.getElementById('rekonWelcomeCard').classList.add('d-none');
+    document.getElementById('rekonResultContainer').classList.add('d-none');
+    document.getElementById('rekonProcessSkeleton').classList.remove('d-none');
+
+    const origBtnHtml = btnProcess.innerHTML;
+    btnProcess.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memproses...';
+    btnProcess.disabled = true;
+
+    try {
+        const response = await fetch("{{ url_for('tools_aero.pax_reconciliation_process') }}", {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            throw new Error(data.error || 'Gagal memproses rekonsiliasi.');
+        }
+
+        rekonState.records = data.records || [];
+        rekonState.airline = data.flight_detail.airline || 'Rekonsiliasi';
+        rekonState.filterStatus = 'ALL';
+
+        document.getElementById('kpiAirline').textContent = data.flight_detail.airline;
+        document.getElementById('kpiFlightNo').textContent = data.flight_detail.flight_no;
+        document.getElementById('kpiRoute').textContent = data.flight_detail.route;
+        document.getElementById('kpiDate').textContent = data.flight_detail.date;
+        document.getElementById('kpiScanSummary').textContent = data.flight_detail.scan_summary;
+        document.getElementById('kpiManifestSummary').textContent = data.flight_detail.manifest_summary;
+
+        document.getElementById('cntScan').textContent = `${data.summary_counts.scan} Pax`;
+        document.getElementById('cntManifest').textContent = `${data.summary_counts.manifest} Pax`;
+        document.getElementById('cntMatch').textContent = `${data.summary_counts.match} Pax`;
+        document.getElementById('cntOffload').textContent = `${data.summary_counts.offload} Pax`;
+        document.getElementById('cntChangeSeat').textContent = `${data.summary_counts.change_seat} Pax`;
+        document.getElementById('cntNotScan').textContent = `${data.summary_counts.not_scan} Pax`;
+        document.getElementById('cntInfant').textContent = `${data.summary_counts.infant} Pax`;
+        document.getElementById('cntConfirm').textContent = `${data.summary_counts.confirmation} Pax`;
+
+        document.getElementById('scanAdult').textContent = data.pax_types.scan.adult;
+        document.getElementById('scanChild').textContent = data.pax_types.scan.child;
+        document.getElementById('scanInfant').textContent = data.pax_types.scan.infant;
+        document.getElementById('scanTransit').textContent = data.pax_types.scan.transit;
+
+        document.getElementById('mnfAdult').textContent = data.pax_types.manifest.adult;
+        document.getElementById('mnfChild').textContent = data.pax_types.manifest.child;
+        document.getElementById('mnfInfant').textContent = data.pax_types.manifest.infant;
+        document.getElementById('mnfTransit').textContent = data.pax_types.manifest.transit;
+
+        const toggleWrapper = document.getElementById('togglePdfWrapper');
+        const toggleInput = document.getElementById('togglePdfPreview');
+        toggleInput.checked = false;
+        toggleSideBySidePdf();
+
+        if (isPdf && rekonState.pdfBlobUrl) {
+            toggleWrapper.classList.remove('d-none');
+            document.getElementById('manifestPdfIframe').src = rekonState.pdfBlobUrl;
+        } else {
+            toggleWrapper.classList.add('d-none');
+            document.getElementById('manifestPdfIframe').removeAttribute('src');
+        }
+
+        document.getElementById('rekonProcessSkeleton').classList.add('d-none');
+        document.getElementById('rekonResultContainer').classList.remove('d-none');
+        document.getElementById('btnResetRekon').classList.remove('d-none');
+
+        applyStatusFilter('ALL');
+    } catch (err) {
+        document.getElementById('rekonProcessSkeleton').classList.add('d-none');
+        errorAlert.textContent = err.message;
+        errorAlert.classList.remove('d-none');
+    } finally {
+        btnProcess.innerHTML = origBtnHtml;
+        btnProcess.disabled = false;
+    }
+}
+
+function getStatusBadgeHtml(status) {
+    const map = {
+        'MATCH': '<span class="badge-rekon badge-match">🟢 MATCH</span>',
+        'OFFLOAD': '<span class="badge-rekon badge-offload">🔴 OFFLOAD</span>',
+        'CHANGE SEAT': '<span class="badge-rekon badge-change">🟠 CHANGE SEAT</span>',
+        'NOT SCAN': '<span class="badge-rekon badge-notscan">⚪ NOT SCAN</span>',
+        'INFANT': '<span class="badge-rekon badge-infant">👶 INFANT</span>',
+        'CONFIRMATION': '<span class="badge-rekon badge-confirm">🟨 CONFIRMATION</span>',
+    };
+    return map[status] || `<span class="badge bg-secondary">${status}</span>`;
+}
+
+function applyStatusFilter(status) {
+    rekonState.filterStatus = status;
+    document.getElementById('activeFilterBadge').textContent = `Filter: ${status}`;
+
+    document.querySelectorAll('[data-filter-btn]').forEach(btn => {
+        btn.classList.toggle('active-filter', btn.getAttribute('data-filter-btn') === status);
+    });
+
+    renderRekonTable();
+}
+
+function renderRekonTable() {
+    const tbody = document.getElementById('rekonTableBody');
+    const keyword = (document.getElementById('searchRekonInput').value || '').toLowerCase().trim();
+
+    const filtered = rekonState.records.filter(row => {
+        const matchStatus = rekonState.filterStatus === 'ALL' || row['HASIL'] === rekonState.filterStatus;
+        if (!matchStatus) return false;
+        if (!keyword) return true;
+
+        return (
+            String(row['NAMA SCAN']).toLowerCase().includes(keyword) ||
+            String(row['NAMA MANIFEST']).toLowerCase().includes(keyword) ||
+            String(row['SEAT SCAN']).toLowerCase().includes(keyword) ||
+            String(row['SEAT MANIFEST']).toLowerCase().includes(keyword) ||
+            String(row['PNR SCAN']).toLowerCase().includes(keyword) ||
+            String(row['PNR MANIFEST']).toLowerCase().includes(keyword)
+        );
+    });
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Tidak ada data penumpang sesuai filter.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(r => `
+        <tr>
+            <td class="text-muted">${r['NO']}</td>
+            <td class="fw-semibold">${r['NAMA SCAN']}</td>
+            <td><span class="badge bg-light text-dark border">${r['SEAT SCAN']}</span></td>
+            <td class="text-muted small">${r['PNR SCAN']}</td>
+            <td class="small">${r['TYPE SCAN']}</td>
+            <td class="fw-semibold">${r['NAMA MANIFEST']}</td>
+            <td><span class="badge bg-light text-dark border">${r['SEAT MANIFEST']}</span></td>
+            <td class="text-muted small">${r['PNR MANIFEST']}</td>
+            <td class="small">${r['TYPE MANIFEST']}</td>
+            <td>${getStatusBadgeHtml(r['HASIL'])}</td>
+            <td class="small text-muted">${r['CATATAN']}</td>
+        </tr>
+    `).join('');
+}
+
+function toggleSideBySidePdf() {
+    const isChecked = document.getElementById('togglePdfPreview').checked;
+    const tableCol = document.getElementById('rekonTableCol');
+    const pdfCol = document.getElementById('rekonPdfCol');
+
+    if (isChecked && rekonState.pdfBlobUrl) {
+        tableCol.classList.remove('col-12');
+        tableCol.classList.add('col-12', 'col-lg-6');
+        pdfCol.classList.remove('d-none');
+    } else {
+        tableCol.classList.remove('col-lg-6');
+        tableCol.classList.add('col-12');
+        pdfCol.classList.add('d-none');
+    }
+}
+
+async function downloadRekonExcel() {
+    if (!rekonState.records.length) return;
+    const btn = document.getElementById('btnExportExcel');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyiapkan...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch("{{ url_for('tools_aero.pax_reconciliation_export') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                airline: rekonState.airline,
+                records: rekonState.records
+            })
+        });
+        if (!res.ok) throw new Error('Gagal membuat file Excel.');
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `InJourney_Rekonsiliasi_${rekonState.airline.replace(/\s+/g, '_')}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+    }
+}
+
+function resetPaxReconciliation() {
+    if (rekonState.pdfBlobUrl) {
+        URL.revokeObjectURL(rekonState.pdfBlobUrl);
+        rekonState.pdfBlobUrl = null;
+    }
+    rekonState.records = [];
+    rekonState.filterStatus = 'ALL';
+    rekonState.tappingFiles = [];
+    rekonState.manifestFile = null;
+
+    renderTappingChips();
+    renderManifestChip();
+
+    document.getElementById('rekonTableBody').innerHTML = '';
+    document.getElementById('manifestPdfIframe').removeAttribute('src');
+    document.getElementById('rekonResultContainer').classList.add('d-none');
+    document.getElementById('rekonErrorAlert').classList.add('d-none');
+    document.getElementById('btnResetRekon').classList.add('d-none');
+    document.getElementById('rekonWelcomeCard').classList.remove('d-none');
+}
+</script>
+{% endblock %}

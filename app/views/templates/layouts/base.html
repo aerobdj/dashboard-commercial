@@ -796,6 +796,78 @@
                 </button>
             </div>
 
+            <!-- Global Skeleton Loading saat Transisi Halaman AJAX -->
+            <div id="global-page-skeleton" class="d-none placeholder-glow">
+                <!-- Header Judul (Sama untuk semua halaman) -->
+                <div class="mb-4">
+                    <span class="placeholder col-4 col-md-3 rounded-pill mb-2" style="height: 24px;"></span>
+                    <div><span class="placeholder col-7 col-md-5 rounded-pill" style="height: 14px;"></span></div>
+                </div>
+
+                <!-- PRESET A: DASHBOARD (Kartu KPI + Grafik) -->
+                <div data-skel-type="dashboard" class="d-none">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-lg-3"><div class="placeholder w-100 rounded-4" style="height: 110px;"></div></div>
+                        <div class="col-6 col-lg-3"><div class="placeholder w-100 rounded-4" style="height: 110px;"></div></div>
+                        <div class="col-6 col-lg-3"><div class="placeholder w-100 rounded-4" style="height: 110px;"></div></div>
+                        <div class="col-6 col-lg-3"><div class="placeholder w-100 rounded-4" style="height: 110px;"></div></div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-8"><div class="placeholder w-100 rounded-4" style="height: 300px;"></div></div>
+                        <div class="col-12 col-lg-4"><div class="placeholder w-100 rounded-4" style="height: 300px;"></div></div>
+                    </div>
+                </div>
+
+                <!-- PRESET B: TABEL MASTER DATA (Airlines, Tarif, Route, Mitra, Users, dll.) -->
+                <div data-skel-type="table">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="placeholder col-3 rounded-3" style="height: 34px;"></span>
+                                <span class="placeholder col-4 col-md-2 rounded-pill" style="height: 34px;"></span>
+                            </div>
+                            <span class="placeholder w-100 rounded-3 mb-2" style="height: 42px;"></span>
+                            <span class="placeholder w-100 rounded-3 mb-2" style="height: 36px;"></span>
+                            <span class="placeholder w-100 rounded-3 mb-2" style="height: 36px;"></span>
+                            <span class="placeholder w-100 rounded-3" style="height: 36px;"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRESET C: PROFIL / FORM SETTING -->
+                <div data-skel-type="form" class="d-none">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-3 mb-4">
+                                <span class="placeholder rounded-circle" style="width: 64px; height: 64px;"></span>
+                                <div class="flex-grow-1">
+                                    <span class="placeholder col-4 rounded-pill mb-2" style="height: 18px;"></span>
+                                    <div><span class="placeholder col-6 rounded-pill" style="height: 13px;"></span></div>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6"><span class="placeholder w-100 rounded-3" style="height: 40px;"></span></div>
+                                <div class="col-12 col-md-6"><span class="placeholder w-100 rounded-3" style="height: 40px;"></span></div>
+                                <div class="col-12 col-md-6"><span class="placeholder w-100 rounded-3" style="height: 40px;"></span></div>
+                                <div class="col-12 col-md-6"><span class="placeholder w-100 rounded-3" style="height: 40px;"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRESET D: TOOLS / DROPZONE (Picture to PDF) -->
+                <div data-skel-type="tool" class="d-none">
+                    <div class="row justify-content-center">
+                        <div class="col-12 col-xl-10">
+                            <div class="card border-0 shadow-sm rounded-4">
+                                <div class="card-body p-4 text-center">
+                                    <span class="placeholder w-100 rounded-4" style="height: 210px;"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- Main Content Section -->
             <div class="page-content" id="main-content">
                 {% block content %}{% endblock %}
@@ -1356,13 +1428,30 @@
                         } else {
                             const subLinks = Array.from(item.querySelectorAll('.submenu a[href]:not(.nested-toggle)'));
                             let html = '<div class="d-flex flex-column gap-1">';
+                            let lastGroup = '';
+
                             subLinks.forEach((sLink, sIdx) => {
+                                // Deteksi hirarki parent nested-submenu jika ada (misal: Operasional > Tools)
+                                const groups = [];
+                                let parentNested = sLink.closest('.has-sub-nested');
+                                while (parentNested && item.contains(parentNested)) {
+                                    const toggleText = parentNested.querySelector(':scope > .nested-toggle span')?.textContent.trim();
+                                    if (toggleText) groups.unshift(toggleText);
+                                    parentNested = parentNested.parentElement?.closest('.has-sub-nested');
+                                }
+                                const groupLabel = groups.join(' • ');
+                                if (groupLabel && groupLabel !== lastGroup) {
+                                    html += `<div class="px-3 pt-2 pb-1 text-uppercase fw-bold text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">${groupLabel}</div>`;
+                                    lastGroup = groupLabel;
+                                }
+
                                 const subActive = sLink.closest('.submenu-item')?.classList.contains('active') ? ' active' : '';
+                                const noAjaxAttr = sLink.getAttribute('data-no-ajax') === 'true' ? ' data-no-ajax="true"' : '';
                                 html += `
                                     <a href="${sLink.getAttribute('href')}"
-                                       class="mobile-sheet-link${subActive}"
-                                       data-sidebar-idx="${idx}"
-                                       data-sub-idx="${sIdx}">
+                                    class="mobile-sheet-link${subActive}"
+                                    data-sidebar-idx="${idx}"
+                                    data-sub-idx="${sIdx}"${noAjaxAttr}>
                                         <span>${sLink.textContent.trim()}</span>
                                         <i class="bi bi-chevron-right small text-muted"></i>
                                     </a>`;
@@ -1488,6 +1577,7 @@
                 if (newContent && currentContent) {
                     document.title = doc.title;
                     currentContent.innerHTML = newContent.innerHTML;
+                    toggleGlobalSkeleton(false);
                     relocateModals(currentContent);
                     window.initAllDataTables();
                     window.initAllSearchSelects(document);
@@ -1500,7 +1590,34 @@
                 }
             }
 
+            function toggleGlobalSkeleton(show, targetUrl = '') {
+                const skel = document.getElementById('global-page-skeleton');
+                const content = document.getElementById('main-content');
+                if (!skel || !content) return;
+
+                if (show) {
+                    const path = (targetUrl || window.location.pathname).toLowerCase();
+                    let type = 'table'; // Default untuk halaman daftar/CRUD
+
+                    if (path === '/' || path.includes('dashboard')) {
+                        type = 'dashboard';
+                    } else if (path.includes('profile')) {
+                        type = 'form';
+                    } else if (path.includes('tools') || path.includes('picture-to-pdf')) {
+                        type = 'tool';
+                    }
+
+                    skel.querySelectorAll('[data-skel-type]').forEach(el => {
+                        el.classList.toggle('d-none', el.getAttribute('data-skel-type') !== type);
+                    });
+                }
+
+                skel.classList.toggle('d-none', !show);
+                content.classList.toggle('d-none', show);
+            }
+
             function loadPage(url, pushState = false) {
+                toggleGlobalSkeleton(true, url);
                 fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(res => {
                         if (res.redirected && res.url.includes('/login')) {
@@ -1650,6 +1767,7 @@
                 const actionUrl = form.getAttribute('action') || window.location.href;
                 const methodType = (form.getAttribute('method') || 'POST').toUpperCase();
 
+                toggleGlobalSkeleton(true);
                 fetch(actionUrl, {
                     method: methodType,
                     body: new FormData(form),

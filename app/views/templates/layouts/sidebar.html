@@ -152,7 +152,7 @@
                         </li>
                         {% endif %}
 
-                        <!-- 2A. Aeronautika -->
+                        <!-- 2A. Aeronautika (Selalu tampil karena Tools di bawah Operasional terbuka untuk semua role) -->
                         {% set can_see_airlines = ('airlines' in allowed_menus) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
                         {% set can_see_airlines_users = ('airlines_users' in allowed_menus) and (user_role in ['superadmin', 'pengawas']) %}
                         {% set can_see_tarif_aero = is_superadmin or ('tarif_aeronautika' in allowed_menus) %}
@@ -160,15 +160,16 @@
                         {% set can_see_registrations = is_superadmin or ('airline_registrations' in allowed_menus) %}
                         {% set can_see_flight_numbers = (('flight_numbers' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
                         {% set can_see_aero_admin = ('aeronautika_admin' in allowed_menus) or ('aeronautika' in allowed_menus) %}
-                        {% set can_see_aero_ops = ('aeronautika_ops' in allowed_menus) or ('aeronautika' in allowed_menus) %}
 
-                        {% if can_see_airlines or can_see_airlines_users or can_see_tarif_aero or can_see_routes or can_see_registrations or can_see_flight_numbers or can_see_aero_admin or can_see_aero_ops %}
+                        {% set is_aero_tools_active = request.endpoint and request.endpoint.startswith('tools_aero.') %}
+                        {% set is_aero_ops_active = is_aero_tools_active %}
                         {% set is_aero_setting_active = request.endpoint and (
                             request.endpoint in ['airline.index', 'airline_user.index', 'route_setting.index', 'flight_number.index']
                             or request.endpoint.startswith('tarif_aero.')
                             or request.endpoint.startswith('airline_registration.')
                         ) %}
-                        {% set is_aero_active = is_aero_setting_active %}
+                        {% set is_aero_active = is_aero_setting_active or is_aero_ops_active %}
+
                         <li class="sidebar-item has-sub {{ 'active submenu-open' if is_aero_active else '' }}">
                             <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Aeronautika">
                                 <i class="bi bi-airplane-engines-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
@@ -181,11 +182,34 @@
                                 </li>
                                 {% endif %}
 
-                                {% if can_see_aero_ops %}
-                                <li class="submenu-item">
-                                    <a href="#">Operasional</a>
+                                <!-- Operasional (Terbuka untuk semua role) -->
+                                <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_ops_active else '' }}">
+                                    <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
+                                        <span>Operasional</span>
+                                        <i class="bi bi-chevron-right small nested-arrow"></i>
+                                    </a>
+                                    <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_ops_active else '' }}">
+                                        <!-- Tools (Terbuka untuk semua role) -->
+                                        <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_tools_active else '' }}">
+                                            <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
+                                                <span>Tools</span>
+                                                <i class="bi bi-chevron-right small nested-arrow"></i>
+                                            </a>
+                                            <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_tools_active else '' }}">
+                                                <li class="submenu-item {{ 'active' if request.endpoint == 'tools_aero.picture_to_pdf' else '' }}">
+                                                    <a href="{{ url_for('tools_aero.picture_to_pdf') }}" class="submenu-link" data-no-ajax="true">
+                                                        Picture to PDF
+                                                    </a>
+                                                </li>
+                                                <li class="submenu-item {{ 'active' if request.endpoint == 'tools_aero.pax_reconciliation' else '' }}">
+                                                    <a href="{{ url_for('tools_aero.pax_reconciliation') }}" class="submenu-link" data-skeleton="tool">
+                                                        Pax Reconciliation
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                    </ul>
                                 </li>
-                                {% endif %}
 
                                 {% if can_see_airlines or can_see_airlines_users or can_see_tarif_aero or can_see_routes or can_see_registrations or can_see_flight_numbers %}
                                 <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_setting_active else '' }}">
@@ -229,7 +253,6 @@
                                 {% endif %}
                             </ul>
                         </li>
-                        {% endif %}
 
                         <!-- 3. Setting > Users, Cabang Perusahaan, & Role Access -->
                         {% if 'users' in allowed_menus or 'cabang' in allowed_menus or 'role_access' in allowed_menus or 'coa_pendapatan' in allowed_menus or is_superadmin or 'master_ppn' in allowed_menus %}
@@ -504,7 +527,7 @@
     }
     #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open > .submenu,
     #sidebar:not(.collapsed) .sidebar-item.has-sub > .submenu.submenu-open {
-        max-height: 800px !important;
+        max-height: 1200px !important;
         opacity: 1 !important;
         padding-top: 0.25rem !important;
         padding-bottom: 0.25rem !important;
@@ -662,7 +685,7 @@
         }
     }
 
-    /* === NESTED SUBMENU (Aeronautika > Setting > Airlines) === */
+    /* === NESTED SUBMENU (Mendukung Multi-Level: Aeronautika > Operasional > Tools > Picture to PDF) === */
     #sidebar:not(.collapsed) .submenu .nested-submenu {
         max-height: 0 !important;
         opacity: 0 !important;
@@ -671,14 +694,14 @@
     }
     #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open > .nested-submenu,
     #sidebar:not(.collapsed) .submenu .nested-submenu.open {
-        max-height: 400px !important;
+        max-height: 800px !important;
         opacity: 1 !important;
     }
-    #sidebar:not(.collapsed) .submenu .nested-arrow {
+    #sidebar:not(.collapsed) .submenu .has-sub-nested > .nested-toggle > .nested-arrow {
         transition: transform 0.25s ease;
         font-size: 0.72rem;
     }
-    #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open .nested-arrow {
+    #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open > .nested-toggle > .nested-arrow {
         transform: rotate(90deg);
     }
 </style>
@@ -837,7 +860,7 @@
             }, true);
         });
 
-        // Handler toggle nested submenu (Aeronautika > Setting)
+        // Handler toggle nested submenu multi-level (Aeronautika > Operasional > Tools & Setting)
         document.querySelectorAll("#sidebar .nested-toggle").forEach(function (nLink) {
             nLink.addEventListener("click", function (e) {
                 e.preventDefault();

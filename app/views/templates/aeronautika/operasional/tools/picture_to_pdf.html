@@ -1,0 +1,392 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<!-- CSS Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+
+<style>
+    .dropzone-aero {
+        border: 2px dashed var(--bs-border-color);
+        border-radius: 1rem;
+        padding: 2.5rem 1.25rem;
+        text-align: center;
+        transition: all 0.25s ease;
+        background-color: var(--bs-tertiary-bg);
+        cursor: pointer;
+        position: relative;
+    }
+    .dropzone-aero:hover,
+    .dropzone-aero.dragover {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary-bg-subtle);
+    }
+    .dropzone-aero input[type="file"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    #cropperContainer {
+        width: 100%;
+        min-height: 320px;
+        max-height: 540px;
+        border-radius: 0.85rem;
+        overflow: hidden;
+        background-color: #1e293b;
+        display: none;
+    }
+    #cropperImage {
+        max-width: 100%;
+        display: block;
+    }
+</style>
+
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb small mb-1">
+                    <li class="breadcrumb-item text-muted">Aeronautika</li>
+                    <li class="breadcrumb-item text-muted">Operasional</li>
+                    <li class="breadcrumb-item text-muted">Tools</li>
+                    <li class="breadcrumb-item active fw-semibold text-primary" aria-current="page">Picture to PDF</li>
+                </ol>
+            </nav>
+            <h3 class="mb-1">Picture & PDF Crop to PDF</h3>
+            <p class="text-subtitle text-muted mb-0">Potong, rapikan orientasi, dan konversi foto dokumen atau halaman PDF menjadi file PDF siap unggah langsung di browser.</p>
+        </div>
+        <button type="button" id="btnGantiFile" class="btn btn-outline-secondary rounded-pill px-3 d-none">
+            <i class="bi bi-arrow-repeat me-1"></i>Ganti File
+        </button>
+    </div>
+</div>
+
+<section class="section">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-3 p-md-4">
+
+                    <!-- Area Upload / Dropzone -->
+                    <div class="dropzone-aero" id="dropzoneArea">
+                        <div class="mx-auto mb-3 rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 56px; height: 56px;">
+                            <i class="bi bi-file-earmark-arrow-up-fill fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1" id="fileStatusLabel">Pilih atau tarik file Gambar / PDF ke sini</h6>
+                        <p class="text-muted small mb-0">Mendukung format JPG, PNG, WebP, atau PDF • Diproses lokal di perangkat Anda</p>
+                        <input type="file" id="fileInput" accept="image/*,application/pdf">
+                    </div>
+
+                    <!-- Info File & Navigasi Halaman PDF (Muncul jika PDF > 1 halaman) -->
+                    <div id="pdfPageToolbar" class="d-none alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-2 rounded-3 py-2 px-3 mt-3 mb-0">
+                        <div class="small fw-semibold text-truncate">
+                            <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>
+                            <span id="activeFileName">-</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ms-auto" id="pdfPaginationControls">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-3" id="btnPrevPage">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="small fw-bold">Hal <span id="currentPageNum">1</span> / <span id="totalPagesNum">1</span></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-3" id="btnNextPage">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Area Kanvas Cropper -->
+                    <div id="cropperContainer" class="mt-3">
+                        <img id="cropperImage" alt="Preview Dokumen">
+                    </div>
+
+                    <!-- Toolbar Kontrol Editor -->
+                    <div id="editorControls" class="d-none border-top pt-3 mt-3">
+                        <div class="row g-2 align-items-center mb-3">
+                            <!-- Tombol Manipulasi -->
+                            <div class="col-12 col-lg-7">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3" onclick="cropper && cropper.rotate(-90)" title="Putar Kiri 90°">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Putar Kiri
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3" onclick="cropper && cropper.rotate(90)" title="Putar Kanan 90°">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Putar Kanan
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3" onclick="cropper && cropper.zoom(0.1)" title="Perbesar">
+                                        <i class="bi bi-zoom-in"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3" onclick="cropper && cropper.zoom(-0.1)" title="Perkecil">
+                                        <i class="bi bi-zoom-out"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3" onclick="cropper && cropper.reset()" title="Kembalikan Posisi Potong Awal">
+                                        <i class="bi bi-aspect-ratio me-1"></i>Reset Posisi
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Pilihan Aspek Rasio -->
+                            <div class="col-12 col-lg-5">
+                                <div class="d-flex align-items-center justify-content-lg-end gap-2">
+                                    <label class="small text-muted text-nowrap mb-0">Rasio Potong:</label>
+                                    <select id="aspectRatioSelect" class="form-select form-select-sm w-auto rounded-3">
+                                        <option value="NaN" selected>Bebas (Free)</option>
+                                        <option value="0.7071">A4 Portrait (1 : 1.41)</option>
+                                        <option value="1.4142">A4 Landscape (1.41 : 1)</option>
+                                        <option value="1">Persegi (1 : 1)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nama File Output, Tombol Download & Tombol Reset/Hapus -->
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-lg-6">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light small">Nama File</span>
+                                    <input type="text" id="outputFileName" class="form-control" placeholder="A NOFLIGHT 23-11-2026">
+                                    <span class="input-group-text bg-light small">.pdf</span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                <div class="d-flex gap-2">
+                                    <button type="button" id="btnDownloadPdf" class="btn btn-primary flex-grow-1 rounded-pill py-2 fw-semibold shadow-sm" onclick="downloadCroppedPDF()">
+                                        <i class="bi bi-file-earmark-arrow-down-fill me-2"></i>Download Hasil PDF
+                                    </button>
+                                    <button type="button" id="btnResetAll" class="btn btn-outline-danger rounded-pill px-3 py-2 fw-semibold flex-shrink-0" onclick="resetPictureToPdfPage()" title="Hapus file & reset halaman">
+                                        <i class="bi bi-trash3-fill me-1"></i>Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- JS Libraries: Cropper.js, jsPDF, PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+let cropper = null;
+let loadedPdfDoc = null;
+let currentPdfPage = 1;
+
+function getDefaultNoFlightFileName() {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    return `A NOFLIGHT ${dd}-${mm}-${yyyy}`;
+}
+
+(function () {
+    const fileInput = document.getElementById('fileInput');
+    const dropzoneArea = document.getElementById('dropzoneArea');
+    const fileStatusLabel = document.getElementById('fileStatusLabel');
+    const cropperContainer = document.getElementById('cropperContainer');
+    const cropperImage = document.getElementById('cropperImage');
+    const editorControls = document.getElementById('editorControls');
+    const btnGantiFile = document.getElementById('btnGantiFile');
+    const outputFileName = document.getElementById('outputFileName');
+
+    const pdfPageToolbar = document.getElementById('pdfPageToolbar');
+    const activeFileName = document.getElementById('activeFileName');
+    const pdfPaginationControls = document.getElementById('pdfPaginationControls');
+    const currentPageNum = document.getElementById('currentPageNum');
+    const totalPagesNum = document.getElementById('totalPagesNum');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const aspectRatioSelect = document.getElementById('aspectRatioSelect');
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        dropzoneArea.addEventListener(evt, () => dropzoneArea.classList.add('dragover'));
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        dropzoneArea.addEventListener(evt, () => dropzoneArea.classList.remove('dragover'));
+    });
+
+    btnGantiFile.addEventListener('click', () => {
+        fileInput.value = '';
+        fileInput.click();
+    });
+
+    aspectRatioSelect.addEventListener('change', function () {
+        if (!cropper) return;
+        const ratio = parseFloat(this.value);
+        cropper.setAspectRatio(isNaN(ratio) ? NaN : ratio);
+    });
+
+    btnPrevPage.addEventListener('click', () => {
+        if (loadedPdfDoc && currentPdfPage > 1) {
+            renderPdfPage(currentPdfPage - 1);
+        }
+    });
+
+    btnNextPage.addEventListener('click', () => {
+        if (loadedPdfDoc && currentPdfPage < loadedPdfDoc.numPages) {
+            renderPdfPage(currentPdfPage + 1);
+        }
+    });
+
+    fileInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        outputFileName.value = getDefaultNoFlightFileName();
+        activeFileName.textContent = file.name;
+
+        if (file.type === 'application/pdf') {
+            fileStatusLabel.textContent = 'Memuat dokumen PDF...';
+            const reader = new FileReader();
+            reader.onload = function () {
+                const typedArray = new Uint8Array(this.result);
+                pdfjsLib.getDocument(typedArray).promise.then(pdf => {
+                    loadedPdfDoc = pdf;
+                    totalPagesNum.textContent = pdf.numPages;
+                    pdfPageToolbar.classList.remove('d-none');
+                    pdfPaginationControls.classList.toggle('d-none', pdf.numPages <= 1);
+                    renderPdfPage(1);
+                }).catch(err => {
+                    console.error(err);
+                    alert('Gagal membaca file PDF. Pastikan file tidak terkunci password.');
+                    fileStatusLabel.textContent = 'Pilih atau tarik file Gambar / PDF ke sini';
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            loadedPdfDoc = null;
+            pdfPageToolbar.classList.remove('d-none');
+            pdfPaginationControls.classList.add('d-none');
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                initCropperEditor(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function renderPdfPage(pageNum) {
+        if (!loadedPdfDoc) return;
+        currentPdfPage = pageNum;
+        currentPageNum.textContent = pageNum;
+        btnPrevPage.disabled = pageNum <= 1;
+        btnNextPage.disabled = pageNum >= loadedPdfDoc.numPages;
+
+        loadedPdfDoc.getPage(pageNum).then(page => {
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                initCropperEditor(canvas.toDataURL('image/png'));
+            });
+        });
+    }
+
+    function initCropperEditor(imageSrc) {
+        cropperImage.src = imageSrc;
+        dropzoneArea.classList.add('d-none');
+        btnGantiFile.classList.remove('d-none');
+        cropperContainer.style.display = 'block';
+        editorControls.classList.remove('d-none');
+
+        if (cropper) {
+            cropper.destroy();
+        }
+
+        const initialRatio = parseFloat(aspectRatioSelect.value);
+        cropper = new Cropper(cropperImage, {
+            viewMode: 0,
+            dragMode: 'move',
+            aspectRatio: isNaN(initialRatio) ? NaN : initialRatio,
+            autoCropArea: 0.92,
+            responsive: true,
+            restore: false,
+            background: false,
+            center: true
+        });
+    }
+})();
+
+function resetPictureToPdfPage() {
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+    loadedPdfDoc = null;
+    currentPdfPage = 1;
+
+    const fileInput = document.getElementById('fileInput');
+    const dropzoneArea = document.getElementById('dropzoneArea');
+    const fileStatusLabel = document.getElementById('fileStatusLabel');
+    const cropperContainer = document.getElementById('cropperContainer');
+    const cropperImage = document.getElementById('cropperImage');
+    const editorControls = document.getElementById('editorControls');
+    const btnGantiFile = document.getElementById('btnGantiFile');
+    const pdfPageToolbar = document.getElementById('pdfPageToolbar');
+    const outputFileName = document.getElementById('outputFileName');
+    const aspectRatioSelect = document.getElementById('aspectRatioSelect');
+
+    if (fileInput) fileInput.value = '';
+    if (cropperImage) cropperImage.removeAttribute('src');
+    if (cropperContainer) cropperContainer.style.display = 'none';
+    if (editorControls) editorControls.classList.add('d-none');
+    if (pdfPageToolbar) pdfPageToolbar.classList.add('d-none');
+    if (btnGantiFile) btnGantiFile.classList.add('d-none');
+    if (dropzoneArea) {
+        dropzoneArea.classList.remove('d-none', 'dragover');
+    }
+    if (fileStatusLabel) {
+        fileStatusLabel.textContent = 'Pilih atau tarik file Gambar / PDF ke sini';
+    }
+    if (outputFileName) outputFileName.value = '';
+    if (aspectRatioSelect) aspectRatioSelect.value = 'NaN';
+}
+
+function downloadCroppedPDF() {
+    if (!cropper) return;
+    const { jsPDF } = window.jspdf;
+    const btn = document.getElementById('btnDownloadPdf');
+    const nameInput = document.getElementById('outputFileName');
+
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses PDF...';
+    btn.disabled = true;
+
+    try {
+        const canvas = cropper.getCroppedCanvas({
+            fillColor: '#ffffff',
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const orientation = canvas.width > canvas.height ? 'l' : 'p';
+
+        const pdf = new jsPDF(orientation, 'px', [canvas.width, canvas.height]);
+        pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+
+        const cleanName = (nameInput.value || getDefaultNoFlightFileName()).trim();
+        pdf.save(`${cleanName}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan saat membuat file PDF.');
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
