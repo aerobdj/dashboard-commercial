@@ -82,7 +82,7 @@
                             </div>
                             <div class="col-12 col-md-6 mb-3">
                                 <label for="gender" class="form-label fw-semibold small">Gender <span class="text-danger">*</span></label>
-                                <select name="gender" id="gender" class="form-select" required>
+                                <select name="gender" id="gender" class="form-select js-search-select" required>
                                     <option value="" disabled {% if not user.gender %}selected{% endif %}>-- Pilih Gender --</option>
                                     <option value="Laki-laki" {% if user.gender == 'Laki-laki' %}selected{% endif %}>Laki-laki</option>
                                     <option value="Perempuan" {% if user.gender == 'Perempuan' %}selected{% endif %}>Perempuan</option>

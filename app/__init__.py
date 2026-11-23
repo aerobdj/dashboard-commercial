@@ -1,8 +1,9 @@
 import os
-from flask import Flask, redirect, url_for, session, flash, request
+from flask import Flask, redirect, url_for, session, flash, request, render_template, jsonify
 from werkzeug.exceptions import RequestEntityTooLarge
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Muat variabel lingkungan dari .env
 load_dotenv()
@@ -21,6 +22,13 @@ def create_app():
 
     # Secret key untuk mengelola session Flask (Flash messages, login session)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", "secret-key-airport-commercial-2026")
+
+    # Durasi sesi jika user mencentang "Keep me logged in" (7 hari)
+    app.permanent_session_lifetime = timedelta(days=7)
+
+    # Opsional: Keamanan cookie session tambahan
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
     # Batas maksimal upload file: 30 MB
     app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
@@ -47,6 +55,12 @@ def create_app():
     from app.controllers.mitra_controller import mitra_bp
     from app.controllers.airline_controller import airline_bp
     from app.controllers.airline_user_controller import airline_user_bp
+    from app.controllers.airline_portal_controller import airline_portal_bp
+    from app.controllers.route_controller import route_bp
+    from app.controllers.flight_number_controller import flight_number_bp
+    from app.controllers.airline_registration_controller import airline_registration_bp
+    from app.controllers.ppn_controller import ppn_bp
+    from app.controllers.tarif_aeronautika_controller import tarif_aero_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -57,6 +71,12 @@ def create_app():
     app.register_blueprint(mitra_bp)
     app.register_blueprint(airline_bp)
     app.register_blueprint(airline_user_bp)
+    app.register_blueprint(airline_portal_bp)
+    app.register_blueprint(route_bp)
+    app.register_blueprint(flight_number_bp)
+    app.register_blueprint(airline_registration_bp)
+    app.register_blueprint(ppn_bp)
+    app.register_blueprint(tarif_aero_bp)
 
     # Handler jika file yang diunggah melebihi batas 30 MB
     @app.errorhandler(RequestEntityTooLarge)
@@ -64,11 +84,21 @@ def create_app():
         flash('Ukuran file terlalu besar! Maksimal ukuran file yang diizinkan adalah 30 MB.', 'danger')
         return redirect(request.referrer or url_for('dashboard.index'))
 
-    # Route utama (/) otomatis arahkan ke Dashboard atau Login
+    # Route utama (/) otomatis arahkan sesuai tipe user yang sedang login
     @app.route('/')
     def root():
-        if 'user' in session:
+        user = session.get('user')
+        if user:
+            if user.get('user_type') == 'airline':
+                return redirect(url_for('airline_portal.dashboard'))
             return redirect(url_for('dashboard.index'))
         return redirect(url_for('auth.login'))
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        # Jika dipanggil lewat fetch AJAX SPA di base.html, kembalikan fragment #main-content
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return render_template('errors/404_partial.html'), 404
+        return render_template('errors/404.html'), 404
 
     return app

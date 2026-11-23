@@ -1,0 +1,460 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Number Flight & Route Mapping - RISA{% endblock %}
+
+{% block content %}
+<div class="page-heading mb-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+        <div>
+            <h3 class="mb-1">Number Flight</h3>
+            <p class="text-subtitle text-muted mb-0">Pemetaan Nomor Penerbangan (misal: GA 535, IP 617) ke Rute Keberangkatan.</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#modalAddFlightNumber">
+                <i class="bi bi-plus-circle me-1"></i>Tambah Number Flight
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="section">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom pt-3 px-3 px-md-4 {{ 'pb-0' if can_restore else 'pb-3' }}">
+            {% if can_restore %}
+            <ul class="nav nav-tabs border-0" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#pane-active-flights" type="button" role="tab">
+                        <i class="bi bi-airplane me-1 text-primary"></i>Flight Aktif ({{ flights|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger" data-bs-toggle="tab" data-bs-target="#pane-deleted-flights" type="button" role="tab">
+                        <i class="bi bi-trash3 me-1"></i>Terhapus ({{ deleted_flights|length }})
+                    </button>
+                </li>
+            </ul>
+            {% else %}
+            <h6 class="mb-0 fw-bold">
+                <i class="bi bi-airplane me-1 text-primary"></i>Daftar Number Flight ({{ flights|length }})
+            </h6>
+            {% endif %}
+        </div>
+
+        <div class="card-body p-3 p-md-4">
+            <div class="tab-content">
+                <!-- TAB AKTIF -->
+                <div class="tab-pane fade show active" id="pane-active-flights" role="tabpanel">
+                    <table class="table table-hover align-middle js-datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>Flight Number</th>
+                                <th>Airline</th>
+                                <th>Rute (Origin &rarr; Destination)</th>
+                                <th>Scope</th>
+                                <th>Cabang</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in flights %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary fs-6 fw-bold px-3 py-1 font-monospace">{{ f.flight_number }}</span>
+                                </td>
+                                <td class="small">
+                                    {% set ac2 = f.airline.code_2 or '' %}
+                                    {% set ac3 = f.airline.code_3 or '' %}
+                                    <div class="fw-bold">{{ f.airline.airline_name or '-' }}</div>
+                                    <span class="text-muted">{{ (ac2 ~ '/' ~ ac3) if (ac2 and ac3) else (ac2 or ac3) }}</span>
+                                </td>
+                                <td>
+                                    <div class="d-inline-flex align-items-center gap-2 flex-wrap">
+                                        <span class="badge bg-danger-subtle text-danger fw-bold">{{ f.origin.iata or '-' }}</span>
+                                        <i class="bi bi-arrow-right text-muted small"></i>
+                                        <span class="badge bg-info-subtle text-info fw-bold">{{ f.destination.iata or '-' }}</span>
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        {{ f.origin.city or '' }} &rarr; {{ f.destination.city or '' }}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if f.scope == 'Internasional' %}
+                                        <span class="badge bg-warning-subtle text-warning">Internasional</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success">Domestik</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary fw-semibold">{{ f.kode_cabang }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary rounded-pill me-1 btn-edit-fn"
+                                            data-id="{{ f.id_flightnumber }}"
+                                            data-fn="{{ f.flight_number }}"
+                                            data-airline="{{ f.id_airline }}"
+                                            data-origin="{{ f.origin_airport_id }}"
+                                            data-dest="{{ f.destination_airport_id }}"
+                                            data-cabang="{{ f.kode_cabang }}"
+                                            title="Edit Number Flight">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill btn-confirm-fn-action"
+                                            data-action-url="{{ url_for('flight_number.delete', id_flightnumber=f.id_flightnumber) }}"
+                                            data-action-type="delete"
+                                            data-fn="{{ f.flight_number }}"
+                                            data-route="{{ f.origin.iata or '' }} → {{ f.destination.iata or '' }}"
+                                            title="Hapus Number Flight">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TAB DATA TERHAPUS (KHUSUS SUPERADMIN & PENGAWAS) -->
+                {% if can_restore %}
+                <div class="tab-pane fade" id="pane-deleted-flights" role="tabpanel">
+                    <table class="table table-hover align-middle js-datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>Flight Number</th>
+                                <th>Airline</th>
+                                <th>Rute</th>
+                                <th>Cabang</th>
+                                <th>Dihapus Oleh</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in deleted_flights %}
+                            <tr>
+                                <td><span class="badge bg-secondary fw-bold font-monospace">{{ d.flight_number }}</span></td>
+                                <td class="small text-muted">{{ d.airline.airline_name or '-' }}</td>
+                                <td class="small text-muted">{{ d.origin.iata or '-' }} &rarr; {{ d.destination.iata or '-' }}</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary">{{ d.kode_cabang }}</span></td>
+                                <td class="small text-muted">
+                                    {{ d.deleted_by or '-' }}<br>
+                                    <span style="font-size: 0.72rem;">{{ d.deleted_at[:19].replace('T', ' ') if d.deleted_at else '' }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-success rounded-pill px-3 btn-confirm-fn-action"
+                                            data-action-url="{{ url_for('flight_number.restore', id_flightnumber=d.id_flightnumber) }}"
+                                            data-action-type="restore"
+                                            data-fn="{{ d.flight_number }}"
+                                            data-route="{{ d.origin.iata or '' }} → {{ d.destination.iata or '' }}"
+                                            title="Restore Number Flight">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MODAL KONFIRMASI HAPUS / RESTORE -->
+<div class="modal fade" id="modalConfirmFnAction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content rounded-4 border-0 shadow-lg text-center p-2">
+            <div class="modal-body pt-4 pb-3 px-3">
+                <div id="confirmFnIconBox" class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i id="confirmFnIcon" class="bi bi-trash3-fill fs-3"></i>
+                </div>
+                <h5 id="confirmFnTitle" class="fw-bold mb-2">Hapus Flight Number?</h5>
+                <p id="confirmFnDesc" class="text-muted small mb-0"></p>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-light rounded-pill px-4 flex-fill" data-bs-dismiss="modal">Batal</button>
+                <form id="formConfirmFnAction" method="POST" class="flex-fill m-0">
+                    <button type="submit" id="btnSubmitFnAction" class="btn btn-danger rounded-pill px-4 w-100">Ya, Hapus</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAMBAH NUMBER FLIGHT -->
+<div class="modal fade" id="modalAddFlightNumber" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Tambah Number Flight</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('flight_number.create') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% if is_single_cabang and cabang_list %}
+                            <!-- User Cabang: Cabang & Origin otomatis terkunci -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Unit Cabang</label>
+                                <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang }}" readonly>
+                                <input type="hidden" name="kode_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Origin Airport (Otomatis)</label>
+                                {% if default_origin_airport %}
+                                    <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ default_origin_airport.iata }} - {{ default_origin_airport.city }}" readonly>
+                                    <input type="hidden" name="origin_airport_id" value="{{ default_origin_airport.id_airport }}">
+                                {% else %}
+                                    <input type="text" class="form-control is-invalid bg-body-tertiary" value="{{ cabang_list[0].kode_cabang }} belum ada di Master Route" readonly>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <!-- User HO / Regional: Dapat memilih Cabang & Origin otomatis mengikuti -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Unit Cabang <span class="text-danger">*</span></label>
+                                <select name="kode_cabang" id="add_fn_cabang" class="form-select js-search-select" placeholder="Cari cabang..." required>
+                                    <option value="">-- Pilih Cabang --</option>
+                                    {% for c in cabang_list %}
+                                        <option value="{{ c.kode_cabang }}" {{ 'selected' if c.kode_cabang == session.get('user', {}).get('kode_cabang') else '' }}>
+                                            {{ c.kode_cabang }} - {{ c.nama_cabang }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Origin Airport <span class="text-danger">*</span></label>
+                                <select name="origin_airport_id" id="add_fn_origin" class="form-select js-search-select" placeholder="Cari bandara origin..." required>
+                                    <option value="">-- Pilih Origin --</option>
+                                    {% for ap in airports %}
+                                        <option value="{{ ap.id_airport }}" data-iata="{{ ap.iata }}" {{ 'selected' if default_origin_airport and ap.id_airport == default_origin_airport.id_airport else '' }}>
+                                            {{ ap.iata }} - {{ ap.city }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold small">Maskapai (Airline) <span class="text-danger">*</span></label>
+                            <select name="id_airline" id="add_fn_airline" class="form-select js-search-select" placeholder="Cari maskapai..." required>
+                                <option value="">-- Pilih Maskapai --</option>
+                                {% for al in airlines %}
+                                    <option value="{{ al.id_airline }}" data-code2="{{ al.code_2 or '' }}">
+                                        {{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold small">Flight Number <span class="text-danger">*</span></label>
+                            <input type="text" name="flight_number" id="add_fn_code" class="form-control text-uppercase fw-bold font-monospace" placeholder="GA 535" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Destination Airport (Tujuan) <span class="text-danger">*</span></label>
+                            <select name="destination_airport_id" id="add_fn_dest" class="form-select js-search-select" placeholder="Ketik IATA / kota tujuan..." required>
+                                <option value="">-- Pilih Destination --</option>
+                                {% for ap in airports %}
+                                    <option value="{{ ap.id_airport }}">
+                                        {{ ap.iata }} - {{ ap.airport_name }} ({{ ap.city }}, {{ ap.country }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Flight Number</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDIT NUMBER FLIGHT -->
+<div class="modal fade" id="modalEditFlightNumber" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Edit Number Flight</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditFlightNumber" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% if is_single_cabang and cabang_list %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Unit Cabang</label>
+                                <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang }}" readonly>
+                                <input type="hidden" name="kode_cabang" id="edit_fn_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Origin Airport (Otomatis)</label>
+                                <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ default_origin_airport.iata ~ ' - ' ~ default_origin_airport.city if default_origin_airport else cabang_list[0].kode_cabang }}" readonly>
+                                <input type="hidden" name="origin_airport_id" id="edit_fn_origin" value="{{ default_origin_airport.id_airport if default_origin_airport else '' }}">
+                            </div>
+                        {% else %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Unit Cabang <span class="text-danger">*</span></label>
+                                <select name="kode_cabang" id="edit_fn_cabang" class="form-select js-search-select" required>
+                                    {% for c in cabang_list %}
+                                        <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small">Origin Airport <span class="text-danger">*</span></label>
+                                <select name="origin_airport_id" id="edit_fn_origin" class="form-select js-search-select" required>
+                                    {% for ap in airports %}
+                                        <option value="{{ ap.id_airport }}" data-iata="{{ ap.iata }}">{{ ap.iata }} - {{ ap.city }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold small">Maskapai (Airline) <span class="text-danger">*</span></label>
+                            <select name="id_airline" id="edit_fn_airline" class="form-select js-search-select" required>
+                                {% for al in airlines %}
+                                    <option value="{{ al.id_airline }}">
+                                        {{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold small">Flight Number <span class="text-danger">*</span></label>
+                            <input type="text" name="flight_number" id="edit_fn_code" class="form-control text-uppercase fw-bold font-monospace" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Destination Airport <span class="text-danger">*</span></label>
+                            <select name="destination_airport_id" id="edit_fn_dest" class="form-select js-search-select" required>
+                                {% for ap in airports %}
+                                    <option value="{{ ap.id_airport }}">
+                                        {{ ap.iata }} - {{ ap.airport_name }} ({{ ap.city }}, {{ ap.country }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Update Flight Number</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Sinkronisasi otomatis Origin saat HO/Regional memilih Cabang
+    function bindCabangOriginSync(cabangSelectId, originSelectId) {
+        const cabangEl = document.getElementById(cabangSelectId);
+        const originEl = document.getElementById(originSelectId);
+        if (!cabangEl || !originEl || originEl.tagName !== 'SELECT') return;
+
+        cabangEl.addEventListener('change', function () {
+            const kode = (this.value || '').trim().toUpperCase();
+            if (!kode) return;
+            const matchedOpt = Array.from(originEl.options).find(opt => (opt.getAttribute('data-iata') || '').toUpperCase() === kode);
+            if (matchedOpt && window.setSearchSelectValue) {
+                window.setSearchSelectValue(originEl, matchedOpt.value, true);
+            }
+        });
+    }
+
+    // Auto-isi prefix kode maskapai + spasi (contoh: "GA ") saat maskapai dipilih
+    const addAirlineSel = document.getElementById('add_fn_airline');
+    const addFnInput = document.getElementById('add_fn_code');
+    if (addAirlineSel && addFnInput) {
+        addAirlineSel.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            const code2 = (opt?.getAttribute('data-code2') || '').trim().toUpperCase();
+            if (code2 && addFnInput.value.trim().length <= 4) {
+                addFnInput.value = `${code2} `;
+                setTimeout(() => addFnInput.focus(), 50);
+            }
+        });
+    }
+
+    bindCabangOriginSync('add_fn_cabang', 'add_fn_origin');
+    bindCabangOriginSync('edit_fn_cabang', 'edit_fn_origin');
+
+    // Delegasi klik tombol Edit & Hapus/Restore (mencegah duplikasi listener saat SPA AJAX reload)
+    if (!window.__fnDelegatedEventsBound) {
+        window.__fnDelegatedEventsBound = true;
+
+        document.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.btn-edit-fn');
+            if (editBtn) {
+                const id = editBtn.getAttribute('data-id');
+                const form = document.getElementById('formEditFlightNumber');
+                if (form) form.action = `/aeronautika/setting/number-flight/edit/${id}`;
+
+                const codeInput = document.getElementById('edit_fn_code');
+                if (codeInput) codeInput.value = editBtn.getAttribute('data-fn') || '';
+
+                if (window.setSearchSelectValue) {
+                    window.setSearchSelectValue('edit_fn_cabang', editBtn.getAttribute('data-cabang') || '');
+                    window.setSearchSelectValue('edit_fn_airline', editBtn.getAttribute('data-airline') || '');
+                    window.setSearchSelectValue('edit_fn_origin', editBtn.getAttribute('data-origin') || '');
+                    window.setSearchSelectValue('edit_fn_dest', editBtn.getAttribute('data-dest') || '');
+                }
+
+                const modalEl = document.getElementById('modalEditFlightNumber');
+                if (modalEl && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+                return;
+            }
+
+            const confirmBtn = e.target.closest('.btn-confirm-fn-action');
+            if (confirmBtn) {
+                const actionUrl = confirmBtn.getAttribute('data-action-url');
+                const actionType = confirmBtn.getAttribute('data-action-type');
+                const fn = confirmBtn.getAttribute('data-fn') || '';
+                const route = confirmBtn.getAttribute('data-route') || '';
+
+                const form = document.getElementById('formConfirmFnAction');
+                const iconBox = document.getElementById('confirmFnIconBox');
+                const iconEl = document.getElementById('confirmFnIcon');
+                const titleEl = document.getElementById('confirmFnTitle');
+                const descEl = document.getElementById('confirmFnDesc');
+                const submitBtn = document.getElementById('btnSubmitFnAction');
+
+                if (form) form.action = actionUrl;
+
+                if (actionType === 'restore') {
+                    iconBox.className = 'rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3';
+                    iconEl.className = 'bi bi-arrow-counterclockwise fs-3';
+                    titleEl.textContent = `Restore ${fn}?`;
+                    descEl.innerHTML = `Kembalikan penerbangan <strong>${fn}</strong> (${route}) ke daftar aktif?`;
+                    submitBtn.className = 'btn btn-success rounded-pill px-4 w-100';
+                    submitBtn.textContent = 'Ya, Restore';
+                } else {
+                    iconBox.className = 'rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3';
+                    iconEl.className = 'bi bi-trash3-fill fs-3';
+                    titleEl.textContent = `Hapus ${fn}?`;
+                    descEl.innerHTML = `Nomor penerbangan <strong>${fn}</strong> (${route}) akan dihapus dari daftar aktif.`;
+                    submitBtn.className = 'btn btn-danger rounded-pill px-4 w-100';
+                    submitBtn.textContent = 'Ya, Hapus';
+                }
+
+                const confirmModalEl = document.getElementById('modalConfirmFnAction');
+                if (confirmModalEl && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

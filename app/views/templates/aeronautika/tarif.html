@@ -1,0 +1,2361 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<style>
+    /* Pastikan dropdown Tom Select di dalam modal tidak melebar keluar container */
+    .modal .ts-wrapper {
+        position: relative;
+    }
+    .modal .ts-dropdown {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        z-index: 1065 !important;
+    }
+
+    /* Fix NavTabs Mobile & Tablet Horizontal Swipe */
+    .nav-tabs-scroll-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .nav-tabs-scroll-wrapper::-webkit-scrollbar {
+        display: none;
+    }
+    .nav-tabs-scroll-wrapper .nav-tabs {
+        flex-wrap: nowrap !important;
+        width: max-content;
+        min-width: 100%;
+        border-bottom: 0;
+    }
+    .nav-tabs-scroll-wrapper .nav-item {
+        flex: 0 0 auto;
+    }
+    .nav-tabs-scroll-wrapper .nav-link {
+        white-space: nowrap;
+        touch-action: pan-x;
+    }
+
+    @media (max-width: 991.98px) {
+        .nav-tabs-scroll-wrapper .nav-link {
+            font-size: 0.875rem;
+            padding: 0.65rem 0.9rem !important;
+        }
+    }
+</style>
+
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Master Tarif Aeronautika</h3>
+            <p class="text-subtitle text-muted mb-0">Pengaturan tarif dasar (DPP sebelum PPN) untuk layanan PJP2U, PJP4U, Aviobridge, Counter, PJKP2U, Extended-Advance, serta jadwal diskon pemerintah.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-info rounded-pill px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalPanduanTarif">
+                <i class="bi bi-book-half me-1"></i>Panduan Pengisian
+            </button>
+            <button type="button" class="btn btn-outline-warning rounded-pill px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalTambahPromo">
+                <i class="bi bi-tags-fill me-1"></i>Tambah Promo Diskon
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahTarif">
+                <i class="bi bi-plus-circle-fill me-2"></i>Tambah Tarif
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="section">
+    {% set active_tarifs = tarif_list | selectattr('delete_at', 'none') | list %}
+    {% set deleted_tarifs = tarif_list | rejectattr('delete_at', 'none') | list %}
+    {% set active_promos = promo_list | selectattr('delete_at', 'none') | list %}
+    {% set deleted_promos = promo_list | rejectattr('delete_at', 'none') | list %}
+    {% set pjp2u_count = active_tarifs | selectattr('jenis_jasa', 'equalto', 'PJP2U') | list | length %}
+
+    <!-- Ringkasan Statistik -->
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="{{ 'col-6 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-cash-stack fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Total Tarif</div>
+                        <h4 class="fw-bold mb-0">{{ active_tarifs | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="{{ 'col-6 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-person-check-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Tarif PJP2U</div>
+                        <h4 class="fw-bold text-info mb-0">{{ pjp2u_count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="{{ 'col-6 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-tags-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Promo Aktif</div>
+                        <h4 class="fw-bold text-warning mb-0">{{ active_promos | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if is_superadmin %}
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-trash3-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Terhapus (Tarif / Diskon)</div>
+                        <h4 class="fw-bold text-danger mb-0">{{ deleted_tarifs | length }} / {{ deleted_promos | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Card Utama dengan Nav Tabs Scrollable -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom p-0 pt-2 px-2 px-md-4">
+            <div class="nav-tabs-scroll-wrapper">
+                <ul class="nav nav-tabs border-bottom-0" id="tarifAeroTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold d-flex align-items-center gap-2 px-3 py-2"
+                                id="tab-active-tarif"
+                                data-bs-toggle="tab"
+                                data-bs-target="#pane-active-tarif"
+                                type="button"
+                                role="tab">
+                            <i class="bi bi-cash-coin"></i>
+                            <span>Tarif Aktif ({{ active_tarifs | length }})</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold text-warning d-flex align-items-center gap-2 px-3 py-2"
+                                id="tab-promo-tarif"
+                                data-bs-toggle="tab"
+                                data-bs-target="#pane-promo-tarif"
+                                type="button"
+                                role="tab">
+                            <i class="bi bi-tags-fill"></i>
+                            <span>Diskon Pemerintah ({{ active_promos | length }})</span>
+                        </button>
+                    </li>
+                    {% if is_superadmin %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                                id="tab-deleted-tarif"
+                                data-bs-toggle="tab"
+                                data-bs-target="#pane-deleted-tarif"
+                                type="button"
+                                role="tab">
+                            <i class="bi bi-trash3"></i>
+                            <span>Tarif Terhapus ({{ deleted_tarifs | length }})</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                                id="tab-deleted-promo"
+                                data-bs-toggle="tab"
+                                data-bs-target="#pane-deleted-promo"
+                                type="button"
+                                role="tab">
+                            <i class="bi bi-tag"></i>
+                            <span>Diskon Terhapus ({{ deleted_promos | length }})</span>
+                        </button>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="card-body pt-3">
+            <div class="tab-content" id="tarifAeroTabContent">
+                <!-- ==================== TAB 1: TARIF AKTIF ==================== -->
+                <div class="tab-pane fade show active" id="pane-active-tarif" role="tabpanel">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchTarifInput" class="form-control border-start-0" placeholder="Cari Jasa, COA, Cabang, Nomor SK...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterTarifSheet"
+                                        aria-controls="filterTarifSheet"
+                                        title="Filter Tarif">
+                                    <i class="bi bi-sliders2 text-primary"></i>
+                                    <span id="mobileTarifFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if cabang_list | length > 1 %}
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterCabangTarif" class="form-select js-search-select" placeholder="Semua Cabang...">
+                                <option value="">Semua Cabang</option>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterJasaTarif" class="form-select js-search-select" placeholder="Semua Jasa...">
+                                <option value="">Semua Jenis Jasa</option>
+                                {% for code, label in jenis_jasa_choices %}
+                                <option value="{{ code }}">{{ code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterSubKatTarif" class="form-select js-search-select" placeholder="Semua Kategori...">
+                                <option value="">Semua Sub Kategori</option>
+                                {% for sk in sub_kategori_choices %}
+                                <option value="{{ sk }}">{{ sk }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="tarifCountLabel">{{ active_tarifs | length }}</span> Tarif
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableTarifAero"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">Cabang</th>
+                                    <th>Jenis Jasa & Kategori</th>
+                                    <th>COA Pendapatan</th>
+                                    <th>Rincian Tarif (DPP)</th>
+                                    <th class="text-center">PPN</th>
+                                    <th class="text-center">Berlaku Mulai</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in active_tarifs %}
+                                <tr data-cabang="{{ t.kode_cabang }}"
+                                    data-jasa="{{ t.jenis_jasa }}"
+                                    data-subkat="{{ t.sub_kategori }}">
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary-subtle text-secondary fw-bold px-2 py-1">{{ t.kode_cabang }}</span>
+                                        {% if t.terminal %}
+                                            <div class="small text-muted mt-1">{{ t.terminal }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-primary">{{ t.jenis_jasa }}</div>
+                                        <div class="small">
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle">{{ t.sub_kategori }}</span>
+                                            <span class="text-muted ms-1">({{ t.metode_hitung }} / {{ t.satuan }})</span>
+                                        </div>
+                                        {% if t.nomor_sk %}
+                                            <div class="text-muted" style="font-size: 0.72rem;">SK: {{ t.nomor_sk }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">
+                                        <div class="font-monospace fw-bold">{{ t.kode_account }}</div>
+                                        <div class="text-muted">{{ t.coa.deskripsi_coa or '-' }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column gap-1">
+                                            {% for d in t.details %}
+                                                <div class="small d-flex align-items-center justify-content-between gap-2 border-bottom pb-1">
+                                                    <span class="text-muted">
+                                                        {% if t.details | length > 1 %}
+                                                            T{{ d.tahap_ke }} ({{ '%g' % d.batas_bawah }}{{ ' - ' ~ ('%g' % d.batas_atas) if d.batas_atas is not none else '+' }} {{ t.satuan }}):
+                                                        {% else %}
+                                                            Per {{ '%g' % d.kelipatan_unit }} {{ t.satuan }}:
+                                                        {% endif %}
+                                                    </span>
+                                                    <span class="fw-bold font-monospace text-dark">
+                                                        {{ t.mata_uang }} {{ '{:,.2f}'.format(d.tarif_dpp) if t.mata_uang == 'USD' else '{:,.0f}'.format(d.tarif_dpp) }}
+                                                    </span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">-</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if t.is_kena_ppn %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Kena PPN</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border px-2 py-1">Bebas PPN</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            {{ t.berlaku_mulai }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailTarif{{ t.id_tarif }}" title="Detail">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditTarif{{ t.id_tarif }}" title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-tarif"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmDeleteTarif"
+                                                data-action="{{ url_for('tarif_aero.delete', id_tarif=t.id_tarif) }}"
+                                                data-info="{{ t.kode_cabang }} - {{ t.jenis_jasa }} ({{ t.sub_kategori }})"
+                                                title="Hapus">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">Belum ada data Tarif Aeronautika.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 2: DISKON / PROMO PEMERINTAH & MASKAPAI ==================== -->
+                <div class="tab-pane fade" id="pane-promo-tarif" role="tabpanel">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchPromoInput" class="form-control border-start-0" placeholder="Cari Nama Promo, Maskapai, Cabang, Nomor SK...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterPromoSheet"
+                                        aria-controls="filterPromoSheet"
+                                        title="Filter Promo">
+                                    <i class="bi bi-sliders2 text-warning"></i>
+                                    <span id="mobilePromoFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if cabang_list | length > 1 %}
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterCabangPromo" class="form-select js-search-select" placeholder="Semua Cabang...">
+                                <option value="">Semua Cabang</option>
+                                <option value="__NASIONAL__">NASIONAL (ALL)</option>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterAirlinePromo" class="form-select js-search-select" placeholder="Semua Maskapai...">
+                                <option value="">Semua Maskapai</option>
+                                <option value="__ALL_AIRLINES__">Semua Maskapai (Umum)</option>
+                                {% for al in airline_list %}
+                                <option value="{{ al.id_airline }}">{{ al.code_2 or al.code_3 or '-' }} - {{ al.airline_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterSubKatPromo" class="form-select js-search-select" placeholder="Semua Kategori...">
+                                <option value="">Semua Kategori</option>
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                                <option value="Haji">Haji</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="promoCountLabel">{{ active_promos | length }}</span> Promo
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tablePromoTarif"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Nama Program Diskon</th>
+                                    <th>Maskapai</th>
+                                    <th class="text-center">Cabang</th>
+                                    <th class="text-center">Kategori</th>
+                                    <th class="text-center">Diskon</th>
+                                    <th class="text-center">Periode Terbang</th>
+                                    <th class="text-center">Periode DOI Tiket</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pr in active_promos %}
+                                <tr data-cabangs="{{ (pr.kode_cabang | join(',')) if pr.kode_cabang else '__NASIONAL__' }}"
+                                    data-airlines="{{ (pr.id_airline | join(',')) if pr.id_airline else '__ALL_AIRLINES__' }}"
+                                    data-subkat="{{ pr.sub_kategori }}">
+                                    <td>
+                                        <div class="fw-bold text-primary">{{ pr.nama_promo }}</div>
+                                        {% if pr.nomor_sk %}
+                                            <div class="small text-muted">SK: {{ pr.nomor_sk }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pr.airlines %}
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% for al in pr.airlines %}
+                                                    <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-1 px-2" title="{{ al.airline_name }}">
+                                                        {% if al.logo %}
+                                                            <img src="{{ url_for('static', filename=al.logo) }}" alt="" style="width: 14px; height: 14px; object-fit: contain;">
+                                                        {% endif %}
+                                                        <span>{{ al.code_2 or al.code_3 or al.airline_name }}</span>
+                                                    </span>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-light text-secondary border">Semua Maskapai</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if pr.kode_cabang %}
+                                            <div class="d-flex flex-wrap justify-content-center gap-1">
+                                                {% for cab in pr.kode_cabang %}
+                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ cab }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">NASIONAL (ALL)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info-subtle text-info">{{ pr.sub_kategori }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-6 fw-bold">
+                                            -{{ '%.0f' % pr.persentase_diskon }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center small fw-semibold text-nowrap">
+                                        {{ pr.flight_date_start }} s.d. {{ pr.flight_date_end }}
+                                    </td>
+                                    <td class="text-center small text-nowrap">
+                                        {% if pr.doi_start or pr.doi_end %}
+                                            <span class="badge bg-light-primary text-primary border border-primary-subtle fw-semibold">
+                                                {{ pr.doi_start or '-' }} s.d. {{ pr.doi_end or '-' }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        {% set can_edit_promo = is_global_scope or (pr.kode_cabang is not none) %}
+                                        {% if can_edit_promo %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning rounded-3 me-1"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEditPromo{{ pr.id_promo }}"
+                                                    title="Edit Promo & DOI">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <form action="{{ url_for('tarif_aero.delete_promo', id_promo=pr.id_promo) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus program diskon ini?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Hapus Promo">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border fw-normal px-2 py-1" title="Kebijakan Pusat (HO)">
+                                                <i class="bi bi-lock-fill me-1"></i>Dikunci (HO)
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4 text-muted">Belum ada jadwal diskon pemerintah / maskapai PJP2U.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 3: TARIF TERHAPUS (KHUSUS SUPERADMIN) ==================== -->
+                {% if is_superadmin %}
+                <div class="tab-pane fade" id="pane-deleted-tarif" role="tabpanel">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchDeletedTarifInput" class="form-control border-start-0" placeholder="Cari Jasa, COA, Cabang, Penghapus...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterDeletedTarifSheet"
+                                        aria-controls="filterDeletedTarifSheet"
+                                        title="Filter Tarif Terhapus">
+                                    <i class="bi bi-sliders2 text-danger"></i>
+                                    <span id="mobileDeletedTarifFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if cabang_list | length > 1 %}
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterCabangDeletedTarif" class="form-select js-search-select" placeholder="Semua Cabang...">
+                                <option value="">Semua Cabang</option>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterJasaDeletedTarif" class="form-select js-search-select" placeholder="Semua Jasa...">
+                                <option value="">Semua Jenis Jasa</option>
+                                {% for code, label in jenis_jasa_choices %}
+                                <option value="{{ code }}">{{ code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="deletedTarifCountLabel">{{ deleted_tarifs | length }}</span> Terhapus
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableDeletedTarifAero"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">Cabang</th>
+                                    <th>Jenis Jasa & Kategori</th>
+                                    <th>COA Pendapatan</th>
+                                    <th class="text-center">Berlaku Mulai</th>
+                                    <th>Info Penghapusan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in deleted_tarifs %}
+                                <tr class="table-danger opacity-75"
+                                    data-cabang="{{ t.kode_cabang }}"
+                                    data-jasa="{{ t.jenis_jasa }}">
+                                    <td class="text-center"><span class="badge bg-secondary">{{ t.kode_cabang }}</span></td>
+                                    <td>
+                                        <div class="fw-bold text-decoration-line-through text-muted">{{ t.jenis_jasa }} - {{ t.sub_kategori }}</div>
+                                    </td>
+                                    <td class="small font-monospace text-muted">{{ t.kode_account }}</td>
+                                    <td class="text-center small text-muted text-nowrap">{{ t.berlaku_mulai }}</td>
+                                    <td class="small text-danger text-nowrap">
+                                        <div><i class="bi bi-person-x me-1"></i>{{ t.delete_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (t.delete_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <form action="{{ url_for('tarif_aero.restore', id_tarif=t.id_tarif) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-success rounded-3 px-3">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">Tidak ada data tarif yang terhapus.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 4: DISKON TERHAPUS (KHUSUS SUPERADMIN) ==================== -->
+                <div class="tab-pane fade" id="pane-deleted-promo" role="tabpanel">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchDeletedPromoInput" class="form-control border-start-0" placeholder="Cari Nama Promo, Maskapai, Cabang, Penghapus...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterDeletedPromoSheet"
+                                        aria-controls="filterDeletedPromoSheet"
+                                        title="Filter Diskon Terhapus">
+                                    <i class="bi bi-sliders2 text-danger"></i>
+                                    <span id="mobileDeletedPromoFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if cabang_list | length > 1 %}
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterCabangDeletedPromo" class="form-select js-search-select" placeholder="Semua Cabang...">
+                                <option value="">Semua Cabang</option>
+                                <option value="__NASIONAL__">NASIONAL (ALL)</option>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterSubKatDeletedPromo" class="form-select js-search-select" placeholder="Semua Kategori...">
+                                <option value="">Semua Kategori</option>
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                                <option value="Haji">Haji</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="deletedPromoCountLabel">{{ deleted_promos | length }}</span> Terhapus
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableDeletedPromoTarif"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Nama Program Diskon</th>
+                                    <th>Maskapai</th>
+                                    <th class="text-center">Cabang</th>
+                                    <th class="text-center">Kategori & Diskon</th>
+                                    <th class="text-center">Periode Terbang</th>
+                                    <th>Info Penghapusan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pr in deleted_promos %}
+                                <tr class="table-danger opacity-75"
+                                    data-cabangs="{{ (pr.kode_cabang | join(',')) if pr.kode_cabang else '__NASIONAL__' }}"
+                                    data-subkat="{{ pr.sub_kategori }}">
+                                    <td>
+                                        <div class="fw-bold text-decoration-line-through text-muted">{{ pr.nama_promo }}</div>
+                                        {% if pr.nomor_sk %}
+                                            <div class="small text-muted">SK: {{ pr.nomor_sk }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pr.airlines %}
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% for al in pr.airlines %}
+                                                    <span class="badge bg-light text-muted border">{{ al.code_2 or al.code_3 or al.airline_name }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border">Semua Maskapai</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if pr.kode_cabang %}
+                                            {% for cab in pr.kode_cabang %}
+                                                <span class="badge bg-secondary">{{ cab }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">NASIONAL (ALL)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <span class="badge bg-info-subtle text-info">{{ pr.sub_kategori }}</span>
+                                        <span class="badge bg-warning-subtle text-warning fw-bold">-{{ '%.0f' % pr.persentase_diskon }}%</span>
+                                    </td>
+                                    <td class="text-center small text-muted text-nowrap">
+                                        {{ pr.flight_date_start }} s.d. {{ pr.flight_date_end }}
+                                    </td>
+                                    <td class="small text-danger text-nowrap">
+                                        <div><i class="bi bi-person-x me-1"></i>{{ pr.delete_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (pr.delete_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <form action="{{ url_for('tarif_aero.restore_promo', id_promo=pr.id_promo) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-success rounded-3 px-3">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">Tidak ada data diskon/promo yang terhapus.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== MOBILE FILTER BOTTOM SHEETS (< 768px) ==================== -->
+<!-- 1. Sheet Filter Tab 1: Tarif Aktif -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterTarifSheet" aria-labelledby="filterTarifSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterTarifSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Tarif Aeronautika
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if cabang_list | length > 1 %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabang Bandara</label>
+            <select id="mobileFilterCabangTarif" class="form-select js-search-select" placeholder="Semua Cabang...">
+                <option value="">Semua Cabang</option>
+                {% for c in cabang_list %}
+                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Jenis Jasa</label>
+            <select id="mobileFilterJasaTarif" class="form-select js-search-select" placeholder="Semua Jasa...">
+                <option value="">Semua Jenis Jasa</option>
+                {% for code, label in jenis_jasa_choices %}
+                <option value="{{ code }}">{{ code }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Sub Kategori</label>
+            <select id="mobileFilterSubKatTarif" class="form-select js-search-select" placeholder="Semua Kategori...">
+                <option value="">Semua Sub Kategori</option>
+                {% for sk in sub_kategori_choices %}
+                <option value="{{ sk }}">{{ sk }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileTarifFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Sheet Filter Tab 2: Diskon Pemerintah -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterPromoSheet" aria-labelledby="filterPromoSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterPromoSheetLabel">
+            <i class="bi bi-funnel-fill text-warning me-2"></i>Filter Diskon Pemerintah
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if cabang_list | length > 1 %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabang Bandara</label>
+            <select id="mobileFilterCabangPromo" class="form-select js-search-select" placeholder="Semua Cabang...">
+                <option value="">Semua Cabang</option>
+                <option value="__NASIONAL__">NASIONAL (ALL)</option>
+                {% for c in cabang_list %}
+                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Maskapai</label>
+            <select id="mobileFilterAirlinePromo" class="form-select js-search-select" placeholder="Semua Maskapai...">
+                <option value="">Semua Maskapai</option>
+                <option value="__ALL_AIRLINES__">Semua Maskapai (Umum)</option>
+                {% for al in airline_list %}
+                <option value="{{ al.id_airline }}">{{ al.code_2 or al.code_3 or '-' }} - {{ al.airline_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Sub Kategori</label>
+            <select id="mobileFilterSubKatPromo" class="form-select js-search-select" placeholder="Semua Kategori...">
+                <option value="">Semua Kategori</option>
+                <option value="Domestik">Domestik</option>
+                <option value="Internasional">Internasional</option>
+                <option value="Haji">Haji</option>
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobilePromoFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-warning rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if is_superadmin %}
+<!-- 3. Sheet Filter Tab 3: Tarif Terhapus -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterDeletedTarifSheet" aria-labelledby="filterDeletedTarifSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterDeletedTarifSheetLabel">
+            <i class="bi bi-funnel-fill text-danger me-2"></i>Filter Tarif Terhapus
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if cabang_list | length > 1 %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabang Bandara</label>
+            <select id="mobileFilterCabangDeletedTarif" class="form-select js-search-select" placeholder="Semua Cabang...">
+                <option value="">Semua Cabang</option>
+                {% for c in cabang_list %}
+                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Jenis Jasa</label>
+            <select id="mobileFilterJasaDeletedTarif" class="form-select js-search-select" placeholder="Semua Jasa...">
+                <option value="">Semua Jenis Jasa</option>
+                {% for code, label in jenis_jasa_choices %}
+                <option value="{{ code }}">{{ code }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileDeletedTarifFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-danger rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 4. Sheet Filter Tab 4: Diskon Terhapus -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterDeletedPromoSheet" aria-labelledby="filterDeletedPromoSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterDeletedPromoSheetLabel">
+            <i class="bi bi-funnel-fill text-danger me-2"></i>Filter Diskon Terhapus
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        {% if cabang_list | length > 1 %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabang Bandara</label>
+            <select id="mobileFilterCabangDeletedPromo" class="form-select js-search-select" placeholder="Semua Cabang...">
+                <option value="">Semua Cabang</option>
+                <option value="__NASIONAL__">NASIONAL (ALL)</option>
+                {% for c in cabang_list %}
+                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Sub Kategori</label>
+            <select id="mobileFilterSubKatDeletedPromo" class="form-select js-search-select" placeholder="Semua Kategori...">
+                <option value="">Semua Kategori</option>
+                <option value="Domestik">Domestik</option>
+                <option value="Internasional">Internasional</option>
+                <option value="Haji">Haji</option>
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileDeletedPromoFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-danger rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL TAMBAH TARIF AERONAUTIKA -->
+<div class="modal fade" id="modalTambahTarif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form action="{{ url_for('tarif_aero.create') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Master Tarif Aeronautika (DPP)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Cabang Bandara <span class="text-danger">*</span></label>
+                        {% if is_single_cabang and cabang_list %}
+                            <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang or cabang_list[0].kode_cabang }}" readonly>
+                            <input type="hidden" name="kode_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                        {% else %}
+                            <select name="kode_cabang" class="form-select js-search-select" placeholder="Pilih cabang..." required>
+                                <option value="">-- Pilih Cabang --</option>
+                                {% for c in cabang_list %}
+                                    <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label small fw-semibold">COA Pendapatan <span class="text-danger">*</span></label>
+                        <select name="kode_account" class="form-select js-search-select" placeholder="Cari kode akun / deskripsi COA..." required>
+                            <option value="">-- Pilih Akun COA Pendapatan --</option>
+                            {% for coa in coa_list %}
+                                <option value="{{ coa.kode_account }}">{{ coa.kode_account }} - {{ coa.deskripsi_coa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Jenis Jasa <span class="text-danger">*</span></label>
+                        <select name="jenis_jasa" class="form-select js-search-select js-jenis-jasa-select" required>
+                            {% for code, label in jenis_jasa_choices %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold">Sub Kategori <span class="text-danger">*</span></label>
+                        <select name="sub_kategori" class="form-select js-sub-kategori-select" data-selected="Domestik" placeholder="Pilih atau ketik baru..." required>
+                            {% for sk in sub_kategori_choices %}
+                                <option value="{{ sk }}">{{ sk }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold">Terminal <span class="text-muted fw-normal">(Kosongkan jika 1 terminal)</span></label>
+                        <input type="text" name="terminal" class="form-control" placeholder="Terminal 1">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Metode Hitung <span class="text-danger">*</span></label>
+                        <select name="metode_hitung" class="form-select js-search-select" required>
+                            <option value="PER_UNIT" selected>PER_UNIT (x Pax/Ton/Jam)</option>
+                            <option value="PROGRESIF_TIER">PROGRESIF_TIER (Bertingkat MTOW)</option>
+                            <option value="FLAT">FLAT (Per Pemakaian)</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Satuan <span class="text-danger">*</span></label>
+                        <select name="satuan" class="form-select js-search-select-create" placeholder="Pilih/ketik satuan..." required>
+                            {% for sat in satuan_choices %}
+                                <option value="{{ sat }}" {{ 'selected' if sat == 'Pax' else '' }}>{{ sat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Mata Uang <span class="text-danger">*</span></label>
+                        <select name="mata_uang" class="form-select js-search-select" required>
+                            <option value="IDR" selected>IDR (Rupiah)</option>
+                            <option value="USD">USD (Dollar AS)</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Status PPN Tagihan</label>
+                        <select name="is_kena_ppn" class="form-select js-search-select">
+                            <option value="1" selected>Kena PPN (Domestik/Rp)</option>
+                            <option value="0">Bebas PPN (Asing/USD)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-6">
+                        <label class="form-label small fw-semibold">Berlaku Mulai <span class="text-danger">*</span></label>
+                        <input type="date" name="berlaku_mulai" class="form-control" required>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <label class="form-label small fw-semibold">Nomor SK Direksi / Dasar Hukum</label>
+                        <input type="text" name="nomor_sk" class="form-control" placeholder="Contoh: KEP.123/...">
+                    </div>
+
+                    <!-- RINCIAN TARIF DPP (DETAIL TIER) -->
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small fw-bold mb-0 text-primary">
+                                Rincian Nominal Tarif DPP (Sebelum PPN) <span class="text-danger">*</span>
+                            </label>
+                            <a href="#" class="small text-info text-decoration-none ms-2" data-bs-toggle="modal" data-bs-target="#modalPanduanTarif">
+                                <i class="bi bi-question-circle-fill"></i> Panduan
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-add-tier-row">
+                                <i class="bi bi-plus-lg me-1"></i>Tambah Tahap
+                            </button>
+                        </div>
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-sm align-middle mb-0 tier-detail-table">
+                                <thead class="table-light">
+                                    <tr class="small">
+                                        <th>Batas Bawah</th>
+                                        <th>Batas Atas <span class="text-muted fw-normal">(Kosong = ∞)</span></th>
+                                        <th>Kelipatan</th>
+                                        <th>Tarif DPP <span class="text-danger">*</span></th>
+                                        <th style="width: 44px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="number" step="0.01" name="batas_bawah[]" class="form-control form-control-sm" value="0" required></td>
+                                        <td><input type="number" step="0.01" name="batas_atas[]" class="form-control form-control-sm" placeholder="∞"></td>
+                                        <td><input type="number" step="0.01" name="kelipatan_unit[]" class="form-control form-control-sm" value="1" required></td>
+                                        <td><input type="number" step="0.0001" name="tarif_dpp[]" class="form-control form-control-sm fw-bold" placeholder="103000" required></td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-remove-tier-row" title="Hapus Baris"><i class="bi bi-x-lg"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Tarif</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL TAMBAH PROMO / DISKON PEMERINTAH & MASKAPAI -->
+<div class="modal fade" id="modalTambahPromo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('tarif_aero.create_promo') }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Tambah Diskon PJP2U (Pemerintah / Maskapai)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Nama Program Diskon <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_promo" class="form-control" placeholder="Contoh: Diskon Tambahan Garuda / Nataru 2026" required>
+                    </div>
+
+                    <!-- Multi-Select Airlines (Modern Card Picker) -->
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-semibold mb-0">
+                                Maskapai (Airline Data)
+                                <span class="badge bg-primary-subtle text-primary ms-1 selected-airline-counter d-none">0 dipilih</span>
+                            </label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input js-toggle-all-airlines" type="checkbox" role="switch" id="switchAllAirlinesAdd" name="is_all_airlines" value="1" checked>
+                                <label class="form-check-label small fw-semibold text-primary" for="switchAllAirlinesAdd">
+                                    Semua Maskapai
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="js-airline-all-info small text-primary bg-light-primary border border-primary-subtle rounded-3 px-3 py-2">
+                            <i class="bi bi-airplane-fill me-1"></i>Diskon berlaku untuk <strong>seluruh maskapai</strong>. Matikan saklar di atas jika hanya untuk maskapai tertentu.
+                        </div>
+
+                        <div class="js-airline-select-wrap d-none mt-2">
+                            <div class="d-flex gap-2 mb-2">
+                                <input type="text" class="form-control form-control-sm airline-picker-search" placeholder="Cari nama maskapai atau kode IATA/ICAO...">
+                                <div class="btn-group btn-group-sm flex-shrink-0">
+                                    <button type="button" class="btn btn-outline-secondary btn-select-all-airlines">Pilih Semua</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-clear-all-airlines">Reset</button>
+                                </div>
+                            </div>
+                            <div class="border rounded-3 p-2 bg-body-tertiary airline-picker-list" style="max-height: 210px; overflow-y: auto;">
+                                <div class="row g-2">
+                                    {% for a in airline_list %}
+                                    <div class="col-12 col-sm-6 airline-picker-item" data-search="{{ (a.airline_name ~ ' ' ~ (a.code_2 or '') ~ ' ' ~ (a.code_3 or '')) | lower }}">
+                                        <label class="d-flex align-items-center gap-2 p-2 rounded-3 border bg-body h-100 mb-0 airline-card-label" style="cursor: pointer;">
+                                            <input type="checkbox" name="id_airline" value="{{ a.id_airline }}" class="form-check-input mt-0 flex-shrink-0 airline-checkbox">
+                                            <div class="rounded border bg-white d-flex align-items-center justify-content-center flex-shrink-0 overflow-hidden" style="width: 28px; height: 28px;">
+                                                {% if a.logo %}
+                                                    <img src="{{ url_for('static', filename=a.logo) }}" alt="{{ a.airline_name }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                                {% else %}
+                                                    <i class="bi bi-airplane text-primary small"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="min-w-0 flex-grow-1">
+                                                <div class="small fw-semibold text-truncate">{{ a.airline_name }}</div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">{{ a.code_2 or '-' }} / {{ a.code_3 or '-' }}</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <div class="col-12 text-center text-muted small py-3">Belum ada data Airline. Tambahkan terlebih dahulu di menu Setting &gt; Airlines.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if is_single_cabang and cabang_list %}
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Cabang Bandara</label>
+                        <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang or cabang_list[0].kode_cabang }}" readonly>
+                        <input type="hidden" name="kode_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-semibold mb-0">
+                                Cabang Bandara <span class="text-danger" id="promoCabangRequiredMark">{{ '' if is_global_scope else '*' }}</span>
+                            </label>
+                            {% if is_global_scope %}
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="switchPromoNasional" name="is_nasional" value="1" checked>
+                                <label class="form-check-label small fw-semibold text-primary" for="switchPromoNasional">
+                                    Nasional (Seluruh Cabang)
+                                </label>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div id="promoCabangSelectWrapper" class="{{ 'd-none' if is_global_scope else '' }}">
+                            <select id="selectPromoCabang"
+                                    name="kode_cabang"
+                                    class="form-select js-multi-cabang-select"
+                                    multiple
+                                    placeholder="Pilih satu atau lebih cabang bandara..."
+                                    {{ '' if is_global_scope else 'required' }}>
+                                {% for c in cabang_list %}
+                                    <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text small">Bisa memilih lebih dari 1 cabang bandara sekaligus.</div>
+                        </div>
+
+                        {% if is_global_scope %}
+                        <div id="promoNasionalInfo" class="small text-primary bg-light-primary border border-primary-subtle rounded-3 px-3 py-2">
+                            <i class="bi bi-globe-asia-australia me-1"></i>Promo ini akan otomatis diterapkan di <strong>seluruh cabang bandara</strong>. Matikan saklar <em>Nasional</em> di atas jika hanya untuk cabang tertentu.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Sub Kategori PJP2U <span class="text-danger">*</span></label>
+                        <select name="sub_kategori" class="form-select js-search-select" required>
+                            <option value="Domestik" selected>Domestik</option>
+                            <option value="Internasional">Internasional</option>
+                            <option value="Haji">Haji</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Persentase Diskon (%) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="1" max="100" name="persentase_diskon" class="form-control fw-bold" value="50" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Terbang Mulai <span class="text-danger">*</span></label>
+                        <input type="date" name="flight_date_start" class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Terbang Selesai <span class="text-danger">*</span></label>
+                        <input type="date" name="flight_date_end" class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">DOI Tiket Mulai</label>
+                        <input type="date" name="doi_start" class="form-control">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">DOI Tiket Selesai</label>
+                        <input type="date" name="doi_end" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Nomor SK / KM Kemenhub</label>
+                        <input type="text" name="nomor_sk" class="form-control" placeholder="Nomor surat keputusan...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold">Simpan Promo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDIT PER PROMO AKTIF -->
+{% for pr in active_promos %}
+{% if is_global_scope or (pr.kode_cabang is not none) %}
+<div class="modal fade" id="modalEditPromo{{ pr.id_promo }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('tarif_aero.update_promo', id_promo=pr.id_promo) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Program Diskon PJP2U</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Nama Program Diskon <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_promo" class="form-control" value="{{ pr.nama_promo }}" required>
+                    </div>
+
+                    <!-- Multi-Select Airlines (Modern Card Picker) -->
+                    <div class="col-12">
+                        {% set pr_is_all_airlines = not pr.id_airline %}
+                        {% set pr_selected_count = (pr.id_airline | length) if pr.id_airline else 0 %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-semibold mb-0">
+                                Maskapai (Airline Data)
+                                <span class="badge bg-primary-subtle text-primary ms-1 selected-airline-counter {{ 'd-none' if pr_is_all_airlines else '' }}">
+                                    {{ pr_selected_count }} dipilih
+                                </span>
+                            </label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input js-toggle-all-airlines"
+                                       type="checkbox"
+                                       role="switch"
+                                       id="switchAllAirlinesEdit{{ pr.id_promo }}"
+                                       name="is_all_airlines"
+                                       value="1"
+                                       {{ 'checked' if pr_is_all_airlines else '' }}>
+                                <label class="form-check-label small fw-semibold text-primary" for="switchAllAirlinesEdit{{ pr.id_promo }}">
+                                    Semua Maskapai
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="js-airline-all-info small text-primary bg-light-primary border border-primary-subtle rounded-3 px-3 py-2 {{ '' if pr_is_all_airlines else 'd-none' }}">
+                            <i class="bi bi-airplane-fill me-1"></i>Diskon berlaku untuk <strong>seluruh maskapai</strong>. Matikan saklar di atas jika hanya untuk maskapai tertentu.
+                        </div>
+
+                        <div class="js-airline-select-wrap mt-2 {{ 'd-none' if pr_is_all_airlines else '' }}">
+                            <div class="d-flex gap-2 mb-2">
+                                <input type="text" class="form-control form-control-sm airline-picker-search" placeholder="Cari nama maskapai atau kode IATA/ICAO...">
+                                <div class="btn-group btn-group-sm flex-shrink-0">
+                                    <button type="button" class="btn btn-outline-secondary btn-select-all-airlines">Pilih Semua</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-clear-all-airlines">Reset</button>
+                                </div>
+                            </div>
+                            <div class="border rounded-3 p-2 bg-body-tertiary airline-picker-list" style="max-height: 210px; overflow-y: auto;">
+                                <div class="row g-2">
+                                    {% for a in airline_list %}
+                                    {% set is_checked = pr.id_airline and (a.id_airline in pr.id_airline) %}
+                                    <div class="col-12 col-sm-6 airline-picker-item" data-search="{{ (a.airline_name ~ ' ' ~ (a.code_2 or '') ~ ' ' ~ (a.code_3 or '')) | lower }}">
+                                        <label class="d-flex align-items-center gap-2 p-2 rounded-3 border bg-body h-100 mb-0 airline-card-label {{ 'border-primary bg-primary-subtle bg-opacity-10' if is_checked else '' }}" style="cursor: pointer;">
+                                            <input type="checkbox"
+                                                   name="id_airline"
+                                                   value="{{ a.id_airline }}"
+                                                   class="form-check-input mt-0 flex-shrink-0 airline-checkbox"
+                                                   {{ 'checked' if is_checked else '' }}>
+                                            <div class="rounded border bg-white d-flex align-items-center justify-content-center flex-shrink-0 overflow-hidden" style="width: 28px; height: 28px;">
+                                                {% if a.logo %}
+                                                    <img src="{{ url_for('static', filename=a.logo) }}" alt="{{ a.airline_name }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                                {% else %}
+                                                    <i class="bi bi-airplane text-primary small"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="min-w-0 flex-grow-1">
+                                                <div class="small fw-semibold text-truncate">{{ a.airline_name }}</div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">{{ a.code_2 or '-' }} / {{ a.code_3 or '-' }}</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if is_single_cabang and cabang_list %}
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Cabang Bandara</label>
+                        <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang or cabang_list[0].kode_cabang }}" readonly>
+                        <input type="hidden" name="kode_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        {% set pr_is_nasional = not pr.kode_cabang %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-semibold mb-0">Cabang Bandara</label>
+                            {% if is_global_scope %}
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input js-edit-promo-nasional"
+                                       type="checkbox"
+                                       role="switch"
+                                       id="switchEditPromoNasional{{ pr.id_promo }}"
+                                       name="is_nasional"
+                                       value="1"
+                                       {{ 'checked' if pr_is_nasional else '' }}>
+                                <label class="form-check-label small fw-semibold text-primary" for="switchEditPromoNasional{{ pr.id_promo }}">
+                                    Nasional (Seluruh Cabang)
+                                </label>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="js-edit-promo-cabang-wrap {{ 'd-none' if (is_global_scope and pr_is_nasional) else '' }}">
+                            <select name="kode_cabang"
+                                    class="form-select js-multi-cabang-select"
+                                    multiple
+                                    placeholder="Pilih cabang bandara..."
+                                    {{ '' if (is_global_scope and pr_is_nasional) else 'required' }}>
+                                {% for c in cabang_list %}
+                                    <option value="{{ c.kode_cabang }}" {{ 'selected' if (pr.kode_cabang and c.kode_cabang in pr.kode_cabang) else '' }}>
+                                        {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Sub Kategori PJP2U <span class="text-danger">*</span></label>
+                        <select name="sub_kategori" class="form-select js-search-select" required>
+                            <option value="Domestik" {{ 'selected' if pr.sub_kategori == 'Domestik' else '' }}>Domestik</option>
+                            <option value="Internasional" {{ 'selected' if pr.sub_kategori == 'Internasional' else '' }}>Internasional</option>
+                            <option value="Haji" {{ 'selected' if pr.sub_kategori == 'Haji' else '' }}>Haji</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Persentase Diskon (%) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="1" max="100" name="persentase_diskon" class="form-control fw-bold" value="{{ '%g' % pr.persentase_diskon }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Terbang Mulai <span class="text-danger">*</span></label>
+                        <input type="date" name="flight_date_start" class="form-control" value="{{ pr.flight_date_start }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Terbang Selesai <span class="text-danger">*</span></label>
+                        <input type="date" name="flight_date_end" class="form-control" value="{{ pr.flight_date_end }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">DOI Tiket Mulai</label>
+                        <input type="date" name="doi_start" class="form-control" value="{{ pr.doi_start or '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">DOI Tiket Selesai</label>
+                        <input type="date" name="doi_end" class="form-control" value="{{ pr.doi_end or '' }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Nomor SK / KM Kemenhub</label>
+                        <input type="text" name="nomor_sk" class="form-control" value="{{ pr.nomor_sk or '' }}">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- MODAL DETAIL & EDIT PER TARIF -->
+{% for t in active_tarifs %}
+<!-- Modal Detail -->
+<div class="modal fade" id="modalDetailTarif{{ t.id_tarif }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Detail Tarif: {{ t.jenis_jasa }} ({{ t.kode_cabang }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-bordered table-sm mb-3">
+                    <tr><th class="w-40 bg-light">Cabang</th><td class="fw-bold">{{ t.kode_cabang }} {{ '(' ~ t.terminal ~ ')' if t.terminal else '' }}</td></tr>
+                    <tr><th class="bg-light">COA Pendapatan</th><td><span class="font-monospace fw-bold">{{ t.kode_account }}</span> - {{ t.coa.deskripsi_coa or '-' }}</td></tr>
+                    <tr><th class="bg-light">Jasa / Kategori</th><td>{{ t.jenis_jasa }} - <strong>{{ t.sub_kategori }}</strong></td></tr>
+                    <tr><th class="bg-light">Metode & Satuan</th><td>{{ t.metode_hitung }} (per {{ t.satuan }})</td></tr>
+                    <tr><th class="bg-light">Status PPN</th><td>{{ 'Kena PPN' if t.is_kena_ppn else 'Bebas PPN' }}</td></tr>
+                    <tr><th class="bg-light">Berlaku Mulai</th><td class="fw-bold text-success">{{ t.berlaku_mulai }}</td></tr>
+                    <tr><th class="bg-light">Nomor SK</th><td>{{ t.nomor_sk or '-' }}</td></tr>
+                    {% if is_superadmin %}
+                    <tr><th class="bg-light">Dibuat Oleh</th><td>{{ t.created_by or '-' }} ({{ (t.created_at or '')[:16].replace('T', ' ') }})</td></tr>
+                    <tr><th class="bg-light">Diperbarui Oleh</th><td>{{ t.updated_by or '-' }} ({{ (t.update_at or '')[:16].replace('T', ' ') }})</td></tr>
+                    {% endif %}
+                </table>
+                <h6 class="fw-bold small text-primary mb-2">Rincian Nominal Tarif (DPP)</h6>
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr class="small text-center">
+                            <th>Tahap</th>
+                            <th>Range ({{ t.satuan }})</th>
+                            <th>Kelipatan</th>
+                            <th>Tarif DPP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in t.details %}
+                        <tr class="small text-center">
+                            <td>{{ d.tahap_ke }}</td>
+                            <td>{{ '%g' % d.batas_bawah }} - {{ ('%g' % d.batas_atas) if d.batas_atas is not none else '∞' }}</td>
+                            <td>{{ '%g' % d.kelipatan_unit }}</td>
+                            <td class="fw-bold font-monospace text-end">
+                                {{ t.mata_uang }} {{ '{:,.2f}'.format(d.tarif_dpp) if t.mata_uang == 'USD' else '{:,.0f}'.format(d.tarif_dpp) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit -->
+<div class="modal fade" id="modalEditTarif{{ t.id_tarif }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form action="{{ url_for('tarif_aero.update', id_tarif=t.id_tarif) }}" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title fw-bold">Edit Tarif: {{ t.jenis_jasa }} ({{ t.kode_cabang }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Cabang Bandara <span class="text-danger">*</span></label>
+                        {% if is_single_cabang and cabang_list %}
+                            <input type="text" class="form-control bg-body-tertiary fw-semibold" value="{{ cabang_list[0].kode_cabang }} - {{ cabang_list[0].nama_cabang or cabang_list[0].kode_cabang }}" readonly>
+                            <input type="hidden" name="kode_cabang" value="{{ cabang_list[0].kode_cabang }}">
+                        {% else %}
+                            <select name="kode_cabang" class="form-select js-search-select" required>
+                                {% for c in cabang_list %}
+                                    <option value="{{ c.kode_cabang }}" {{ 'selected' if c.kode_cabang == t.kode_cabang else '' }}>
+                                        {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label small fw-semibold">COA Pendapatan <span class="text-danger">*</span></label>
+                        <select name="kode_account" class="form-select js-search-select" required>
+                            {% for coa in coa_list %}
+                                <option value="{{ coa.kode_account }}" {{ 'selected' if coa.kode_account == t.kode_account else '' }}>
+                                    {{ coa.kode_account }} - {{ coa.deskripsi_coa }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Jenis Jasa <span class="text-danger">*</span></label>
+                        <select name="jenis_jasa" class="form-select js-search-select js-jenis-jasa-select" required>
+                            {% for code, label in jenis_jasa_choices %}
+                                <option value="{{ code }}" {{ 'selected' if code == t.jenis_jasa else '' }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold">Sub Kategori <span class="text-danger">*</span></label>
+                        <select name="sub_kategori" class="form-select js-sub-kategori-select" data-selected="{{ t.sub_kategori }}" required>
+                            {% for sk in sub_kategori_choices %}
+                                <option value="{{ sk }}" {{ 'selected' if sk == t.sub_kategori else '' }}>{{ sk }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold">Terminal <span class="text-muted fw-normal">(Khusus CGK)</span></label>
+                        <input type="text" name="terminal" class="form-control" value="{{ t.terminal or '' }}">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Metode Hitung <span class="text-danger">*</span></label>
+                        <select name="metode_hitung" class="form-select js-search-select" required>
+                            <option value="PER_UNIT" {{ 'selected' if t.metode_hitung == 'PER_UNIT' else '' }}>PER_UNIT</option>
+                            <option value="PROGRESIF_TIER" {{ 'selected' if t.metode_hitung == 'PROGRESIF_TIER' else '' }}>PROGRESIF_TIER</option>
+                            <option value="FLAT" {{ 'selected' if t.metode_hitung == 'FLAT' else '' }}>FLAT</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Satuan <span class="text-danger">*</span></label>
+                        <select name="satuan" class="form-select js-search-select-create" required>
+                            {% for sat in satuan_choices %}
+                                <option value="{{ sat }}" {{ 'selected' if sat == t.satuan else '' }}>{{ sat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Mata Uang <span class="text-danger">*</span></label>
+                        <select name="mata_uang" class="form-select js-search-select" required>
+                            <option value="IDR" {{ 'selected' if t.mata_uang == 'IDR' else '' }}>IDR</option>
+                            <option value="USD" {{ 'selected' if t.mata_uang == 'USD' else '' }}>USD</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Status PPN Tagihan</label>
+                        <select name="is_kena_ppn" class="form-select js-search-select">
+                            <option value="1" {{ 'selected' if t.is_kena_ppn else '' }}>Kena PPN</option>
+                            <option value="0" {{ 'selected' if not t.is_kena_ppn else '' }}>Bebas PPN</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-6">
+                        <label class="form-label small fw-semibold">Berlaku Mulai <span class="text-danger">*</span></label>
+                        <input type="date" name="berlaku_mulai" class="form-control" value="{{ t.berlaku_mulai }}" required>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <label class="form-label small fw-semibold">Nomor SK Direksi</label>
+                        <input type="text" name="nomor_sk" class="form-control" value="{{ t.nomor_sk or '' }}">
+                    </div>
+
+                    <!-- RINCIAN TARIF DPP -->
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small fw-bold mb-0 text-primary">Rincian Nominal Tarif DPP <span class="text-danger">*</span></label>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-add-tier-row">
+                                <i class="bi bi-plus-lg me-1"></i>Tambah Tahap
+                            </button>
+                        </div>
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-sm align-middle mb-0 tier-detail-table">
+                                <thead class="table-light">
+                                    <tr class="small">
+                                        <th>Batas Bawah</th>
+                                        <th>Batas Atas</th>
+                                        <th>Kelipatan</th>
+                                        <th>Tarif DPP <span class="text-danger">*</span></th>
+                                        <th style="width: 44px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for d in t.details %}
+                                    <tr>
+                                        <td><input type="number" step="0.01" name="batas_bawah[]" class="form-control form-control-sm" value="{{ '%g' % d.batas_bawah }}" required></td>
+                                        <td><input type="number" step="0.01" name="batas_atas[]" class="form-control form-control-sm" value="{{ ('%g' % d.batas_atas) if d.batas_atas is not none else '' }}" placeholder="∞"></td>
+                                        <td><input type="number" step="0.01" name="kelipatan_unit[]" class="form-control form-control-sm" value="{{ '%g' % d.kelipatan_unit }}" required></td>
+                                        <td><input type="number" step="0.0001" name="tarif_dpp[]" class="form-control form-control-sm fw-bold" value="{{ '%g' % d.tarif_dpp }}" required></td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-remove-tier-row"><i class="bi bi-x-lg"></i></button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Konfirmasi Hapus Tarif -->
+<div class="modal fade" id="modalConfirmDeleteTarif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form id="formConfirmDeleteTarif" action="" method="POST" class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-body text-center p-4">
+                <div class="mx-auto mb-3 rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                    <i class="bi bi-trash-fill fs-2 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Hapus Tarif Ini?</h5>
+                <div class="fw-semibold text-danger small mb-3" id="confirmDeleteTarifInfo"></div>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Ya, Hapus</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL PANDUAN PENGISIAN MASTER TARIF AERONAUTIKA -->
+<div class="modal fade" id="modalPanduanTarif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow overflow-hidden">
+            <div class="modal-header border-bottom bg-info-subtle bg-opacity-25 pb-3">
+                <h5 class="modal-title fw-bold text-info-emphasis">
+                    <i class="bi bi-journal-bookmark-fill me-2"></i>Panduan Pengisian Master Tarif Aeronautika
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-light border-start border-4 border-primary rounded-3 mb-4">
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-info-circle-fill me-1"></i>Aturan Dasar yang Wajib Diingat</h6>
+                    <ul class="small mb-0 ps-3">
+                        <li class="mb-1"><strong>Tarif DPP (Sebelum PPN):</strong> Masukkan nominal murni sesuai SK Direksi/Kemenhub <em>tanpa</em> PPN.</li>
+                        <li class="mb-1"><strong>Mata Uang & PPN:</strong> Umumnya penerbangan <strong>Domestik</strong> memakai <strong>IDR + Kena PPN</strong>, sedangkan <strong>Internasional</strong> memakai <strong>USD + Bebas PPN</strong>.</li>
+                        <li class="mb-1"><strong>Batas Bawah & Batas Atas:</strong> Harus menyambung (contoh: <code>0 - 40</code>, lalu <code>40 - 100</code>, lalu <code>100 - kosong</code>). Kosongkan Batas Atas terakhir (artinya tak terbatas / <code>∞</code>).</li>
+                        <li><strong>Kelipatan:</strong> Isi <code>1</code> jika tarif berlaku per 1 Pax / 1 Ton / 1 Jam. Isi <code>1000</code> hanya jika tarif di SK tertulis per 1.000 Kg dan satuannya dipilih <code>Kg</code>.</li>
+                    </ul>
+                </div>
+
+                <h6 class="fw-bold mb-3"><i class="bi bi-airplane-engines-fill text-primary me-1"></i>Contoh Pengisian per Jenis Jasa</h6>
+
+                <div class="accordion accordion-flush border rounded-3" id="accordionPanduanTarif">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#panduanLanding">
+                                1. PJP4U - Landing (Tarif Bertingkat MTOW)
+                            </button>
+                        </h2>
+                        <div id="panduanLanding" class="accordion-collapse collapse show" data-bs-parent="#accordionPanduanTarif">
+                            <div class="accordion-body small">
+                                <p class="text-muted mb-2">Dihitung bertingkat sesuai lapisan berat pesawat (MTOW). Masa gratis parkir (<em>free time</em>) <strong>tidak</strong> dipotong di sini, melainkan otomatis dihitung pada modul parkir.</p>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary-subtle text-primary">Metode: PROGRESIF_TIER</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Satuan: Ton</span>
+                                </div>
+                                <table class="table table-sm table-bordered text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tahap</th>
+                                            <th>Batas Bawah</th>
+                                            <th>Batas Atas</th>
+                                            <th>Kelipatan</th>
+                                            <th>Keterangan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>1</td><td><code>0</code></td><td><code>40</code></td><td><code>1</code></td><td class="text-start">Untuk 40 ton pertama (0 s.d. 40 Ton)</td></tr>
+                                        <tr><td>2</td><td><code>40</code></td><td><code>100</code></td><td><code>1</code></td><td class="text-start">Untuk lapisan di atas 40 s.d. 100 Ton</td></tr>
+                                        <tr><td>3</td><td><code>100</code></td><td><em>(Kosong / ∞)</em></td><td><code>1</code></td><td class="text-start">Untuk sisa berat di atas 100 Ton</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#panduanParking">
+                                2. PJP4U - Parking / Penempatan (Eks-AP1 & Eks-AP2)
+                            </button>
+                        </h2>
+                        <div id="panduanParking" class="accordion-collapse collapse" data-bs-parent="#accordionPanduanTarif">
+                            <div class="accordion-body small">
+                                <p class="text-muted mb-2">Cukup isi <strong>1 baris saja</strong> (tarif dasar per ton). Potongan gratis parkir (misal <em>free</em> 1 jam atau 2 jam pertama) akan otomatis dikurangi dari total durasi parkir pesawat saat perhitungan billing.</p>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-6">
+                                        <div class="p-2 border rounded bg-light h-100">
+                                            <div class="fw-bold text-primary mb-1">Bandara Eks-AP1 (/ton/jam)</div>
+                                            <div>• Metode Hitung: <code>PER_UNIT</code></div>
+                                            <div>• Satuan: ketik <code>Ton/Jam</code></div>
+                                            <div>• Baris Tarif: Bawah <code>0</code> | Atas <code>∞</code> | Kelipatan <code>1</code></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-2 border rounded bg-light h-100">
+                                            <div class="fw-bold text-success mb-1">Bandara Eks-AP2 (/ton/hari)</div>
+                                            <div>• Metode Hitung: <code>PER_UNIT</code></div>
+                                            <div>• Satuan: ketik <code>Ton/Hari</code></div>
+                                            <div>• Baris Tarif: Bawah <code>0</code> | Atas <code>∞</code> | Kelipatan <code>1</code></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#panduanPaxCargo">
+                                3. PJP2U (Penumpang), Counter, CUCS & PJKP2U (Kargo & Pos)
+                            </button>
+                        </h2>
+                        <div id="panduanPaxCargo" class="accordion-collapse collapse" data-bs-parent="#accordionPanduanTarif">
+                            <div class="accordion-body small">
+                                <ul class="mb-0 ps-3">
+                                    <li class="mb-1"><strong>PJP2U (PSC):</strong> Metode <code>PER_UNIT</code> | Satuan <code>Pax</code> | Sub Kategori: <code>Domestik</code>, <code>Internasional</code>, atau <code>Haji</code> | Bawah <code>0</code>, Atas <code>∞</code>, Kelipatan <code>1</code>.</li>
+                                    <li class="mb-1"><strong>Counter & CUCS:</strong> Metode <code>PER_UNIT</code> | Satuan <code>Pax</code> (sama dengan PJP2U) | Bawah <code>0</code>, Atas <code>∞</code>, Kelipatan <code>1</code>.</li>
+                                    <li><strong>PJKP2U:</strong> Metode <code>PER_UNIT</code> | Satuan <code>Kg</code> atau <code>Ton</code> | Sub Kategori: <code>Incoming</code>, <code>Outgoing</code>, <code>Import</code>, atau <code>Export</code> | Bawah <code>0</code>, Atas <code>∞</code>, Kelipatan <code>1</code>.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#panduanFasilitas">
+                                4. Aviobridge & Extended-Advance
+                            </button>
+                        </h2>
+                        <div id="panduanFasilitas" class="accordion-collapse collapse" data-bs-parent="#accordionPanduanTarif">
+                            <div class="accordion-body small">
+                                <ul class="mb-0 ps-3">
+                                    <li class="mb-1"><strong>Aviobridge (Garbarata):</strong> Metode <code>PER_UNIT</code> (per <code>Jam</code> / <code>Pemakaian</code>) atau <code>FLAT</code> | Bawah <code>0</code>, Atas <code>∞</code>, Kelipatan <code>1</code>.</li>
+                                    <li><strong>Extended - Advance Operational:</strong> Metode <code>PER_UNIT</code> (per <code>Jam</code>) | Sub Kategori: <code>Passenger</code>, <code>Cargo</code>, <code>Local</code>, <code>Run Up Engine</code>, <code>Photo</code>, atau <code>Training</code> | Bawah <code>0</code>, Atas <code>∞</code>, Kelipatan <code>1</code>.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-body pt-3">
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Mengerti</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data JSON konfigurasi Sub Kategori -->
+<script id="subKategoriConfigData" type="application/json">
+    {{ (sub_kategori_config or []) | tojson | safe }}
+</script>
+
+<script>
+(function () {
+    const configEl = document.getElementById('subKategoriConfigData');
+    const SUB_KATEGORI_CONFIG = configEl ? JSON.parse(configEl.textContent) : [];
+
+    function syncSubKategoriOptions(form, preferredValue) {
+        if (!form) return;
+        const jasaEl = form.querySelector('.js-jenis-jasa-select');
+        const subEl = form.querySelector('.js-sub-kategori-select');
+        if (!jasaEl || !subEl) return;
+
+        const selectedJasa = (jasaEl.value || '').trim();
+        const currentVal = preferredValue !== undefined
+            ? preferredValue
+            : (subEl.tomselect ? subEl.tomselect.getValue() : subEl.value);
+
+        const allowedItems = SUB_KATEGORI_CONFIG.filter(
+            item => item.scope === 'GLOBAL' || item.scope === selectedJasa
+        );
+
+        const allowedValues = allowedItems.map(i => i.value);
+        const nextVal = allowedValues.includes(currentVal) ? currentVal : (allowedValues[0] || '');
+
+        if (subEl.tomselect) {
+            const ts = subEl.tomselect;
+            ts.clear(true);
+            ts.clearOptions();
+            allowedItems.forEach((item, idx) => {
+                ts.addOption({ value: item.value, text: item.value, $order: idx + 1 });
+            });
+            ts.refreshOptions(false);
+            if (nextVal) ts.setValue(nextVal, true);
+        } else {
+            subEl.innerHTML = '';
+            allowedItems.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.value;
+                opt.textContent = item.value;
+                if (item.value === nextVal) opt.selected = true;
+                subEl.appendChild(opt);
+            });
+        }
+    }
+
+    function initCreatableTomSelects() {
+        if (typeof TomSelect === 'undefined') return;
+        document.querySelectorAll('select.js-search-select-create').forEach(el => {
+            if (el.tomselect) return;
+            new TomSelect(el, {
+                create: true,
+                persist: false,
+                sortField: { field: 'text', direction: 'asc' }
+            });
+        });
+
+        document.querySelectorAll('select.js-multi-cabang-select').forEach(el => {
+            if (el.tomselect) return;
+            new TomSelect(el, {
+                plugins: ['remove_button'],
+                maxItems: null,
+                hideSelected: true,
+                closeAfterSelect: false,
+                sortField: { field: 'text', direction: 'asc' }
+            });
+        });
+
+        const switchNasional = document.getElementById('switchPromoNasional');
+        const cabangWrapper = document.getElementById('promoCabangSelectWrapper');
+        const nasionalInfo = document.getElementById('promoNasionalInfo');
+        const selectPromoCab = document.getElementById('selectPromoCabang');
+        const reqMark = document.getElementById('promoCabangRequiredMark');
+
+        if (switchNasional && !switchNasional._bound) {
+            switchNasional._bound = true;
+            const syncPromoScopeUI = () => {
+                const isNasional = switchNasional.checked;
+                cabangWrapper?.classList.toggle('d-none', isNasional);
+                nasionalInfo?.classList.toggle('d-none', !isNasional);
+                if (reqMark) reqMark.textContent = isNasional ? '' : '*';
+                if (selectPromoCab) {
+                    selectPromoCab.required = !isNasional;
+                    if (isNasional && selectPromoCab.tomselect) {
+                        selectPromoCab.tomselect.clear(true);
+                    }
+                }
+            };
+            switchNasional.addEventListener('change', syncPromoScopeUI);
+            syncPromoScopeUI();
+        }
+
+        document.querySelectorAll('select.js-sub-kategori-select').forEach(el => {
+            if (!el.tomselect) {
+                new TomSelect(el, {
+                    create: true,
+                    persist: false
+                });
+            }
+            const form = el.closest('form');
+            const initialVal = el.getAttribute('data-selected') || el.value;
+            syncSubKategoriOptions(form, initialVal);
+        });
+    }
+
+    function bindSyncTom(desktopEl, mobileEl, dt, updateUI) {
+        desktopEl?.addEventListener('change', function () {
+            if (mobileEl) {
+                if (window.setSearchSelectValue && mobileEl.id) window.setSearchSelectValue(mobileEl.id, this.value, true);
+                mobileEl.value = this.value;
+            }
+            dt.draw();
+            updateUI();
+        });
+        mobileEl?.addEventListener('change', function () {
+            if (desktopEl) {
+                if (window.setSearchSelectValue && desktopEl.id) window.setSearchSelectValue(desktopEl.id, this.value, true);
+                desktopEl.value = this.value;
+            }
+            dt.draw();
+            updateUI();
+        });
+    }
+
+    function renderTarifMobileCards(dt) {
+        const tableEl = document.getElementById('tableTarifAero');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        wrapper.classList.add('has-mobile-cards');
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data tarif tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 7) return;
+
+            const card = document.createElement('div');
+            card.className = 'dt-mobile-card';
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div class="min-w-0">${cells[1].innerHTML}</div>
+                    <div class="text-end flex-shrink-0">${cells[0].innerHTML}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">COA</span>
+                    <div class="dt-mobile-card-value text-end">${cells[2].innerHTML}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Tarif DPP</span>
+                    <div class="dt-mobile-card-value w-100 ps-2">${cells[3].innerHTML}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">PPN & Berlaku</span>
+                    <div class="dt-mobile-card-value d-flex gap-1 justify-content-end">${cells[4].innerHTML} ${cells[5].innerHTML}</div>
+                </div>
+                <div class="dt-mobile-card-actions">${cells[6].innerHTML}</div>
+            `;
+            fragment.appendChild(card);
+        });
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initTarifDataTables() {
+        initCreatableTomSelects();
+
+        // Auto-scroll NavTab ke tengah layar saat tab dipilih (Mobile & Tablet UX)
+        document.querySelectorAll('#tarifAeroTabs button[data-bs-toggle="tab"]').forEach(tabBtn => {
+            if (tabBtn._scrollBound) return;
+            tabBtn._scrollBound = true;
+            tabBtn.addEventListener('shown.bs.tab', function () {
+                this.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            });
+        });
+
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+        if (typeof window.initAllDataTables === 'function') window.initAllDataTables();
+
+        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isTarifAeroFilter);
+
+        // 1. TAB 1: TARIF AKTIF
+        const $table = jQuery('#tableTarifAero');
+        if ($table.length && $table.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableTarifAero')) {
+            const dt = $table.DataTable();
+            const searchInput = document.getElementById('searchTarifInput');
+            const cabFilter = document.getElementById('filterCabangTarif');
+            const jasaFilter = document.getElementById('filterJasaTarif');
+            const subKatFilter = document.getElementById('filterSubKatTarif');
+
+            const mCabFilter = document.getElementById('mobileFilterCabangTarif');
+            const mJasaFilter = document.getElementById('mobileFilterJasaTarif');
+            const mSubKatFilter = document.getElementById('mobileFilterSubKatTarif');
+            const mobileBadge = document.getElementById('mobileTarifFilterCount');
+            const btnResetMobile = document.getElementById('btnResetMobileTarifFilter');
+            const countLabel = document.getElementById('tarifCountLabel');
+
+            const filterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tableTarifAero') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
+
+                const cVal = cabFilter?.value || '';
+                const jVal = jasaFilter?.value || '';
+                const sVal = subKatFilter?.value || '';
+
+                return (!cVal || rowNode.getAttribute('data-cabang') === cVal) &&
+                       (!jVal || rowNode.getAttribute('data-jasa') === jVal) &&
+                       (!sVal || rowNode.getAttribute('data-subkat') === sVal);
+            };
+            filterFn._isTarifAeroFilter = true;
+            jQuery.fn.dataTable.ext.search.push(filterFn);
+
+            const updateUI = () => {
+                if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+                let active = 0;
+                if (cabFilter?.value) active++;
+                if (jasaFilter?.value) active++;
+                if (subKatFilter?.value) active++;
+                if (mobileBadge) {
+                    mobileBadge.textContent = active;
+                    mobileBadge.classList.toggle('d-none', active === 0);
+                }
+            };
+
+            dt.off('draw.tarifCard').on('draw.tarifCard', () => setTimeout(() => renderTarifMobileCards(dt), 0));
+            renderTarifMobileCards(dt);
+
+            searchInput?.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateUI();
+            });
+
+            bindSyncTom(cabFilter, mCabFilter, dt, updateUI);
+            bindSyncTom(jasaFilter, mJasaFilter, dt, updateUI);
+            bindSyncTom(subKatFilter, mSubKatFilter, dt, updateUI);
+
+            btnResetMobile?.addEventListener('click', function () {
+                [cabFilter, mCabFilter, jasaFilter, mJasaFilter, subKatFilter, mSubKatFilter].forEach(el => {
+                    if (!el) return;
+                    if (window.setSearchSelectValue && el.id) window.setSearchSelectValue(el.id, '', true);
+                    el.value = '';
+                });
+                dt.draw();
+                updateUI();
+            });
+
+            updateUI();
+        }
+
+        // 2. TAB 2: DISKON / PROMO PEMERINTAH & MASKAPAI
+        const $promoTable = jQuery('#tablePromoTarif');
+        if ($promoTable.length && $promoTable.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tablePromoTarif')) {
+            const dtPromo = $promoTable.DataTable();
+            const searchPromo = document.getElementById('searchPromoInput');
+            const cabPromo = document.getElementById('filterCabangPromo');
+            const alPromo = document.getElementById('filterAirlinePromo');
+            const subKatPromo = document.getElementById('filterSubKatPromo');
+
+            const mCabPromo = document.getElementById('mobileFilterCabangPromo');
+            const mAlPromo = document.getElementById('mobileFilterAirlinePromo');
+            const mSubKatPromo = document.getElementById('mobileFilterSubKatPromo');
+            const mobilePromoBadge = document.getElementById('mobilePromoFilterCount');
+            const btnResetMobilePromo = document.getElementById('btnResetMobilePromoFilter');
+            const promoCount = document.getElementById('promoCountLabel');
+
+            const promoFilterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tablePromoTarif') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
+
+                const cVal = cabPromo?.value || '';
+                const aVal = alPromo?.value || '';
+                const sVal = subKatPromo?.value || '';
+
+                const rowCabs = (rowNode.getAttribute('data-cabangs') || '').split(',');
+                const rowAls = (rowNode.getAttribute('data-airlines') || '').split(',');
+                const rowSub = rowNode.getAttribute('data-subkat') || '';
+
+                return (!cVal || rowCabs.includes(cVal)) &&
+                       (!aVal || rowAls.includes(aVal)) &&
+                       (!sVal || rowSub === sVal);
+            };
+            promoFilterFn._isTarifAeroFilter = true;
+            jQuery.fn.dataTable.ext.search.push(promoFilterFn);
+
+            const updatePromoUI = () => {
+                if (promoCount) promoCount.textContent = dtPromo.rows({ filter: 'applied' }).count();
+                let active = 0;
+                if (cabPromo?.value) active++;
+                if (alPromo?.value) active++;
+                if (subKatPromo?.value) active++;
+                if (mobilePromoBadge) {
+                    mobilePromoBadge.textContent = active;
+                    mobilePromoBadge.classList.toggle('d-none', active === 0);
+                }
+            };
+
+            searchPromo?.addEventListener('input', function () {
+                dtPromo.search(this.value).draw();
+                updatePromoUI();
+            });
+
+            bindSyncTom(cabPromo, mCabPromo, dtPromo, updatePromoUI);
+            bindSyncTom(alPromo, mAlPromo, dtPromo, updatePromoUI);
+            bindSyncTom(subKatPromo, mSubKatPromo, dtPromo, updatePromoUI);
+
+            btnResetMobilePromo?.addEventListener('click', function () {
+                [cabPromo, mCabPromo, alPromo, mAlPromo, subKatPromo, mSubKatPromo].forEach(el => {
+                    if (!el) return;
+                    if (window.setSearchSelectValue && el.id) window.setSearchSelectValue(el.id, '', true);
+                    el.value = '';
+                });
+                dtPromo.draw();
+                updatePromoUI();
+            });
+
+            updatePromoUI();
+        }
+
+        // 3. TAB 3: TARIF TERHAPUS
+        const $delTarifTable = jQuery('#tableDeletedTarifAero');
+        if ($delTarifTable.length && $delTarifTable.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableDeletedTarifAero')) {
+            const dtDelTarif = $delTarifTable.DataTable();
+            const searchDelTarif = document.getElementById('searchDeletedTarifInput');
+            const cabDelTarif = document.getElementById('filterCabangDeletedTarif');
+            const jasaDelTarif = document.getElementById('filterJasaDeletedTarif');
+
+            const mCabDelTarif = document.getElementById('mobileFilterCabangDeletedTarif');
+            const mJasaDelTarif = document.getElementById('mobileFilterJasaDeletedTarif');
+            const mobileDelTarifBadge = document.getElementById('mobileDeletedTarifFilterCount');
+            const btnResetMobileDelTarif = document.getElementById('btnResetMobileDeletedTarifFilter');
+            const delTarifCount = document.getElementById('deletedTarifCountLabel');
+
+            const delTarifFilterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tableDeletedTarifAero') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
+
+                const cVal = cabDelTarif?.value || '';
+                const jVal = jasaDelTarif?.value || '';
+                return (!cVal || rowNode.getAttribute('data-cabang') === cVal) &&
+                       (!jVal || rowNode.getAttribute('data-jasa') === jVal);
+            };
+            delTarifFilterFn._isTarifAeroFilter = true;
+            jQuery.fn.dataTable.ext.search.push(delTarifFilterFn);
+
+            const updateDelTarifUI = () => {
+                if (delTarifCount) delTarifCount.textContent = dtDelTarif.rows({ filter: 'applied' }).count();
+                let active = 0;
+                if (cabDelTarif?.value) active++;
+                if (jasaDelTarif?.value) active++;
+                if (mobileDelTarifBadge) {
+                    mobileDelTarifBadge.textContent = active;
+                    mobileDelTarifBadge.classList.toggle('d-none', active === 0);
+                }
+            };
+
+            searchDelTarif?.addEventListener('input', function () {
+                dtDelTarif.search(this.value).draw();
+                updateDelTarifUI();
+            });
+
+            bindSyncTom(cabDelTarif, mCabDelTarif, dtDelTarif, updateDelTarifUI);
+            bindSyncTom(jasaDelTarif, mJasaDelTarif, dtDelTarif, updateDelTarifUI);
+
+            btnResetMobileDelTarif?.addEventListener('click', function () {
+                [cabDelTarif, mCabDelTarif, jasaDelTarif, mJasaDelTarif].forEach(el => {
+                    if (!el) return;
+                    if (window.setSearchSelectValue && el.id) window.setSearchSelectValue(el.id, '', true);
+                    el.value = '';
+                });
+                dtDelTarif.draw();
+                updateDelTarifUI();
+            });
+
+            updateDelTarifUI();
+        }
+
+        // 4. TAB 4: DISKON TERHAPUS
+        const $delPromoTable = jQuery('#tableDeletedPromoTarif');
+        if ($delPromoTable.length && $delPromoTable.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableDeletedPromoTarif')) {
+            const dtDelPromo = $delPromoTable.DataTable();
+            const searchDelPromo = document.getElementById('searchDeletedPromoInput');
+            const cabDelPromo = document.getElementById('filterCabangDeletedPromo');
+            const subDelPromo = document.getElementById('filterSubKatDeletedPromo');
+
+            const mCabDelPromo = document.getElementById('mobileFilterCabangDeletedPromo');
+            const mSubDelPromo = document.getElementById('mobileFilterSubKatDeletedPromo');
+            const mobileDelPromoBadge = document.getElementById('mobileDeletedPromoFilterCount');
+            const btnResetMobileDelPromo = document.getElementById('btnResetMobileDeletedPromoFilter');
+            const delPromoCount = document.getElementById('deletedPromoCountLabel');
+
+            const delPromoFilterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tableDeletedPromoTarif') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
+
+                const cVal = cabDelPromo?.value || '';
+                const sVal = subDelPromo?.value || '';
+                const rowCabs = (rowNode.getAttribute('data-cabangs') || '').split(',');
+                const rowSub = rowNode.getAttribute('data-subkat') || '';
+
+                return (!cVal || rowCabs.includes(cVal)) &&
+                       (!sVal || rowSub === sVal);
+            };
+            delPromoFilterFn._isTarifAeroFilter = true;
+            jQuery.fn.dataTable.ext.search.push(delPromoFilterFn);
+
+            const updateDelPromoUI = () => {
+                if (delPromoCount) delPromoCount.textContent = dtDelPromo.rows({ filter: 'applied' }).count();
+                let active = 0;
+                if (cabDelPromo?.value) active++;
+                if (subDelPromo?.value) active++;
+                if (mobileDelPromoBadge) {
+                    mobileDelPromoBadge.textContent = active;
+                    mobileDelPromoBadge.classList.toggle('d-none', active === 0);
+                }
+            };
+
+            searchDelPromo?.addEventListener('input', function () {
+                dtDelPromo.search(this.value).draw();
+                updateDelPromoUI();
+            });
+
+            bindSyncTom(cabDelPromo, mCabDelPromo, dtDelPromo, updateDelPromoUI);
+            bindSyncTom(subDelPromo, mSubDelPromo, dtDelPromo, updateDelPromoUI);
+
+            btnResetMobileDelPromo?.addEventListener('click', function () {
+                [cabDelPromo, mCabDelPromo, subDelPromo, mSubDelPromo].forEach(el => {
+                    if (!el) return;
+                    if (window.setSearchSelectValue && el.id) window.setSearchSelectValue(el.id, '', true);
+                    el.value = '';
+                });
+                dtDelPromo.draw();
+                updateDelPromoUI();
+            });
+
+            updateDelPromoUI();
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTarifDataTables);
+    } else {
+        initTarifDataTables();
+    }
+
+    if (!window._tarifAeroListenersBound) {
+        window._tarifAeroListenersBound = true;
+
+        function updateAirlinePickerState(containerCol) {
+            if (!containerCol) return;
+            const checkboxes = containerCol.querySelectorAll('.airline-checkbox');
+            const counterEl = containerCol.querySelector('.selected-airline-counter');
+            let checkedCount = 0;
+
+            checkboxes.forEach(cb => {
+                const label = cb.closest('.airline-card-label');
+                if (cb.checked) {
+                    checkedCount++;
+                    label?.classList.add('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+                } else {
+                    label?.classList.remove('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+                }
+            });
+
+            if (counterEl) {
+                counterEl.textContent = `${checkedCount} dipilih`;
+            }
+        }
+
+        document.addEventListener('input', function (e) {
+            const searchInput = e.target.closest('.airline-picker-search');
+            if (!searchInput) return;
+            const containerCol = searchInput.closest('.col-12');
+            const keyword = (searchInput.value || '').trim().toLowerCase();
+
+            containerCol?.querySelectorAll('.airline-picker-item').forEach(item => {
+                const text = item.getAttribute('data-search') || '';
+                item.classList.toggle('d-none', keyword !== '' && !text.includes(keyword));
+            });
+        });
+
+        document.addEventListener('change', function (e) {
+            const jasaSelect = e.target.closest('.js-jenis-jasa-select');
+            if (jasaSelect) {
+                syncSubKategoriOptions(jasaSelect.closest('form'));
+            }
+            const allAirlinesSwitch = e.target.closest('.js-toggle-all-airlines');
+            if (allAirlinesSwitch) {
+                const col = allAirlinesSwitch.closest('.col-12');
+                const wrap = col?.querySelector('.js-airline-select-wrap');
+                const info = col?.querySelector('.js-airline-all-info');
+                const counter = col?.querySelector('.selected-airline-counter');
+                const isAll = allAirlinesSwitch.checked;
+
+                wrap?.classList.toggle('d-none', isAll);
+                info?.classList.toggle('d-none', !isAll);
+                counter?.classList.toggle('d-none', isAll);
+
+                if (isAll) {
+                    col?.querySelectorAll('.airline-checkbox').forEach(cb => cb.checked = false);
+                }
+                updateAirlinePickerState(col);
+            }
+
+            if (e.target.closest('.airline-checkbox')) {
+                updateAirlinePickerState(e.target.closest('.col-12'));
+            }
+
+            // Toggle Nasional vs Cabang Tertentu pada Modal Edit Promo
+            const editNasionalSwitch = e.target.closest('.js-edit-promo-nasional');
+            if (editNasionalSwitch) {
+                const col = editNasionalSwitch.closest('.col-12');
+                const wrap = col?.querySelector('.js-edit-promo-cabang-wrap');
+                const sel = wrap?.querySelector('select');
+                const isNasional = editNasionalSwitch.checked;
+
+                wrap?.classList.toggle('d-none', isNasional);
+                if (sel) {
+                    sel.required = !isNasional;
+                    if (isNasional && sel.tomselect) {
+                        sel.tomselect.clear(true);
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            const addRowBtn = e.target.closest('.btn-add-tier-row');
+            if (addRowBtn) {
+                const modalBody = addRowBtn.closest('.modal-body');
+                const tbody = modalBody?.querySelector('.tier-detail-table tbody');
+                if (!tbody) return;
+
+                const lastRow = tbody.querySelector('tr:last-child');
+                const prevUpper = lastRow?.querySelector('input[name="batas_atas[]"]')?.value || '0';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="number" step="0.01" name="batas_bawah[]" class="form-control form-control-sm" value="${prevUpper}" required></td>
+                    <td><input type="number" step="0.01" name="batas_atas[]" class="form-control form-control-sm" placeholder="∞"></td>
+                    <td><input type="number" step="0.01" name="kelipatan_unit[]" class="form-control form-control-sm" value="1" required></td>
+                    <td><input type="number" step="0.0001" name="tarif_dpp[]" class="form-control form-control-sm fw-bold" required></td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-remove-tier-row" title="Hapus Baris"><i class="bi bi-x-lg"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                return;
+            }
+
+            const remRowBtn = e.target.closest('.btn-remove-tier-row');
+            if (remRowBtn) {
+                const tbody = remRowBtn.closest('tbody');
+                if (tbody && tbody.querySelectorAll('tr').length > 1) {
+                    remRowBtn.closest('tr').remove();
+                }
+                return;
+            }
+
+            const delBtn = e.target.closest('.btn-confirm-delete-tarif');
+            if (delBtn) {
+                document.getElementById('formConfirmDeleteTarif')?.setAttribute('action', delBtn.getAttribute('data-action'));
+                const info = document.getElementById('confirmDeleteTarifInfo');
+                if (info) info.textContent = delBtn.getAttribute('data-info');
+            }
+
+            const selectAllAlBtn = e.target.closest('.btn-select-all-airlines');
+            if (selectAllAlBtn) {
+                const col = selectAllAlBtn.closest('.col-12');
+                col?.querySelectorAll('.airline-picker-item:not(.d-none) .airline-checkbox').forEach(cb => {
+                    cb.checked = true;
+                });
+                updateAirlinePickerState(col);
+                return;
+            }
+
+            const clearAllAlBtn = e.target.closest('.btn-clear-all-airlines');
+            if (clearAllAlBtn) {
+                const col = clearAllAlBtn.closest('.col-12');
+                col?.querySelectorAll('.airline-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                updateAirlinePickerState(col);
+                return;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

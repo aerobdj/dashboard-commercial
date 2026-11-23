@@ -51,7 +51,7 @@
 
                 <!-- Filter Klasifikasi (Desktop) -->
                 <div class="col-md-3 d-none d-md-block">
-                    <select id="filterKlasifikasi" class="form-select">
+                    <select id="filterKlasifikasi" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">Semua Klasifikasi</option>
                         <option value="Aeronautika">Aeronautika</option>
                         <option value="Non-Aeronautika">Non-Aeronautika</option>
@@ -61,7 +61,7 @@
                 <!-- Filter Status Data (Khusus Superadmin Desktop) -->
                 {% if is_superadmin %}
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterStatusCoa" class="form-select">
+                    <select id="filterStatusCoa" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">Semua Status</option>
                         <option value="active">Aktif</option>
                         <option value="deleted">Terhapus</option>
@@ -219,7 +219,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Klasifikasi <span class="text-danger">*</span></label>
-                    <select name="klasifikasi" class="form-select" required>
+                    <select name="klasifikasi" class="form-select js-search-select" placeholder="Pilih..." required>
                         <option value="" disabled selected>-- Pilih Klasifikasi --</option>
                         <option value="Aeronautika">Aeronautika</option>
                         <option value="Non-Aeronautika">Non-Aeronautika</option>
@@ -258,7 +258,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Klasifikasi <span class="text-danger">*</span></label>
-                    <select name="klasifikasi" class="form-select" required>
+                    <select name="klasifikasi" class="form-select js-search-select" placeholder="Pilih..." required>
                         <option value="Aeronautika" {% if item.klasifikasi == 'Aeronautika' %}selected{% endif %}>Aeronautika</option>
                         <option value="Non-Aeronautika" {% if item.klasifikasi == 'Non-Aeronautika' %}selected{% endif %}>Non-Aeronautika</option>
                     </select>

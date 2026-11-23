@@ -1,0 +1,855 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Aircraft Registration - RISA{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Aircraft Registration</h3>
+            <p class="text-subtitle text-muted mb-0">Master data registrasi armada pesawat, tipe pesawat, kapasitas kursi (seat), dan klasifikasi registrasi Domestik / Internasional.</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddRegistration">
+            <i class="bi bi-plus-circle me-2"></i>Tambah Registration
+        </button>
+    </div>
+</div>
+
+<section class="section">
+    <!-- Ringkasan Statistik -->
+    {% set dom_count = registrations | selectattr('scope', 'equalto', 'Domestik') | list | length %}
+    {% set intl_count = registrations | selectattr('scope', 'equalto', 'Internasional') | list | length %}
+
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="{{ 'col-3 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-airplane-engines-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Total Armada</div>
+                        <h4 class="fw-bold mb-0">{{ registrations | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="{{ 'col-3 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-geo-alt-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Domestik (PK)</div>
+                        <h4 class="fw-bold text-success mb-0">{{ dom_count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="{{ 'col-3 col-md-3' if is_superadmin else 'col-4 col-md-4' }}">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-globe2 fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Internasional</div>
+                        <h4 class="fw-bold text-warning mb-0">{{ intl_count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if is_superadmin %}
+        <div class="col-3 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 mb-0 h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center text-center text-md-start gap-2 gap-md-3 p-2 p-md-3">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                        <i class="bi bi-trash3-fill fs-5 d-flex align-items-center justify-content-center" style="line-height: 1;"></i>
+                    </div>
+                    <div class="min-w-0 w-100">
+                        <div class="text-muted small text-truncate">Terhapus</div>
+                        <h4 class="fw-bold text-danger mb-0">{{ deleted_registrations | length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Card Utama dengan Nav Tabs -->
+    <div class="card border-0 shadow-sm rounded-4">
+        {% if is_superadmin %}
+        <div class="card-header bg-transparent border-bottom pb-0 pt-3 px-3 px-md-4">
+            <ul class="nav nav-tabs border-bottom-0" id="registrationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold d-flex align-items-center gap-2 px-3 py-2"
+                            id="tab-active-registrations"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-active-registrations"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-active-registrations"
+                            aria-selected="true">
+                        <i class="bi bi-airplane-engines"></i>
+                        <span>Registrasi Aktif ({{ registrations | length }})</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                            id="tab-deleted-registrations"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-deleted-registrations"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-deleted-registrations"
+                            aria-selected="false">
+                        <i class="bi bi-trash3"></i>
+                        <span>Terhapus ({{ deleted_registrations | length }})</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="card-body pt-3">
+            <div class="tab-content" id="registrationTabContent">
+                <!-- TAB 1: REGISTRASI AKTIF -->
+                <div class="tab-pane fade show active" id="pane-active-registrations" role="tabpanel" aria-labelledby="tab-active-registrations">
+                    <!-- Toolbar Filter (Semua Select Menggunakan Tom Select) -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchRegistrationInput" class="form-control border-start-0" placeholder="Cari Registrasi (PK-...), Maskapai, Tipe...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterRegistrationSheet"
+                                        aria-controls="filterRegistrationSheet"
+                                        title="Filter Registration">
+                                    <i class="bi bi-sliders2 text-primary"></i>
+                                    <span id="mobileRegistrationFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Maskapai (Tom Select) -->
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterAirlineReg" class="form-select js-search-select" placeholder="Semua Maskapai...">
+                                <option value="">Semua Maskapai</option>
+                                {% for al in airlines %}
+                                <option value="{{ al.id_airline }}">{{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Filter Scope (Tom Select) -->
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterScopeReg" class="form-select js-search-select" placeholder="Semua Scope...">
+                                <option value="">Semua Scope</option>
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                            </select>
+                        </div>
+
+                        <!-- Counter -->
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="registrationCountLabel">{{ registrations | length }}</span> Armada
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableRegistrations"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Registration</th>
+                                    <th>Airline</th>
+                                    <th>Type Flight</th>
+                                    <th class="text-center">Seat</th>
+                                    <th class="text-center">Scope</th>
+                                    {% if is_superadmin %}
+                                    <th>Terakhir Diperbarui</th>
+                                    {% endif %}
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in registrations %}
+                                <tr data-airline="{{ r.id_airline }}" data-scope="{{ r.scope }}">
+                                    <td>
+                                        <span class="badge bg-primary fs-6 fw-bold px-3 py-1 font-monospace">{{ r.registration }}</span>
+                                    </td>
+                                    <td class="small">
+                                        {% set ac2 = r.airline.code_2 or '' %}
+                                        {% set ac3 = r.airline.code_3 or '' %}
+                                        <div class="fw-bold">{{ r.airline.airline_name or '-' }}</div>
+                                        <span class="text-muted">{{ (ac2 ~ '/' ~ ac3) if (ac2 and ac3) else (ac2 or ac3) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold font-monospace">{{ r.type_flight }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary-subtle text-secondary fw-bold px-2 py-1">
+                                            <i class="bi bi-person-fill me-1"></i>{{ r.seat }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if r.scope == 'Internasional' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Internasional</span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Domestik</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if is_superadmin %}
+                                    <td class="small text-muted">
+                                        <div>{{ r.updated_by or r.created_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (r.updated_at or r.created_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    {% endif %}
+                                    <td class="text-center text-nowrap">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-warning rounded-3 me-1 btn-edit-reg"
+                                                data-id="{{ r.id_registration }}"
+                                                data-reg="{{ r.registration }}"
+                                                data-airline="{{ r.id_airline }}"
+                                                data-type="{{ r.type_flight }}"
+                                                data-seat="{{ r.seat }}"
+                                                data-scope="{{ r.scope }}"
+                                                title="Edit Registration">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-reg-action"
+                                                data-action-url="{{ url_for('airline_registration.delete', id_registration=r.id_registration) }}"
+                                                data-action-type="delete"
+                                                data-reg="{{ r.registration }}"
+                                                data-airline="{{ r.airline.airline_name or '' }}"
+                                                title="Hapus Registration">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="{{ 7 if is_superadmin else 6 }}" class="text-center py-4 text-muted">Belum ada data registrasi pesawat.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 2: TERHAPUS (KHUSUS SUPERADMIN) -->
+                {% if is_superadmin %}
+                <div class="tab-pane fade" id="pane-deleted-registrations" role="tabpanel" aria-labelledby="tab-deleted-registrations">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                <input type="text" id="searchDeletedRegistrationInput" class="form-control border-start-0" placeholder="Cari registrasi terhapus...">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md d-flex justify-content-md-end">
+                            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill">
+                                Terhapus: <span id="deletedRegistrationCountLabel">{{ deleted_registrations | length }}</span> Armada
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableDeletedRegistrations"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Registration</th>
+                                    <th>Airline</th>
+                                    <th>Type Flight</th>
+                                    <th class="text-center">Seat</th>
+                                    <th class="text-center">Scope</th>
+                                    <th>Info Penghapusan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in deleted_registrations %}
+                                <tr class="table-danger opacity-75">
+                                    <td><span class="badge bg-secondary fw-bold font-monospace">{{ d.registration }}</span></td>
+                                    <td class="small text-muted">{{ d.airline.airline_name or '-' }}</td>
+                                    <td class="small font-monospace text-muted">{{ d.type_flight }}</td>
+                                    <td class="text-center small text-muted">{{ d.seat }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ d.scope }}</span>
+                                    </td>
+                                    <td class="small text-danger">
+                                        <div><i class="bi bi-person-x me-1"></i>{{ d.deleted_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (d.deleted_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <button type="button"
+                                                class="btn btn-sm btn-success rounded-3 px-3 btn-confirm-reg-action"
+                                                data-action-url="{{ url_for('airline_registration.restore', id_registration=d.id_registration) }}"
+                                                data-action-type="restore"
+                                                data-reg="{{ d.registration }}"
+                                                data-airline="{{ d.airline.airline_name or '' }}"
+                                                title="Restore Registration">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">Tidak ada data registrasi pesawat yang terhapus.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Mobile Filter Bottom Sheet (< 768px) -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterRegistrationSheet" aria-labelledby="filterRegistrationSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterRegistrationSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Aircraft Registration
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Maskapai (Airline)</label>
+            <select id="mobileFilterAirlineReg" class="form-select js-search-select" placeholder="Semua Maskapai...">
+                <option value="">Semua Maskapai</option>
+                {% for al in airlines %}
+                <option value="{{ al.id_airline }}">{{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Scope Registrasi</label>
+            <select id="mobileFilterScopeReg" class="form-select js-search-select" placeholder="Semua Scope...">
+                <option value="">Semua Scope</option>
+                <option value="Domestik">Domestik</option>
+                <option value="Internasional">Internasional</option>
+            </select>
+        </div>
+        <div class="d-flex gap-2 pt-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileRegistrationFilter">
+                Reset
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" data-bs-dismiss="offcanvas">
+                Terapkan Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL KONFIRMASI HAPUS / RESTORE -->
+<div class="modal fade" id="modalConfirmRegAction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content rounded-4 border-0 shadow-lg text-center p-2">
+            <div class="modal-body pt-4 pb-3 px-3">
+                <div id="confirmRegIconBox" class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i id="confirmRegIcon" class="bi bi-trash3-fill fs-3"></i>
+                </div>
+                <h5 id="confirmRegTitle" class="fw-bold mb-2">Hapus Registration?</h5>
+                <p id="confirmRegDesc" class="text-muted small mb-0"></p>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-light rounded-pill px-4 flex-fill" data-bs-dismiss="modal">Batal</button>
+                <form id="formConfirmRegAction" method="POST" class="flex-fill m-0">
+                    <button type="submit" id="btnSubmitRegAction" class="btn btn-danger rounded-pill px-4 w-100">Ya, Hapus</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAMBAH REGISTRATION -->
+<div class="modal fade" id="modalAddRegistration" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Tambah Aircraft Registration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('airline_registration.create') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Maskapai (Airline) <span class="text-danger">*</span></label>
+                            <select name="id_airline" id="add_reg_airline" class="form-select js-search-select" placeholder="Cari maskapai..." required>
+                                <option value="">-- Pilih Maskapai --</option>
+                                {% for al in airlines %}
+                                    <option value="{{ al.id_airline }}">
+                                        {{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Nomor Registrasi <span class="text-danger">*</span></label>
+                            <input type="text" name="registration" id="add_reg_code" class="form-control text-uppercase fw-bold font-monospace" placeholder="Contoh: PKGPF / N977JH" required>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Scope Registrasi <span class="text-danger">*</span></label>
+                            <select name="scope" id="add_reg_scope" class="form-select js-search-select" required>
+                                <option value="Domestik" selected>Domestik (Lokal ID / PK-)</option>
+                                <option value="Internasional">Internasional (Asing)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold small">Type Flight (Tipe Pesawat) <span class="text-danger">*</span></label>
+                            <input type="text" name="type_flight" class="form-control text-uppercase font-monospace" placeholder="Contoh: B737-800 / A320 / ATR72" required>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold small">Kapasitas Seat <span class="text-danger">*</span></label>
+                            <input type="number" name="seat" class="form-control fw-bold" min="1" max="900" placeholder="180" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Registration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDIT REGISTRATION -->
+<div class="modal fade" id="modalEditRegistration" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Edit Aircraft Registration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditRegistration" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Maskapai (Airline) <span class="text-danger">*</span></label>
+                            <select name="id_airline" id="edit_reg_airline" class="form-select js-search-select" placeholder="Cari maskapai..." required>
+                                {% for al in airlines %}
+                                    <option value="{{ al.id_airline }}">
+                                        {{ al.code_2 or al.code_3 or '' }} - {{ al.airline_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Nomor Registrasi <span class="text-danger">*</span></label>
+                            <input type="text" name="registration" id="edit_reg_code" class="form-control text-uppercase fw-bold font-monospace" required>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Scope Registrasi <span class="text-danger">*</span></label>
+                            <select name="scope" id="edit_reg_scope" class="form-select js-search-select" required>
+                                <option value="Domestik">Domestik (Lokal ID / PK-)</option>
+                                <option value="Internasional">Internasional (Asing)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold small">Type Flight (Tipe Pesawat) <span class="text-danger">*</span></label>
+                            <input type="text" name="type_flight" id="edit_reg_type" class="form-control text-uppercase font-monospace" required>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold small">Kapasitas Seat <span class="text-danger">*</span></label>
+                            <input type="number" name="seat" id="edit_reg_seat" class="form-control fw-bold" min="1" max="900" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Update Registration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Auto-deteksi Scope Domestik (PK) vs Internasional saat mengetik nomor registrasi
+    function bindAutoScopeFromReg(inputId, scopeSelectId) {
+        const regInput = document.getElementById(inputId);
+        const scopeSel = document.getElementById(scopeSelectId);
+        if (!regInput || !scopeSel) return;
+
+        regInput.addEventListener('input', function () {
+            const cleanVal = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (this.value !== cleanVal) {
+                this.value = cleanVal;
+            }
+            if (cleanVal.length < 2) return;
+            const targetScope = cleanVal.startsWith('PK') ? 'Domestik' : 'Internasional';
+            if (window.setSearchSelectValue) {
+                window.setSearchSelectValue(scopeSel, targetScope, true);
+            } else {
+                scopeSel.value = targetScope;
+            }
+        });
+    }
+
+    bindAutoScopeFromReg('add_reg_code', 'add_reg_scope');
+    bindAutoScopeFromReg('edit_reg_code', 'edit_reg_scope');
+
+    // Custom Mobile Card Renderer untuk Tab Aktif
+    function renderRegistrationMobileCards(dt) {
+        const tableEl = document.getElementById('tableRegistrations');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        wrapper.classList.add('has-mobile-cards');
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data registrasi pesawat tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 6) return;
+
+            const regHtml = cells[0].innerHTML;
+            const airlineHtml = cells[1].innerHTML;
+            const typeHtml = cells[2].innerHTML;
+            const seatHtml = cells[3].innerHTML;
+            const scopeHtml = cells[4].innerHTML;
+            const aksiHtml = cells[cells.length - 1].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = 'dt-mobile-card';
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <div>${regHtml}</div>
+                    <div>${scopeHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Maskapai</span>
+                    <div class="dt-mobile-card-value">${airlineHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Type Flight</span>
+                    <div class="dt-mobile-card-value">${typeHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Seat</span>
+                    <div class="dt-mobile-card-value">${seatHtml}</div>
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    // Custom Mobile Card Renderer untuk Tab Terhapus
+    function renderDeletedRegistrationMobileCards(dt) {
+        const tableEl = document.getElementById('tableDeletedRegistrations');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        wrapper.classList.add('has-mobile-cards');
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data registrasi terhapus tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 7) return;
+
+            const regHtml = cells[0].innerHTML;
+            const airlineHtml = cells[1].innerHTML;
+            const typeHtml = cells[2].innerHTML;
+            const seatHtml = cells[3].innerHTML;
+            const scopeHtml = cells[4].innerHTML;
+            const delInfoHtml = cells[5].innerHTML;
+            const aksiHtml = cells[6].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = 'dt-mobile-card border-danger-subtle bg-danger-subtle bg-opacity-10';
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <div>${regHtml}</div>
+                    <div>${scopeHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Maskapai</span>
+                    <div class="dt-mobile-card-value">${airlineHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Type & Seat</span>
+                    <div class="dt-mobile-card-value">${typeHtml} (${seatHtml} Seat)</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Dihapus</span>
+                    <div class="dt-mobile-card-value">${delInfoHtml}</div>
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
+    function initRegistrationTables() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+
+        if (typeof window.initAllDataTables === 'function') {
+            window.initAllDataTables();
+        }
+
+        // 1. Tabel Utama
+        const $table = jQuery('#tableRegistrations');
+        if ($table.length && $table.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableRegistrations')) {
+            const dt = $table.DataTable();
+            const searchInput = document.getElementById('searchRegistrationInput');
+            const airlineFilter = document.getElementById('filterAirlineReg');
+            const scopeFilter = document.getElementById('filterScopeReg');
+
+            const mAirlineFilter = document.getElementById('mobileFilterAirlineReg');
+            const mScopeFilter = document.getElementById('mobileFilterScopeReg');
+            const mobileBadge = document.getElementById('mobileRegistrationFilterCount');
+            const btnResetMobile = document.getElementById('btnResetMobileRegistrationFilter');
+            const countLabel = document.getElementById('registrationCountLabel');
+
+            jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isRegistrationFilter);
+
+            const filterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tableRegistrations') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
+
+                const alVal = airlineFilter?.value || '';
+                const scVal = scopeFilter?.value || '';
+
+                const matchAl = !alVal || rowNode.getAttribute('data-airline') === alVal;
+                const matchSc = !scVal || rowNode.getAttribute('data-scope') === scVal;
+                return matchAl && matchSc;
+            };
+            filterFn._isRegistrationFilter = true;
+            jQuery.fn.dataTable.ext.search.push(filterFn);
+
+            const updateUI = () => {
+                if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+                let activeFilters = 0;
+                if (airlineFilter?.value) activeFilters++;
+                if (scopeFilter?.value) activeFilters++;
+                if (mobileBadge) {
+                    mobileBadge.textContent = activeFilters;
+                    mobileBadge.classList.toggle('d-none', activeFilters === 0);
+                }
+            };
+
+            dt.off('draw.regMobileCard').on('draw.regMobileCard', function () {
+                setTimeout(() => renderRegistrationMobileCards(dt), 0);
+            });
+            renderRegistrationMobileCards(dt);
+
+            searchInput?.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateUI();
+            });
+
+            function bindSyncTomFilter(desktopEl, mobileEl) {
+                desktopEl?.addEventListener('change', function () {
+                    if (mobileEl) {
+                        if (typeof window.setSearchSelectValue === 'function' && mobileEl.id) {
+                            window.setSearchSelectValue(mobileEl.id, this.value, true);
+                        }
+                        mobileEl.value = this.value;
+                    }
+                    dt.draw();
+                    updateUI();
+                });
+                mobileEl?.addEventListener('change', function () {
+                    if (desktopEl) {
+                        if (typeof window.setSearchSelectValue === 'function' && desktopEl.id) {
+                            window.setSearchSelectValue(desktopEl.id, this.value, true);
+                        }
+                        desktopEl.value = this.value;
+                    }
+                    dt.draw();
+                    updateUI();
+                });
+            }
+
+            bindSyncTomFilter(airlineFilter, mAirlineFilter);
+            bindSyncTomFilter(scopeFilter, mScopeFilter);
+
+            btnResetMobile?.addEventListener('click', function () {
+                [airlineFilter, mAirlineFilter, scopeFilter, mScopeFilter].forEach(el => {
+                    if (!el) return;
+                    if (typeof window.setSearchSelectValue === 'function' && el.id) {
+                        window.setSearchSelectValue(el.id, '', true);
+                    }
+                    el.value = '';
+                });
+                dt.draw();
+                updateUI();
+            });
+
+            updateUI();
+        }
+
+        // 2. Tabel Terhapus (Superadmin)
+        const $delTable = jQuery('#tableDeletedRegistrations');
+        if ($delTable.length && $delTable.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableDeletedRegistrations')) {
+            const delDt = $delTable.DataTable();
+            const delSearchInput = document.getElementById('searchDeletedRegistrationInput');
+            const delCountLabel = document.getElementById('deletedRegistrationCountLabel');
+
+            delDt.off('draw.delRegMobileCard').on('draw.delRegMobileCard', function () {
+                setTimeout(() => renderDeletedRegistrationMobileCards(delDt), 0);
+            });
+            renderDeletedRegistrationMobileCards(delDt);
+
+            delSearchInput?.addEventListener('input', function () {
+                delDt.search(this.value).draw();
+                if (delCountLabel) delCountLabel.textContent = delDt.rows({ filter: 'applied' }).count();
+            });
+        }
+
+        // Recalculate kolom DataTables saat Nav Tab berpindah
+        document.querySelectorAll('#registrationTabs button[data-bs-toggle="tab"]').forEach(tabBtn => {
+            tabBtn.addEventListener('shown.bs.tab', function () {
+                if (jQuery.fn.DataTable.isDataTable('#tableRegistrations')) {
+                    jQuery('#tableRegistrations').DataTable().columns.adjust().draw(false);
+                }
+                if (jQuery.fn.DataTable.isDataTable('#tableDeletedRegistrations')) {
+                    jQuery('#tableDeletedRegistrations').DataTable().columns.adjust().draw(false);
+                }
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRegistrationTables);
+    } else {
+        initRegistrationTables();
+    }
+
+    // Delegasi Klik Tombol Edit & Hapus / Restore
+    if (!window.__registrationEventsBound) {
+        window.__registrationEventsBound = true;
+
+        document.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.btn-edit-reg');
+            if (editBtn) {
+                const id = editBtn.getAttribute('data-id');
+                const form = document.getElementById('formEditRegistration');
+                if (form) form.action = `/aeronautika/setting/registration/edit/${id}`;
+
+                document.getElementById('edit_reg_code').value = editBtn.getAttribute('data-reg') || '';
+                document.getElementById('edit_reg_type').value = editBtn.getAttribute('data-type') || '';
+                document.getElementById('edit_reg_seat').value = editBtn.getAttribute('data-seat') || '';
+
+                if (window.setSearchSelectValue) {
+                    window.setSearchSelectValue('edit_reg_airline', editBtn.getAttribute('data-airline') || '', true);
+                    window.setSearchSelectValue('edit_reg_scope', editBtn.getAttribute('data-scope') || 'Domestik', true);
+                }
+
+                const modalEl = document.getElementById('modalEditRegistration');
+                if (modalEl && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+                return;
+            }
+
+            const confirmBtn = e.target.closest('.btn-confirm-reg-action');
+            if (confirmBtn) {
+                const actionUrl = confirmBtn.getAttribute('data-action-url');
+                const actionType = confirmBtn.getAttribute('data-action-type');
+                const reg = confirmBtn.getAttribute('data-reg') || '';
+                const airline = confirmBtn.getAttribute('data-airline') || '';
+
+                const form = document.getElementById('formConfirmRegAction');
+                const iconBox = document.getElementById('confirmRegIconBox');
+                const iconEl = document.getElementById('confirmRegIcon');
+                const titleEl = document.getElementById('confirmRegTitle');
+                const descEl = document.getElementById('confirmRegDesc');
+                const submitBtn = document.getElementById('btnSubmitRegAction');
+
+                if (form) form.action = actionUrl;
+
+                if (actionType === 'restore') {
+                    iconBox.className = 'rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3';
+                    iconEl.className = 'bi bi-arrow-counterclockwise fs-3';
+                    titleEl.textContent = `Restore ${reg}?`;
+                    descEl.innerHTML = `Kembalikan registrasi pesawat <strong>${reg}</strong> (${airline}) ke daftar aktif?`;
+                    submitBtn.className = 'btn btn-success rounded-pill px-4 w-100';
+                    submitBtn.textContent = 'Ya, Restore';
+                } else {
+                    iconBox.className = 'rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3';
+                    iconEl.className = 'bi bi-trash3-fill fs-3';
+                    titleEl.textContent = `Hapus ${reg}?`;
+                    descEl.innerHTML = `Registrasi pesawat <strong>${reg}</strong> (${airline}) akan dihapus dari daftar aktif.`;
+                    submitBtn.className = 'btn btn-danger rounded-pill px-4 w-100';
+                    submitBtn.textContent = 'Ya, Hapus';
+                }
+
+                const confirmModalEl = document.getElementById('modalConfirmRegAction');
+                if (confirmModalEl && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

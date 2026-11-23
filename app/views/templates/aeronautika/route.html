@@ -1,0 +1,622 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Route & Airport Master - RISA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<style>
+    #routeConnectionMap {
+        height: 430px;
+        width: 100%;
+        border-radius: 1rem;
+        z-index: 1;
+    }
+    @media (max-width: 767.98px) {
+        #routeConnectionMap {
+            height: 300px;
+        }
+    }
+    .airport-pin-label {
+        background: #1d4ed8;
+        color: #ffffff;
+        border: 2px solid #ffffff;
+        border-radius: 999px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+        white-space: nowrap;
+        text-align: center;
+    }
+    .airport-pin-label.is-origin {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+    .airport-pin-label.is-intl {
+        background: #d97706;
+    }
+    @keyframes dashFlow {
+        to {
+            stroke-dashoffset: -24;
+        }
+    }
+    .route-arc-animated {
+        animation: dashFlow 1.2s linear infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-heading mb-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+        <div>
+            <h3 class="mb-1">Route &amp; Master Airport</h3>
+            <p class="text-subtitle text-muted mb-0">Kelola master data bandara dan simulasi visualisasi koneksi rute melengkung (Curved Arc).</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#modalAddAirport">
+                <i class="bi bi-plus-circle me-1"></i>Tambah Airport
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 1. INTERACTIVE CURVED ARC MAP -->
+<section class="section mb-4">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom py-3 px-3 px-md-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary p-2 rounded-3">
+                        <i class="bi bi-bezier2 fs-5"></i>
+                    </span>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Visualisasi Route Connection Map</h6>
+                        <small class="text-muted">Pilih Origin Hub untuk melihat cabang rute Domestik &amp; Internasional</small>
+                    </div>
+                </div>
+
+                <!-- Filter Origin & Scope (Responsif Mobile) -->
+                <div class="d-flex flex-wrap gap-2">
+                    <select id="filterMapOrigin" class="form-select js-search-select  form-select-sm rounded-pill" style="min-width: 175px;">
+                        {% for a in airports %}
+                            <option value="{{ a.iata }}" {{ 'selected' if a.iata == default_origin else '' }}>
+                                Origin: {{ a.iata }} ({{ a.city }})
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <select id="filterMapScope" class="form-select js-search-select form-select-sm rounded-pill" style="min-width: 145px;">
+                        <option value="ALL">Semua Scope</option>
+                        <option value="Domestik">Domestik</option>
+                        <option value="Internasional">Internasional</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-2 p-md-3">
+            <div id="routeConnectionMap"></div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-2 pt-2 mt-1 small text-muted">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:#dc2626;"></span>Origin Hub</span>
+                    <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:#2563eb;"></span>Destination Domestik</span>
+                    <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:#f59e0b;"></span>Destination Internasional</span>
+                </div>
+                <span id="mapActiveRouteCounter" class="fw-semibold text-primary"></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. MASTER AIRPORT TABLE (ACTIVE & DELETED FOR SUPERADMIN) -->
+<section class="section">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-transparent border-bottom pt-3 px-3 px-md-4 {{ 'pb-0' if is_superadmin else 'pb-3' }}">
+            {% if is_superadmin %}
+            <ul class="nav nav-tabs border-0" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#pane-active-airports" type="button" role="tab">
+                        <i class="bi bi-building me-1 text-primary"></i>Airport Aktif ({{ airports|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger" data-bs-toggle="tab" data-bs-target="#pane-deleted-airports" type="button" role="tab">
+                        <i class="bi bi-trash3 me-1"></i>Terhapus ({{ deleted_airports|length }})
+                    </button>
+                </li>
+            </ul>
+            {% else %}
+            <h6 class="mb-0 fw-bold">
+                <i class="bi bi-building me-1 text-primary"></i>Daftar Master Airport ({{ airports|length }})
+            </h6>
+            {% endif %}
+        </div>
+
+        <div class="card-body p-3 p-md-4">
+            <div class="tab-content">
+                <!-- TAB AKTIF -->
+                <div class="tab-pane fade show active" id="pane-active-airports" role="tabpanel">
+                    <table class="table table-hover align-middle js-datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>IATA / ICAO</th>
+                                <th>Nama Bandara</th>
+                                <th>Kota / Provinsi</th>
+                                <th>Negara</th>
+                                <th>Scope</th>
+                                <th>Koordinat</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in airports %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary fw-bold">{{ a.iata }}</span>
+                                    {% if a.icao %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ a.icao }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold small">{{ a.airport_name }}</td>
+                                <td class="small">
+                                    {{ a.city }}{% if a.province %}<br><span class="text-muted">{{ a.province }}</span>{% endif %}
+                                </td>
+                                <td class="small">{{ a.country }}</td>
+                                <td>
+                                    {% if a.scope == 'Internasional' %}
+                                        <span class="badge bg-warning-subtle text-warning">Internasional</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">Domestik</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small font-monospace text-muted">
+                                    {{ "%.4f"|format(a.latitude) }}, {{ "%.4f"|format(a.longitude) }}
+                                </td>
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary rounded-pill me-1 btn-edit-airport"
+                                            data-id="{{ a.id_airport }}"
+                                            data-iata="{{ a.iata }}"
+                                            data-icao="{{ a.icao or '' }}"
+                                            data-name="{{ a.airport_name }}"
+                                            data-city="{{ a.city }}"
+                                            data-province="{{ a.province or '' }}"
+                                            data-country="{{ a.country }}"
+                                            data-scope="{{ a.scope }}"
+                                            data-lat="{{ a.latitude }}"
+                                            data-lng="{{ a.longitude }}"
+                                            title="Edit Airport">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill btn-confirm-airport-action"
+                                            data-action-url="{{ url_for('route_setting.delete', id_airport=a.id_airport) }}"
+                                            data-action-type="delete"
+                                            data-iata="{{ a.iata }}"
+                                            data-name="{{ a.airport_name }}"
+                                            title="Hapus Airport">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TAB DATA TERHAPUS (KHUSUS SUPERADMIN) -->
+                {% if is_superadmin %}
+                <div class="tab-pane fade" id="pane-deleted-airports" role="tabpanel">
+                    <table class="table table-hover align-middle js-datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>IATA / ICAO</th>
+                                <th>Nama Bandara</th>
+                                <th>Kota / Negara</th>
+                                <th>Dihapus Oleh</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in deleted_airports %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-secondary fw-bold">{{ d.iata }}</span>
+                                    {% if d.icao %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ d.icao }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold small text-muted">{{ d.airport_name }}</td>
+                                <td class="small text-muted">{{ d.city }}, {{ d.country }}</td>
+                                <td class="small text-muted">
+                                    {{ d.delete_by or '-' }}<br>
+                                    <span style="font-size: 0.72rem;">{{ d.deleted_at[:19].replace('T', ' ') if d.deleted_at else '' }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-success rounded-pill px-3 btn-confirm-airport-action"
+                                            data-action-url="{{ url_for('route_setting.restore', id_airport=d.id_airport) }}"
+                                            data-action-type="restore"
+                                            data-iata="{{ d.iata }}"
+                                            data-name="{{ d.airport_name }}"
+                                            title="Restore Airport">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MODAL KONFIRMASI HAPUS / RESTORE AIRPORT (ELEGAN & AMAN DARI AUTO-SUBMIT) -->
+<div class="modal fade" id="modalConfirmAirportAction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content rounded-4 border-0 shadow-lg text-center p-2">
+            <div class="modal-body pt-4 pb-3 px-3">
+                <div id="confirmAirportIconBox" class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i id="confirmAirportIcon" class="bi bi-trash3-fill fs-3"></i>
+                </div>
+                <h5 id="confirmAirportTitle" class="fw-bold mb-2">Hapus Bandara?</h5>
+                <p id="confirmAirportDesc" class="text-muted small mb-0">
+                    Apakah Anda yakin ingin menghapus data bandara ini?
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-light rounded-pill px-4 flex-fill" data-bs-dismiss="modal">
+                    Batal
+                </button>
+                <form id="formConfirmAirportAction" method="POST" class="flex-fill m-0">
+                    <button type="submit" id="btnSubmitAirportAction" class="btn btn-danger rounded-pill px-4 w-100">
+                        Ya, Hapus
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAMBAH AIRPORT -->
+<div class="modal fade" id="modalAddAirport" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Tambah Master Airport</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('route_setting.create') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold small">IATA (3 Huruf) <span class="text-danger">*</span></label>
+                            <input type="text" name="iata" maxlength="3" class="form-control text-uppercase" placeholder="BDJ" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold small">ICAO (4 Huruf)</label>
+                            <input type="text" name="icao" maxlength="4" class="form-control text-uppercase" placeholder="WAOO">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Scope <span class="text-danger">*</span></label>
+                            <select name="scope" class="form-select js-search-select" required>
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Nama Bandara <span class="text-danger">*</span></label>
+                            <input type="text" name="airport_name" class="form-control" placeholder="Syamsudin Noor International Airport" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">City / Kota <span class="text-danger">*</span></label>
+                            <input type="text" name="city" class="form-control" placeholder="Banjarbaru" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">Province / Provinsi</label>
+                            <input type="text" name="province" class="form-control" placeholder="Kalimantan Selatan">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">Country / Negara <span class="text-danger">*</span></label>
+                            <input type="text" name="country" class="form-control" value="Indonesia" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">Latitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="latitude" class="form-control" placeholder="-3.442361" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">Longitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="longitude" class="form-control" placeholder="114.762556" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Simpan Bandara</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDIT AIRPORT -->
+<div class="modal fade" id="modalEditAirport" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Edit Master Airport</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditAirport" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold small">IATA <span class="text-danger">*</span></label>
+                            <input type="text" name="iata" id="edit_iata" maxlength="3" class="form-control text-uppercase" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold small">ICAO</label>
+                            <input type="text" name="icao" id="edit_icao" maxlength="4" class="form-control text-uppercase">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small">Scope <span class="text-danger">*</span></label>
+                            <select name="scope" id="edit_scope" class="form-select js-search-select" required>
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Nama Bandara <span class="text-danger">*</span></label>
+                            <input type="text" name="airport_name" id="edit_airport_name" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">City <span class="text-danger">*</span></label>
+                            <input type="text" name="city" id="edit_city" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">Province</label>
+                            <input type="text" name="province" id="edit_province" class="form-control">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small">Country <span class="text-danger">*</span></label>
+                            <input type="text" name="country" id="edit_country" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">Latitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="latitude" id="edit_latitude" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">Longitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="longitude" id="edit_longitude" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Update Bandara</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script id="airportsJsonData" type="application/json">
+{{ airports | tojson | safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+    function initAirportArcMap() {
+        const mapEl = document.getElementById('routeConnectionMap');
+        const jsonEl = document.getElementById('airportsJsonData');
+        if (!mapEl || !jsonEl || typeof L === 'undefined') return;
+
+        let airports = [];
+        try {
+            airports = JSON.parse(jsonEl.textContent || '[]');
+        } catch (e) {
+            airports = [];
+        }
+
+        const map = L.map('routeConnectionMap', {
+            center: [-2.2, 114.5],
+            zoom: 5,
+            scrollWheelZoom: false
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 18
+        }).addTo(map);
+
+        const arcLayerGroup = L.layerGroup().addTo(map);
+        const filterOrigin = document.getElementById('filterMapOrigin');
+        const filterScope = document.getElementById('filterMapScope');
+        const counterEl = document.getElementById('mapActiveRouteCounter');
+
+        function computeCurvedPoints(lat1, lng1, lat2, lng2, curvature = 0.22) {
+            const points = [];
+            const midLat = (lat1 + lat2) / 2;
+            const midLng = (lng1 + lng2) / 2;
+            const dLat = lat2 - lat1;
+            const dLng = lng2 - lng1;
+
+            const ctrlLat = midLat - dLng * curvature;
+            const ctrlLng = midLng + dLat * curvature;
+
+            const steps = 48;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * ctrlLat + t * t * lat2;
+                const lng = (1 - t) * (1 - t) * lng1 + 2 * (1 - t) * t * ctrlLng + t * t * lng2;
+                points.push([lat, lng]);
+            }
+            return points;
+        }
+
+        function renderArcs() {
+            arcLayerGroup.clearLayers();
+            if (!airports.length) return;
+
+            const originIata = filterOrigin ? filterOrigin.value : airports[0].iata;
+            const selScope = filterScope ? filterScope.value : 'ALL';
+
+            const origin = airports.find(a => a.iata === originIata) || airports[0];
+            const destinations = airports.filter(a => {
+                if (a.iata === origin.iata) return false;
+                if (selScope !== 'ALL' && a.scope !== selScope) return false;
+                return true;
+            });
+
+            if (counterEl) {
+                counterEl.textContent = `${origin.iata} → ${destinations.length} Destination`;
+            }
+
+            const boundsPoints = [[origin.latitude, origin.longitude]];
+
+            L.marker([origin.latitude, origin.longitude], {
+                icon: L.divIcon({
+                    className: '',
+                    html: `<div class="airport-pin-label is-origin">${origin.iata}</div>`,
+                    iconSize: [44, 22],
+                    iconAnchor: [22, 11]
+                })
+            }).bindPopup(`<strong>${origin.iata} (Origin Hub)</strong><br>${origin.airport_name}<br><small>${origin.city}, ${origin.country}</small>`)
+              .addTo(arcLayerGroup);
+
+            destinations.forEach(dest => {
+                const isIntl = dest.scope === 'Internasional';
+                const arcColor = isIntl ? '#f59e0b' : '#2563eb';
+                const curveCoords = computeCurvedPoints(origin.latitude, origin.longitude, dest.latitude, dest.longitude, 0.2);
+
+                L.polyline(curveCoords, {
+                    color: arcColor,
+                    weight: 4,
+                    opacity: 0.16
+                }).addTo(arcLayerGroup);
+
+                const arcLine = L.polyline(curveCoords, {
+                    color: arcColor,
+                    weight: 2.3,
+                    opacity: 0.9,
+                    dashArray: '6, 6',
+                    className: 'route-arc-animated'
+                }).addTo(arcLayerGroup);
+
+                arcLine.bindPopup(`
+                    <div class="small">
+                        <strong>${origin.iata} &rarr; ${dest.iata}</strong><br>
+                        ${origin.city} ke ${dest.city} (${dest.country})<br>
+                        <span class="badge ${isIntl ? 'bg-warning text-dark' : 'bg-primary'} mt-1">${dest.scope}</span>
+                    </div>
+                `);
+
+                L.marker([dest.latitude, dest.longitude], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div class="airport-pin-label ${isIntl ? 'is-intl' : ''}">${dest.iata}</div>`,
+                        iconSize: [42, 22],
+                        iconAnchor: [21, 11]
+                    })
+                }).bindPopup(`<strong>${dest.iata} - ${dest.airport_name}</strong><br><small>${dest.city}, ${dest.country} (${dest.scope})</small>`)
+                  .addTo(arcLayerGroup);
+
+                boundsPoints.push([dest.latitude, dest.longitude]);
+            });
+
+            if (boundsPoints.length > 1) {
+                map.fitBounds(boundsPoints, { padding: [45, 45], maxZoom: 6 });
+            } else {
+                map.setView([origin.latitude, origin.longitude], 6);
+            }
+        }
+
+        filterOrigin?.addEventListener('change', renderArcs);
+        filterScope?.addEventListener('change', renderArcs);
+        renderArcs();
+
+        setTimeout(() => map.invalidateSize(), 250);
+    }
+
+    // Delegasi klik tombol Edit & Hapus/Restore Airport (aman dari auto-submit AJAX)
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.btn-edit-airport');
+        if (editBtn) {
+            const id = editBtn.getAttribute('data-id');
+            const form = document.getElementById('formEditAirport');
+            if (form) {
+                form.action = `/aeronautika/setting/route/edit/${id}`;
+            }
+            document.getElementById('edit_iata').value = editBtn.getAttribute('data-iata') || '';
+            document.getElementById('edit_icao').value = editBtn.getAttribute('data-icao') || '';
+            document.getElementById('edit_airport_name').value = editBtn.getAttribute('data-name') || '';
+            document.getElementById('edit_city').value = editBtn.getAttribute('data-city') || '';
+            document.getElementById('edit_province').value = editBtn.getAttribute('data-province') || '';
+            document.getElementById('edit_country').value = editBtn.getAttribute('data-country') || '';
+            document.getElementById('edit_scope').value = editBtn.getAttribute('data-scope') || 'Domestik';
+            document.getElementById('edit_latitude').value = editBtn.getAttribute('data-lat') || '';
+            document.getElementById('edit_longitude').value = editBtn.getAttribute('data-lng') || '';
+
+            const modalEl = document.getElementById('modalEditAirport');
+            if (modalEl && window.bootstrap) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+            return;
+        }
+
+        const confirmBtn = e.target.closest('.btn-confirm-airport-action');
+        if (confirmBtn) {
+            const actionUrl = confirmBtn.getAttribute('data-action-url');
+            const actionType = confirmBtn.getAttribute('data-action-type');
+            const iata = confirmBtn.getAttribute('data-iata') || '';
+            const name = confirmBtn.getAttribute('data-name') || '';
+
+            const form = document.getElementById('formConfirmAirportAction');
+            const iconBox = document.getElementById('confirmAirportIconBox');
+            const iconEl = document.getElementById('confirmAirportIcon');
+            const titleEl = document.getElementById('confirmAirportTitle');
+            const descEl = document.getElementById('confirmAirportDesc');
+            const submitBtn = document.getElementById('btnSubmitAirportAction');
+
+            if (form) form.action = actionUrl;
+
+            if (actionType === 'restore') {
+                iconBox.className = 'rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3';
+                iconEl.className = 'bi bi-arrow-counterclockwise fs-3';
+                titleEl.textContent = `Restore ${iata}?`;
+                descEl.innerHTML = `Kembalikan bandara <strong>${iata} &mdash; ${name}</strong> ke daftar aktif?`;
+                submitBtn.className = 'btn btn-success rounded-pill px-4 w-100';
+                submitBtn.textContent = 'Ya, Restore';
+            } else {
+                iconBox.className = 'rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3';
+                iconEl.className = 'bi bi-trash3-fill fs-3';
+                titleEl.textContent = `Hapus ${iata}?`;
+                descEl.innerHTML = `Bandara <strong>${iata} &mdash; ${name}</strong> akan dihapus dari daftar aktif.`;
+                submitBtn.className = 'btn btn-danger rounded-pill px-4 w-100';
+                submitBtn.textContent = 'Ya, Hapus';
+            }
+
+            const confirmModalEl = document.getElementById('modalConfirmAirportAction');
+            if (confirmModalEl && window.bootstrap) {
+                bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
+            }
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAirportArcMap);
+    } else {
+        initAirportArcMap();
+    }
+})();
+</script>
+{% endblock %}

@@ -4,79 +4,457 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Commercial Dashboard | InJourney Airports</title>
+    <title>Login - RISA | InJourney Airports</title>
 
     <!-- Mazer UI CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app-dark.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/auth.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='extensions/toastify-js/src/toastify.css') }}">
+    <!-- Fonts: Plus Jakarta Sans (Modern UI) & JetBrains Mono (Classic FIDS) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --ij-turquoise: #04b0c0;
+            --ij-blue: #006cb6;
+            --ij-green: #8cc63f;
+            --ij-orange: #fbb040;
+            --ij-red: #f26657;
+            --ij-charcoal: #414142;
+
+            --bs-primary: #04b0c0;
+            --bs-info: #006cb6;
+            --bs-success: #8cc63f;
+            --bs-warning: #fbb040;
+            --bs-danger: #f26657;
+        }
+
         html, body, #auth {
             height: 100%;
             overflow-x: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--ij-charcoal);
         }
 
-        /* Styling Logo InJourney Airports */
-        .auth-logo img {
-            height: 80px !important;
+        /* =========================================================
+           PANEL KIRI: MODERN & MINIMALIS (PALET INJOURNEY)
+           ========================================================= */
+        .login-left-wrapper {
+            background-color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2.75rem 2rem;
+        }
+
+        .login-card-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* Logo InJourney di Tengah Atas & Diperbesar */
+        .auth-logo-centered {
+            text-align: center;
+            margin-bottom: 2.25rem;
+        }
+
+        .auth-logo-centered img {
+            height: 115px !important;
             width: auto;
+            max-width: 100%;
             object-fit: contain;
+            transition: transform 0.25s ease;
         }
 
-        /* Panel Kanan: Siap Video Autoplay + Fallback Visual */
-        #auth-right {
+        .auth-logo-centered img:hover {
+            transform: scale(1.02);
+        }
+
+        /* Header Form Minimalis */
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .risa-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: rgba(4, 176, 192, 0.12);
+            color: var(--ij-blue);
+            border: 1px solid rgba(4, 176, 192, 0.28);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.32rem 0.85rem;
+            border-radius: 999px;
+            margin-bottom: 0.85rem;
+        }
+
+        .risa-pill-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--ij-turquoise);
+            box-shadow: 0 0 6px rgba(4, 176, 192, 0.65);
+        }
+
+        .login-title {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--ij-charcoal);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.35rem;
+        }
+
+        .login-subtitle {
+            font-size: 0.88rem;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 0;
+        }
+
+        /* Input Modern Minimalis */
+        .modern-field-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ij-charcoal);
+            margin-bottom: 0.45rem;
+        }
+
+        .modern-input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .modern-input-icon {
+            position: absolute;
+            left: 1rem;
+            color: #94a3b8;
+            font-size: 1.05rem;
+            pointer-events: none;
+            transition: color 0.2s ease;
+        }
+
+        .modern-input {
+            width: 100%;
+            height: 48px;
+            padding: 0.65rem 2.75rem 0.65rem 2.75rem;
+            font-size: 0.92rem;
+            color: var(--ij-charcoal);
+            background-color: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .modern-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .modern-input:hover {
+            background-color: #ffffff;
+            border-color: #cbd5e1;
+        }
+
+        .modern-input:focus {
+            outline: none;
+            background-color: #ffffff;
+            border-color: var(--ij-turquoise);
+            box-shadow: 0 0 0 4px rgba(4, 176, 192, 0.14);
+        }
+
+        .modern-input-group:focus-within .modern-input-icon {
+            color: var(--ij-blue);
+        }
+
+        .toggle-password-btn {
+            position: absolute;
+            right: 0.85rem;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 0.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+
+        .toggle-password-btn:hover {
+            color: var(--ij-blue);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--ij-turquoise);
+            border-color: var(--ij-turquoise);
+        }
+
+        .form-check-input:focus {
+            border-color: var(--ij-turquoise);
+            box-shadow: 0 0 0 0.2rem rgba(4, 176, 192, 0.2);
+        }
+
+        /* Tombol Submit Modern (Gradien Turquoise -> Biru InJourney) */
+        .btn-modern-login {
+            height: 48px;
+            background: linear-gradient(135deg, var(--ij-turquoise) 0%, var(--ij-blue) 100%);
+            border: none;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            box-shadow: 0 8px 20px -6px rgba(0, 108, 182, 0.48);
+            transition: all 0.2s ease;
+        }
+
+        .btn-modern-login:hover {
+            background: linear-gradient(135deg, #039aa8 0%, #005896 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px -6px rgba(0, 108, 182, 0.58);
+            color: #ffffff;
+        }
+
+        .btn-modern-login:active {
+            transform: translateY(0);
+        }
+
+        /* =========================================================
+           PANEL KANAN: TERMINAL BACKGROUND BLUR + CLASSIC SCHEDULE
+           ========================================================= */
+        #auth #auth-right {
             position: relative;
             width: 100%;
             height: 100%;
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f294a 0%, #1d4e89 55%, #008080 100%);
+            background: #0b111e !important;
             overflow: hidden;
             display: flex;
-            align-items: flex-end;
-            padding: 3.5rem;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 3rem 3.5rem;
         }
 
-        #auth-right video.bg-video {
+        #auth-right .bg-terminal-image {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translate(-50%, -50%);
-            object-fit: cover;
-            z-index: 1;
+            inset: -12px;
+            background-image: url("{{ url_for('static', filename='static/images/bg/terminal-glass-architecture-walking-business.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(4px);
+            -webkit-filter: blur(4px);
+            z-index: 0;
         }
 
-        /* Overlay gelap tipis agar teks di atas video tetap terbaca jelas */
-        #auth-right .video-overlay {
+        #auth-right .bg-terminal-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to top, rgba(10, 25, 47, 0.85) 0%, rgba(10, 25, 47, 0.25) 60%, rgba(10, 25, 47, 0.1) 100%);
+            background: linear-gradient(
+                180deg,
+                rgba(6, 20, 38, 0.56) 0%,
+                rgba(7, 18, 34, 0.70) 55%,
+                rgba(5, 12, 24, 0.90) 100%
+            );
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Papan Jadwal Klasik (Solari / Split-Flap Board) */
+        .fids-board {
+            position: relative;
             z-index: 2;
+            background: rgba(14, 21, 35, 0.93);
+            border: 2px solid #22324d;
+            border-radius: 14px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.8),
+                inset 0 1px 0 rgba(4, 176, 192, 0.18);
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .fids-header {
+            background: #142035;
+            border-bottom: 2px solid #233654;
+            padding: 0.9rem 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fids-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .fids-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--ij-orange);
+            box-shadow: 0 0 10px var(--ij-orange);
+            animation: pulseAmber 2s infinite;
+        }
+
+        @keyframes pulseAmber {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        .fids-board-title {
+            color: #f8fafc;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .fids-clock {
+            background: #090e18;
+            color: var(--ij-orange);
+            border: 1px solid #283c5c;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+        }
+
+        .fids-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .fids-table thead th {
+            background: #0c1322;
+            color: #7c93b5;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 0.65rem 1.2rem;
+            border-bottom: 1px solid #1e2d47;
+            text-align: left;
+        }
+
+        .fids-table tbody tr {
+            border-bottom: 1px solid #182338;
+            transition: background-color 0.2s ease;
+        }
+
+        .fids-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .fids-table tbody tr:hover {
+            background-color: rgba(4, 176, 192, 0.04);
+        }
+
+        .fids-table td {
+            padding: 0.72rem 1.2rem;
+            vertical-align: middle;
+        }
+
+        .flap-tile {
+            display: inline-block;
+            position: relative;
+            background: linear-gradient(180deg, #1d2a42 0%, #152033 49%, #101826 51%, #172236 100%);
+            color: #f1f5f9;
+            padding: 0.22rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #2b3d5c;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+        }
+
+        .flap-tile::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: rgba(0, 0, 0, 0.65);
+        }
+
+        .flap-amber {
+            color: var(--ij-orange);
+        }
+
+        .flap-cyan {
+            color: var(--ij-turquoise);
+        }
+
+        .flap-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.22rem 0.55rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+        }
+
+        /* Hijau InJourney (#8cc63f) */
+        .status-verified {
+            background: rgba(140, 198, 63, 0.16);
+            color: #a3db56;
+            border-color: rgba(140, 198, 63, 0.38);
+        }
+
+        /* Jingga InJourney (#fbb040) */
+        .status-reconciling {
+            background: rgba(251, 176, 64, 0.16);
+            color: var(--ij-orange);
+            border-color: rgba(251, 176, 64, 0.38);
+        }
+
+        /* Turquoise InJourney (#04b0c0) */
+        .status-boarding {
+            background: rgba(4, 176, 192, 0.16);
+            color: #27d3e3;
+            border-color: rgba(4, 176, 192, 0.38);
+        }
+
+        .flip-animate {
+            animation: flapFlip 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes flapFlip {
+            0% { transform: rotateX(0deg); opacity: 1; }
+            50% { transform: rotateX(-85deg); opacity: 0.4; }
+            100% { transform: rotateX(0deg); opacity: 1; }
         }
 
         #auth-right .hero-caption {
             position: relative;
-            z-index: 3;
+            z-index: 2;
             color: #ffffff;
-            max-width: 540px;
+            max-width: 600px;
+            margin-top: 2rem;
         }
 
-        /* Dekorasi halus saat video belum diisi */
-        #auth-right::before {
-            content: "";
-            position: absolute;
-            width: 480px;
-            height: 480px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
-            top: -120px;
-            right: -120px;
-            z-index: 0;
+        .hero-badge-ij {
+            background: rgba(4, 176, 192, 0.16);
+            color: #36d7e6;
+            border: 1px solid rgba(4, 176, 192, 0.38);
         }
     </style>
 </head>
@@ -91,69 +469,192 @@
 
     <div id="auth">
         <div class="row h-100 g-0">
-            <!-- Panel Kiri: Form Login -->
-            <div class="col-lg-5 col-12 d-flex align-items-center">
-                <div id="auth-left" class="w-100 px-4 px-sm-5 py-5">
-                    <div class="auth-logo mb-4">
+            <!-- Panel Kiri: Modern & Minimalis -->
+            <div class="col-lg-5 col-12 login-left-wrapper">
+                <!-- Spacer atas agar posisi form tetap seimbang -->
+                <div></div>
+
+                <div class="login-card-container">
+                    <!-- Logo InJourney di Tengah Atas & Diperbesar -->
+                    <div class="auth-logo-centered">
                         <a href="{{ url_for('auth.login') }}">
                             <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}" alt="InJourney Airports Logo">
                         </a>
                     </div>
 
-                    <h1 class="auth-title fs-2 fw-bold mb-1">Log in.</h1>
-                    <p class="auth-subtitle text-muted fs-6 mb-4">
-                        Commercial Dashboard &mdash; InJourney Airports
-                    </p>
+                    <!-- Judul & Subjudul RISA -->
+                    <div class="login-header">
+                        <span class="risa-pill">
+                            <span class="risa-pill-dot"></span>
+                            RISA
+                        </span>
+                        <h1 class="login-title">Sign in</h1>
+                        <p class="login-subtitle">
+                            Reconciliation &amp; Integrated Settlement Application
+                        </p>
+                    </div>
 
-                    <form action="{{ url_for('auth.login') }}" method="POST">
-                        <div class="form-group position-relative has-icon-left mb-3">
-                            <input type="email" name="email" class="form-control form-control-lg rounded-3" placeholder="Email Perusahaan" required autofocus>
-                            <div class="form-control-icon">
-                                <i class="bi bi-envelope"></i>
+                    <!-- Alert Status Percobaan / Countdown Blokir (Merah InJourney #f26657) -->
+                    <div id="lockoutAlertBox"
+                         class="alert rounded-4 border-0 shadow-sm mb-3 {{ '' if (lockout_remaining|default(0)) > 0 else 'd-none' }}"
+                         role="alert"
+                         style="background: rgba(242, 102, 87, 0.1); color: #9c2b20; border-left: 4px solid #f26657 !important;">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-shield-exclamation fs-5 mt-1" style="color: #f26657;"></i>
+                            <div class="small">
+                                <div class="fw-bold">Akses Login Ditangguhkan Sementara</div>
+                                <div>
+                                    Anda telah mencapai batas 3x percobaan gagal. Silakan tunggu
+                                    <span id="lockoutTimerText" class="fw-bold font-monospace px-1 py-0.5 rounded text-white" style="background-color: #f26657;">05:00</span>
+                                    sebelum mencoba kembali.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Sisa Percobaan (Jingga InJourney #fbb040) -->
+                    {% if (remaining_attempts is defined) and remaining_attempts > 0 and (lockout_remaining|default(0)) == 0 %}
+                    <div class="alert rounded-4 border-0 shadow-sm mb-3"
+                         role="alert"
+                         style="background: rgba(251, 176, 64, 0.14); color: #8c5808; border-left: 4px solid #fbb040 !important;">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi bi-exclamation-triangle-fill fs-5" style="color: #fbb040;"></i>
+                            <div>
+                                Email atau password tidak sesuai. <strong>Sisa percobaan: {{ remaining_attempts }} kali lagi.</strong>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Login Minimalis -->
+                    <form action="{{ url_for('auth.login') }}" method="POST" id="loginForm"
+                          data-lockout-remaining="{{ lockout_remaining|default(0) }}"
+                          data-locked-email="{{ locked_email|default('') }}">
+                        <div class="mb-3">
+                            <label for="email" class="modern-field-label">Email</label>
+                            <div class="modern-input-group">
+                                <i class="bi bi-envelope modern-input-icon"></i>
+                                <input type="email" id="email" name="email" class="modern-input"
+                                       value="{{ last_email|default('') }}"
+                                       placeholder="nama@airport.com" required autofocus>
                             </div>
                         </div>
 
-                        <div class="form-group position-relative has-icon-left mb-3">
-                            <input type="password" name="password" class="form-control form-control-lg rounded-3" placeholder="Password" required>
-                            <div class="form-control-icon">
-                                <i class="bi bi-shield-lock"></i>
+                        <div class="mb-3">
+                            <label for="password" class="modern-field-label">Password</label>
+                            <div class="modern-input-group">
+                                <i class="bi bi-shield-lock modern-input-icon"></i>
+                                <input type="password" id="password" name="password" class="modern-input" placeholder="Masukkan password Anda" required>
+                                <button type="button" class="toggle-password-btn" id="togglePasswordBtn" aria-label="Tampilkan password">
+                                    <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <div class="form-check d-flex align-items-center mb-4">
-                            <input class="form-check-input me-2" type="checkbox" name="remember" id="flexCheckDefault">
-                            <label class="form-check-label text-muted small" for="flexCheckDefault">
-                                Keep me logged in
-                            </label>
+                        <div class="d-flex align-items-center justify-content-between mb-4">
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="checkbox" name="remember" id="flexCheckDefault">
+                                <label class="form-check-label text-muted small" for="flexCheckDefault">
+                                    Keep me logged in
+                                </label>
+                            </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary btn-block btn-lg w-100 rounded-3 shadow-sm fw-semibold">
+                        <button type="submit" class="btn btn-modern-login w-100" id="btnLoginSubmit">
                             Log in
                         </button>
                     </form>
+                </div>
 
-                    <div class="text-center mt-5">
-                        <p class="text-muted small mb-0">&copy; 2026 InJourney Airports. All rights reserved.</p>
-                    </div>
+                <!-- Footer Minimalis -->
+                <div class="text-center pt-4">
+                    <p class="text-muted small mb-0">&copy; 2026 InJourney Airports. All rights reserved.</p>
                 </div>
             </div>
 
-            <!-- Panel Kanan: Video Background Autoplay (dengan Fallback Gradient) -->
+            <!-- Panel Kanan: Terminal Background Blur + Classic Airport Split-Flap Schedule -->
             <div class="col-lg-7 d-none d-lg-block">
                 <div id="auth-right">
-                    <video class="bg-video" autoplay muted loop playsinline onerror="this.style.display='none'">
-                        <source src="{{ url_for('static', filename='static/videos/airport-bg.mp4') }}" type="video/mp4">
-                    </video>
+                    <div class="bg-terminal-image"></div>
+                    <div class="bg-terminal-overlay"></div>
 
-                    <div class="video-overlay"></div>
+                    <!-- Papan Jadwal Klasik Bandara (FIDS) -->
+                    <div class="fids-board">
+                        <div class="fids-header">
+                            <div class="fids-title-group">
+                                <span class="fids-dot"></span>
+                                <span class="fids-board-title">DEPARTURES &bull; PJP2U RECONCILIATION</span>
+                            </div>
+                            <div class="fids-clock" id="fids-live-clock">17:22:00 WITA</div>
+                        </div>
 
+                        <table class="fids-table">
+                            <thead>
+                                <tr>
+                                    <th>TIME</th>
+                                    <th>FLIGHT</th>
+                                    <th>DESTINATION</th>
+                                    <th>PAX</th>
+                                    <th>PJP2U STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fids-tbody">
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">16:25</span></td>
+                                    <td><span class="flap-tile">TR 239</span></td>
+                                    <td><span class="flap-tile">SINGAPORE (SIN)</span></td>
+                                    <td><span class="flap-tile flap-cyan">178</span></td>
+                                    <td><span class="flap-status status-verified">&#10003; VERIFIED</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">17:10</span></td>
+                                    <td><span class="flap-tile">GA 533</span></td>
+                                    <td><span class="flap-tile">JAKARTA (CGK)</span></td>
+                                    <td><span class="flap-tile flap-cyan">162</span></td>
+                                    <td><span class="flap-status status-verified">&#10003; VERIFIED</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">17:45</span></td>
+                                    <td><span class="flap-tile">JT 527</span></td>
+                                    <td><span class="flap-tile">SURABAYA (SUB)</span></td>
+                                    <td><span class="flap-tile flap-cyan">214</span></td>
+                                    <td><span class="flap-status status-reconciling">&#8635; RECONCILIATION</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">18:20</span></td>
+                                    <td><span class="flap-tile">QG 1495</span></td>
+                                    <td><span class="flap-tile">BALIKPAPAN (BPN)</span></td>
+                                    <td><span class="flap-tile flap-cyan">67</span></td>
+                                    <td><span class="flap-status status-verified">&#10003; VERIFIED</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">19:05</span></td>
+                                    <td><span class="flap-tile">AK 441</span></td>
+                                    <td><span class="flap-tile">KUALA LUMPUR (KUL)</span></td>
+                                    <td><span class="flap-tile flap-cyan">174</span></td>
+                                    <td><span class="flap-status status-boarding">&#9679; VERIFICATION</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="flap-tile flap-amber">19:50</span></td>
+                                    <td><span class="flap-tile">ID 6213</span></td>
+                                    <td><span class="flap-tile">JAKARTA (CGK)</span></td>
+                                    <td><span class="flap-tile flap-cyan">156</span></td>
+                                    <td><span class="flap-status status-verified">&#10003; VERIFIED</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Teks Bawah RISA -->
                     <div class="hero-caption">
-                        <span class="badge bg-white bg-opacity-25 text-white fw-semibold px-3 py-2 rounded-pill mb-3">
-                            Commercial Performance Portal
+                        <span class="badge hero-badge-ij fw-semibold px-3 py-2 rounded-pill mb-3">
+                            Real-Time PJP2U Verification System
                         </span>
-                        <h2 class="text-white fw-bold mb-2">Elevating Airport Commercial Excellence</h2>
+                        <h2 class="text-white fw-bold mb-2">
+                            RISA &mdash; Reconciliation &amp; Integrated Settlement Application
+                        </h2>
                         <p class="text-white-50 mb-0">
-                            Integrated monitoring for non-aeronautical revenue, tenant performance, and airport commercial operations across regions.
+                            Automated real-time passenger manifest verification, reconciliation, and integrated PJP2U.
                         </p>
                     </div>
                 </div>
@@ -165,41 +666,185 @@
     <script src="{{ url_for('static', filename='extensions/toastify-js/src/toastify.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const flashEl = document.getElementById('login-flash-messages');
-            if (!flashEl || typeof Toastify === 'undefined') return;
+            // 1. Toggle Show/Hide Password
+            const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+            const passwordInput = document.getElementById('password');
+            const togglePasswordIcon = document.getElementById('togglePasswordIcon');
 
-            let messages = [];
-            try {
-                messages = JSON.parse(flashEl.getAttribute('data-messages') || '[]');
-            } catch (e) {
-                messages = [];
+            if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
+                togglePasswordBtn.addEventListener('click', function () {
+                    const isPassword = passwordInput.getAttribute('type') === 'password';
+                    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                    togglePasswordIcon.classList.toggle('bi-eye', !isPassword);
+                    togglePasswordIcon.classList.toggle('bi-eye-slash', isPassword);
+                });
             }
 
-            const bgColors = {
-                danger: 'linear-gradient(135deg, #dc3545, #b02a37)',
-                warning: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                success: 'linear-gradient(135deg, #198754, #146c43)',
-                info: 'linear-gradient(135deg, #0d6efd, #0a58ca)'
-            };
+            // 2. Toastify Flash Messages (Palet Resmi InJourney)
+            const flashEl = document.getElementById('login-flash-messages');
+            if (flashEl && typeof Toastify !== 'undefined') {
+                let messages = [];
+                try {
+                    messages = JSON.parse(flashEl.getAttribute('data-messages') || '[]');
+                } catch (e) {
+                    messages = [];
+                }
 
-            messages.forEach(function (item) {
-                const category = item[0];
-                const text = item[1];
-                Toastify({
-                    text: text,
-                    duration: 3500,
-                    close: true,
-                    gravity: "top",
-                    position: "right",
-                    stopOnFocus: true,
-                    style: {
-                        background: bgColors[category] || 'linear-gradient(135deg, #435ebe, #25396f)',
-                        borderRadius: '10px',
-                        boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
-                        fontWeight: '500'
+                const bgColors = {
+                    danger: 'linear-gradient(135deg, #f26657, #d94c3d)',
+                    warning: 'linear-gradient(135deg, #fbb040, #e09624)',
+                    success: 'linear-gradient(135deg, #8cc63f, #6fa329)',
+                    info: 'linear-gradient(135deg, #006cb6, #04b0c0)'
+                };
+
+                messages.forEach(function (item) {
+                    const category = item[0];
+                    const text = item[1];
+                    Toastify({
+                        text: text,
+                        duration: 3500,
+                        close: true,
+                        gravity: "top",
+                        position: "right",
+                        stopOnFocus: true,
+                        style: {
+                            background: bgColors[category] || 'linear-gradient(135deg, #04b0c0, #006cb6)',
+                            borderRadius: '10px',
+                            boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+                            fontWeight: '500'
+                        }
+                    }).showToast();
+                });
+            }
+
+            // 2B. Live Countdown Blokir Login 5 Menit + Notif Jika Mencoba Paksa
+            const loginForm = document.getElementById('loginForm');
+            const emailInputEl = document.getElementById('email');
+            const lockoutAlertBox = document.getElementById('lockoutAlertBox');
+            const lockoutTimerText = document.getElementById('lockoutTimerText');
+            const btnLoginSubmit = document.getElementById('btnLoginSubmit');
+
+            let remainingSeconds = parseInt(loginForm?.getAttribute('data-lockout-remaining') || '0', 10);
+            const lockedEmail = (loginForm?.getAttribute('data-locked-email') || '').trim().toLowerCase();
+
+            function formatMMSS(totalSec) {
+                const sec = Math.max(0, totalSec);
+                const m = String(Math.floor(sec / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                return `${m}:${s}`;
+            }
+
+            function isCurrentInputLocked() {
+                if (remainingSeconds <= 0 || !lockedEmail) return false;
+                const currentEmail = (emailInputEl?.value || '').trim().toLowerCase();
+                return currentEmail === lockedEmail;
+            }
+
+            function syncLockoutUI() {
+                if (!lockoutAlertBox || !lockoutTimerText || !btnLoginSubmit) return;
+
+                if (isCurrentInputLocked()) {
+                    const formatted = formatMMSS(remainingSeconds);
+                    lockoutAlertBox.classList.remove('d-none');
+                    lockoutTimerText.textContent = formatted;
+                    btnLoginSubmit.innerHTML = `<i class="bi bi-lock-fill me-2"></i>Tunggu (${formatted})`;
+                } else {
+                    lockoutAlertBox.classList.add('d-none');
+                    btnLoginSubmit.innerHTML = 'Log in';
+                }
+            }
+
+            if (remainingSeconds > 0 && lockedEmail) {
+                syncLockoutUI();
+
+                emailInputEl?.addEventListener('input', syncLockoutUI);
+
+                const countdownInterval = setInterval(function () {
+                    remainingSeconds -= 1;
+
+                    if (remainingSeconds <= 0) {
+                        clearInterval(countdownInterval);
+                        syncLockoutUI();
+                        if (typeof Toastify !== 'undefined') {
+                            Toastify({
+                                text: `Waktu tunggu untuk ${lockedEmail} selesai. Silakan coba login kembali.`,
+                                duration: 3500,
+                                close: true,
+                                gravity: 'top',
+                                position: 'right',
+                                style: {
+                                    background: 'linear-gradient(135deg, #8cc63f, #6fa329)',
+                                    borderRadius: '10px',
+                                    fontWeight: '500'
+                                }
+                            }).showToast();
+                        }
+                        return;
                     }
-                }).showToast();
-            });
+
+                    syncLockoutUI();
+                }, 1000);
+
+                loginForm.addEventListener('submit', function (e) {
+                    if (isCurrentInputLocked()) {
+                        e.preventDefault();
+                        const formatted = formatMMSS(remainingSeconds);
+                        if (typeof Toastify !== 'undefined') {
+                            Toastify({
+                                text: `Akun ${lockedEmail} masih diblokir! Tunggu ${formatted} lagi atau gunakan akun lain.`,
+                                duration: 3500,
+                                close: true,
+                                gravity: 'top',
+                                position: 'right',
+                                style: {
+                                    background: 'linear-gradient(135deg, #f26657, #d94c3d)',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+                                    fontWeight: '600'
+                                }
+                            }).showToast();
+                        }
+                    }
+                });
+            }
+
+            // 3. Live Clock WITA untuk Papan FIDS
+            const clockEl = document.getElementById('fids-live-clock');
+            function updateFidsClock() {
+                if (!clockEl) return;
+                const now = new Date();
+                const formatted = now.toLocaleTimeString('en-GB', {
+                    timeZone: 'Asia/Makassar',
+                    hour12: false
+                });
+                clockEl.textContent = formatted + ' WITA';
+            }
+            updateFidsClock();
+            setInterval(updateFidsClock, 1000);
+
+            // 4. Simulasi Animasi Split-Flap Berkala pada Status Manifest
+            const tbody = document.getElementById('fids-tbody');
+            const alternateRows = [
+                { time: '13:30', flight: 'IU 635', dest: 'SURABAYA (SUB)', pax: '186', statusClass: 'status-boarding', statusText: '&#9679; VERIFICATION' },
+                { time: '13:30', flight: 'IU 635', dest: 'SURABAYA (SUB)', pax: '186', statusClass: 'status-reconciling', statusText: '&#8635; RECONCILIATION' },
+                { time: '13:30', flight: 'IU 635', dest: 'SURABAYA (SUB)', pax: '186', statusClass: 'status-verified', statusText: '&#10003; VERIFIED' }
+            ];
+            let altIdx = 0;
+
+            setInterval(function () {
+                if (!tbody || tbody.rows.length === 0) return;
+                const targetRow = tbody.rows[2];
+                const item = alternateRows[altIdx % alternateRows.length];
+                altIdx++;
+
+                targetRow.innerHTML = `
+                    <td><span class="flap-tile flap-amber flip-animate">${item.time}</span></td>
+                    <td><span class="flap-tile flip-animate">${item.flight}</span></td>
+                    <td><span class="flap-tile flip-animate">${item.dest}</span></td>
+                    <td><span class="flap-tile flap-cyan flip-animate">${item.pax}</span></td>
+                    <td><span class="flap-status ${item.statusClass} flip-animate">${item.statusText}</span></td>
+                `;
+            }, 4500);
         });
     </script>
 </body>

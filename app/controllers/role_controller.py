@@ -14,11 +14,15 @@ AVAILABLE_MENUS = [
     {'key': 'aeronautika_ops', 'label': 'Operasional', 'group': 'Aeronautika'},
     {'key': 'airlines', 'label': 'Setting - Airlines', 'group': 'Aeronautika'},
     {'key': 'airlines_users', 'label': 'Setting - Airlines Users', 'group': 'Aeronautika'},
+    {'key': 'tarif_aeronautika', 'label': 'Setting - Tarif', 'group': 'Aeronautika'},
+    {'key': 'routes', 'label': 'Setting - Route', 'group': 'Aeronautika'},
+    {'key': 'airline_registrations', 'label': 'Setting - Registration', 'group': 'Aeronautika'},
+    {'key': 'flight_numbers', 'label': 'Setting - Number Flight', 'group': 'Aeronautika'},
     {'key': 'users', 'label': 'Manajemen Users', 'group': 'Setting'},
     {'key': 'cabang', 'label': 'Cabang Perusahaan', 'group': 'Setting'},
     {'key': 'coa_pendapatan', 'label': 'COA Pendapatan', 'group': 'Setting'},
     {'key': 'role_access', 'label': 'Role Access', 'group': 'Setting'},
-    
+    {'key': 'master_ppn', 'label': 'PPN', 'group': 'Setting'},
 ]
 
 @roles_bp.route('/')

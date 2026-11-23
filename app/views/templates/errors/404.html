@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Halaman Tidak Ditemukan | RISA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app-dark.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/error.css') }}">
+</head>
+
+<body>
+    <script src="{{ url_for('static', filename='static/js/initTheme.js') }}"></script>
+    <div id="error">
+        <div class="error-page container">
+            <div class="col-md-8 col-12 offset-md-2">
+                <div class="text-center">
+                    <img class="img-error"
+                         src="{{ url_for('static', filename='compiled/svg/error-404.svg') }}"
+                         alt="Not Found"
+                         style="max-height: 320px;">
+                    <h1 class="error-title mt-4">NOT FOUND</h1>
+                    <p class="fs-5 text-gray-600">
+                        Halaman atau tautan yang Anda tuju tidak ditemukan atau sudah dipindahkan.
+                    </p>
+
+                    {% set user_sess = session.get('user') %}
+                    {% if user_sess %}
+                        {% set back_url = url_for('airline_portal.dashboard') if user_sess.get('user_type') == 'airline' else url_for('dashboard.index') %}
+                    {% else %}
+                        {% set back_url = url_for('auth.login') %}
+                    {% endif %}
+
+                    <a href="{{ back_url }}" class="btn btn-lg btn-outline-primary mt-3 rounded-pill px-4">
+                        <i class="bi bi-arrow-left me-2"></i>Kembali ke Beranda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

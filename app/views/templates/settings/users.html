@@ -56,7 +56,7 @@
                 <!-- Filter Cabang (Desktop - hanya tampil jika memiliki akses > 1 cabang) -->
                 {% if can_select_cabang %}
                 <div class="{{ 'col-md-3' if is_superadmin else 'col-md-4' }} d-none d-md-block">
-                    <select id="filterCabangUser" class="form-select">
+                    <select id="filterCabangUser" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">Semua Cabang / Unit</option>
                         {% for c in cabang_list %}
                             <option value="{{ c.kode_cabang }}">[{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
@@ -68,7 +68,7 @@
                 <!-- Filter Status Akun (Khusus Superadmin Desktop) -->
                 {% if is_superadmin %}
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterStatusUser" class="form-select">
+                    <select id="filterStatusUser" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">Semua Status</option>
                         <option value="active">Aktif</option>
                         <option value="deleted">Terhapus</option>
@@ -245,7 +245,7 @@
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Cabang / Unit Penempatan <span class="text-danger">*</span></label>
                     {% if can_select_cabang %}
-                    <select name="kode_cabang" class="form-select" required>
+                    <select name="kode_cabang" class="form-select js-search-select" placeholder="Pilih..." required>
                         <option value="" disabled selected>-- Pilih Cabang / Unit --</option>
                         {% for c in cabang_list %}
                             <option value="{{ c.kode_cabang }}">[{{ c.tipe_unit }}] {{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
@@ -266,7 +266,7 @@
                 </div>
                 <div class="mb-0">
                     <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
-                    <select name="role" class="form-select" required>
+                    <select name="role" class="form-select js-search-select" placeholder="Pilih..." required>
                         <option value="" disabled selected>-- Pilih Role --</option>
                         {% for r in roles %}
                             <option value="{{ r.nama_role }}">{{ r.nama_role }}</option>
@@ -307,7 +307,7 @@
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Cabang / Unit Penempatan <span class="text-danger">*</span></label>
                     {% if can_select_cabang %}
-                    <select name="kode_cabang" class="form-select" required>
+                    <select name="kode_cabang" class="form-select js-search-select" placeholder="Pilih..." required>
                         <option value="" disabled>-- Pilih Cabang / Unit --</option>
                         {% for c in cabang_list %}
                             <option value="{{ c.kode_cabang }}" {% if u.kode_cabang == c.kode_cabang %}selected{% endif %}>
@@ -330,7 +330,7 @@
                 </div>
                 <div class="mb-0">
                     <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
-                    <select name="role" class="form-select" required>
+                    <select name="role" class="form-select js-search-select" placeholder="Pilih..." required>
                         {% for r in roles %}
                             <option value="{{ r.nama_role }}" {% if u.role == r.nama_role %}selected{% endif %}>{{ r.nama_role }}</option>
                         {% endfor %}

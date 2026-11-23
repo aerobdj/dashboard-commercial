@@ -1,0 +1,19 @@
+<div id="main-content">
+    <div class="d-flex flex-column align-items-center justify-content-center text-center py-5 my-4">
+        <img src="{{ url_for('static', filename='compiled/svg/error-404.svg') }}"
+             alt="404 Not Found"
+             class="img-fluid mb-4"
+             style="max-height: 240px;">
+        <h2 class="fw-bold mb-2">404 - Halaman Tidak Ditemukan</h2>
+        <p class="text-muted mb-4" style="max-width: 460px;">
+            Modul atau halaman yang Anda akses belum tersedia atau alamat URL tidak valid.
+        </p>
+
+        {% set user_sess = session.get('user') %}
+        {% set back_url = url_for('airline_portal.dashboard') if (user_sess and user_sess.get('user_type') == 'airline') else url_for('dashboard.index') %}
+
+        <a href="{{ back_url }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-house-door me-2"></i>Kembali ke Dashboard
+        </a>
+    </div>
+</div>

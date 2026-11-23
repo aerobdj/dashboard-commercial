@@ -52,7 +52,7 @@
 
                 <!-- Filter Tipe Unit (Desktop) -->
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterTipeUnitCabang" class="form-select">
+                    <select id="filterTipeUnitCabang" class="form-select js-search-select" placeholder="Pilih Tipe...">
                         <option value="">Semua Tipe Unit</option>
                         <option value="HO">HO</option>
                         <option value="REGIONAL">REGIONAL</option>
@@ -62,7 +62,7 @@
 
                 <!-- Filter Induk / Parent (Desktop) -->
                 <div class="col-md-3 d-none d-md-block">
-                    <select id="filterParentCabang" class="form-select">
+                    <select id="filterParentCabang" class="form-select js-search-select" placeholder="Pilih Induk...">
                         <option value="">Semua Induk (Parent)</option>
                         {% for p in parents %}
                             <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
@@ -72,7 +72,7 @@
 
                 <!-- Filter Status Bandara (Desktop) -->
                 <div class="{{ 'col-md-2' if is_superadmin else 'col-md-3' }} d-none d-md-block">
-                    <select id="filterStatusBandaraCabang" class="form-select">
+                    <select id="filterStatusBandaraCabang" class="form-select js-search-select" placeholder="Pilih Status Bandara...">
                         <option value="">Semua Status Bandara</option>
                         <option value="Domestik">Domestik</option>
                         <option value="Internasional">Internasional</option>
@@ -82,7 +82,7 @@
                 <!-- Filter Status Data (Khusus Superadmin Desktop) -->
                 {% if is_superadmin %}
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterDeletedCabang" class="form-select">
+                    <select id="filterDeletedCabang" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">Semua Data</option>
                         <option value="active">Tersedia</option>
                         <option value="deleted">Terhapus</option>
@@ -216,7 +216,7 @@
     <div class="offcanvas-body pt-2 pb-4">
         <div class="mb-3">
             <label class="form-label small fw-semibold">Tipe Unit</label>
-            <select id="mobileFilterTipeUnit" class="form-select">
+            <select id="mobileFilterTipeUnit" class="form-select js-search-select" placeholder="Pilih Tipe...">
                 <option value="">Semua Tipe Unit</option>
                 <option value="HO">HO</option>
                 <option value="REGIONAL">REGIONAL</option>
@@ -225,7 +225,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label small fw-semibold">Induk (Parent)</label>
-            <select id="mobileFilterParent" class="form-select">
+            <select id="mobileFilterParent" class="form-select js-search-select" placeholder="Pilih...">
                 <option value="">Semua Induk (Parent)</option>
                 {% for p in parents %}
                     <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
@@ -234,7 +234,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label small fw-semibold">Status Bandara</label>
-            <select id="mobileFilterStatusBandara" class="form-select">
+            <select id="mobileFilterStatusBandara" class="form-select js-search-select" placeholder="Pilih Status Bandara...">
                 <option value="">Semua Status Bandara</option>
                 <option value="Domestik">Domestik</option>
                 <option value="Internasional">Internasional</option>
@@ -243,7 +243,7 @@
         {% if is_superadmin %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Status Data</label>
-            <select id="mobileFilterDeletedCabang" class="form-select">
+            <select id="mobileFilterDeletedCabang" class="form-select js-search-select" placeholder="Pilih...">
                 <option value="">Semua Data</option>
                 <option value="active">Tersedia</option>
                 <option value="deleted">Terhapus</option>
@@ -277,7 +277,7 @@
                     </div>
                     <div class="col-7 col-md-7 mb-3">
                         <label class="form-label small fw-semibold">Tipe Unit</label>
-                        <select name="tipe_unit" class="form-select" required>
+                        <select name="tipe_unit" class="form-select js-search-select" placeholder="Pilih..." required>
                             <option value="CABANG" selected>CABANG (Bandara)</option>
                             <option value="REGIONAL">REGIONAL</option>
                             <option value="HO">HO (Head Office)</option>
@@ -290,7 +290,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Unit Induk (Parent)</label>
-                    <select name="parent_kode" class="form-select">
+                    <select name="parent_kode" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">-- Tidak Ada (Khusus HO) --</option>
                         {% for p in parents %}
                             <option value="{{ p.kode_cabang }}">{{ p.kode_cabang }} - {{ p.nama_cabang }}</option>
@@ -345,7 +345,7 @@
                     </div>
                     <div class="col-7 col-md-7 mb-3">
                         <label class="form-label small fw-semibold">Tipe Unit</label>
-                        <select name="tipe_unit" class="form-select" required>
+                        <select name="tipe_unit" class="form-select js-search-select" placeholder="Pilih..." required>
                             {% for t in tipe_units %}
                                 <option value="{{ t }}" {% if c.tipe_unit == t %}selected{% endif %}>{{ t }}</option>
                             {% endfor %}
@@ -358,7 +358,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Unit Induk (Parent)</label>
-                    <select name="parent_kode" class="form-select">
+                    <select name="parent_kode" class="form-select js-search-select" placeholder="Pilih...">
                         <option value="">-- Tidak Ada (Khusus HO) --</option>
                         {% for p in parents %}
                             {% if p.kode_cabang != c.kode_cabang %}

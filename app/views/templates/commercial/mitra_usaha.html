@@ -102,7 +102,7 @@
                 <!-- Filter Cabang (Desktop) -->
                 {% if can_select_cabang %}
                 <div class="col-md-3 d-none d-md-block">
-                    <select id="filterCabangMitra" class="form-select">
+                    <select id="filterCabangMitra" class="form-select js-search-select">
                         <option value="">Semua Cabang</option>
                         {% for c in cabang_list %}
                             <option value="{{ c.kode_cabang }}">
@@ -115,7 +115,7 @@
 
                 <!-- Filter Status Kontrak (Desktop) -->
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterStatusMitra" class="form-select">
+                    <select id="filterStatusMitra" class="form-select js-search-select">
                         <option value="">Semua Status</option>
                         <option value="Active">Active</option>
                         <option value="Not Active">Not Active</option>
@@ -125,7 +125,7 @@
                 <!-- Filter Status Data (Khusus Superadmin Desktop) -->
                 {% if is_superadmin %}
                 <div class="col-md-2 d-none d-md-block">
-                    <select id="filterDeletedMitra" class="form-select">
+                    <select id="filterDeletedMitra" class="form-select js-search-select">
                         <option value="">Semua Data</option>
                         <option value="active">Tersedia</option>
                         <option value="deleted">Terhapus</option>
@@ -327,7 +327,7 @@
         {% if can_select_cabang %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Unit Cabang Bandara</label>
-            <select id="mobileFilterCabangMitra" class="form-select">
+            <select id="mobileFilterCabangMitra" class="form-select js-search-select">
                 <option value="">Semua Cabang</option>
                 {% for c in cabang_list %}
                     <option value="{{ c.kode_cabang }}">
@@ -339,7 +339,7 @@
         {% endif %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Status Kontrak</label>
-            <select id="mobileFilterStatusMitra" class="form-select">
+            <select id="mobileFilterStatusMitra" class="form-select js-search-select">
                 <option value="">Semua Status</option>
                 <option value="Active">Active</option>
                 <option value="Not Active">Not Active</option>
@@ -348,7 +348,7 @@
         {% if is_superadmin %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Status Data</label>
-            <select id="mobileFilterDeletedMitra" class="form-select">
+            <select id="mobileFilterDeletedMitra" class="form-select js-search-select">
                 <option value="">Semua Data</option>
                 <option value="active">Tersedia</option>
                 <option value="deleted">Terhapus</option>
@@ -380,7 +380,7 @@
                     {% if can_select_cabang %}
                     <div class="col-md-12">
                         <label class="form-label small fw-semibold">Unit Cabang Bandara <span class="text-danger">*</span></label>
-                        <select name="kode_cabang" class="form-select" required>
+                        <select name="kode_cabang" class="form-select js-search-select" required>
                             <option value="" disabled selected>-- Pilih Unit Cabang Bandara --</option>
                             {% for c in cabang_list %}
                                 <option value="{{ c.kode_cabang }}">
@@ -408,7 +408,7 @@
 
                     <div class="col-md-6">
                         <label class="form-label small fw-semibold">Type Mitra <span class="text-danger">*</span></label>
-                        <select name="type_mitra" class="form-select type-mitra-select" required>
+                        <select name="type_mitra" class="form-select js-search-select type-mitra-select" required>
                             <option value="" disabled selected>-- Pilih Type Mitra --</option>
                             {% for t in type_mitra_options %}
                                 <option value="{{ t }}">{{ t }}</option>
@@ -461,7 +461,7 @@
 
                     <div class="col-md-4">
                         <label class="form-label small fw-semibold">Type Kerjasama <span class="text-danger">*</span></label>
-                        <select name="type_kerjasama" class="form-select" required>
+                        <select name="type_kerjasama" class="form-select js-search-select" required>
                             <option value="MOB">MOB</option>
                             <option value="MGRS">MGRS</option>
                             <option value="Realisasi Omzet">Realisasi Omzet</option>
@@ -568,7 +568,7 @@
                     {% if can_select_cabang %}
                     <div class="col-md-12">
                         <label class="form-label small fw-semibold">Unit Cabang Bandara <span class="text-danger">*</span></label>
-                        <select name="kode_cabang" class="form-select" required>
+                        <select name="kode_cabang" class="form-select js-search-select" required>
                             {% for c in cabang_list %}
                                 <option value="{{ c.kode_cabang }}" {% if m.kode_cabang == c.kode_cabang %}selected{% endif %}>{{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
                             {% endfor %}
@@ -593,7 +593,7 @@
 
                     <div class="col-md-6">
                         <label class="form-label small fw-semibold">Type Mitra <span class="text-danger">*</span></label>
-                        <select name="type_mitra" class="form-select type-mitra-select" required>
+                        <select name="type_mitra" class="form-select js-search-select type-mitra-select" required>
                             {% for t in type_mitra_options %}
                                 <option value="{{ t }}" {% if m.type_mitra == t %}selected{% endif %}>{{ t }}</option>
                             {% endfor %}
@@ -647,7 +647,7 @@
 
                     <div class="col-md-4">
                         <label class="form-label small fw-semibold">Type Kerjasama <span class="text-danger">*</span></label>
-                        <select name="type_kerjasama" class="form-select" required>
+                        <select name="type_kerjasama" class="form-select js-search-select" required>
                             <option value="MOB" {% if m.type_kerjasama == 'MOB' %}selected{% endif %}>MOB</option>
                             <option value="MGRS" {% if m.type_kerjasama == 'MGRS' %}selected{% endif %}>MGRS</option>
                             <option value="Realisasi Omzet" {% if m.type_kerjasama == 'Realisasi Omzet' %}selected{% endif %}>Realisasi Omzet</option>

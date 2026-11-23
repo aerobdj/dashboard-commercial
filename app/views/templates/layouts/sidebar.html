@@ -27,7 +27,8 @@
             <div class="sidebar-header position-relative">
                 <div class="d-flex justify-content-between align-items-center sidebar-header-inner">
                     <div class="logo w-100 text-center">
-                        <a href="{{ url_for('dashboard.index') }}" class="d-inline-flex align-items-center justify-content-center logo-crop-wrapper">
+                        {% set is_airline_user = session.get('user', {}).get('user_type') == 'airline' %}
+                        <a href="{{ url_for('airline_portal.dashboard') if is_airline_user else url_for('dashboard.index') }}" class="d-inline-flex align-items-center justify-content-center logo-crop-wrapper">
                             <!-- Logo Mode Normal (Light Mode) -->
                             <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}" alt="InJourney Airports Logo" class="theme-logo-light logo-full">
                             <!-- Logo Mode Normal (Dark Mode) -->
@@ -50,7 +51,7 @@
                 </div>
             </div>
 
-            <!-- Profile Info Widget (Padding atas-bawah dilebarkan dengan py-3 agar tidak mepet) -->
+            <!-- Profile Info Widget -->
             <div class="sidebar-profile px-3 py-3 mb-3 bg-body-tertiary rounded-4 mx-3 d-flex align-items-center gap-3 border shadow-sm">
                 <div class="avatar bg-primary text-white rounded-circle overflow-hidden d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 42px; height: 42px;">
                     {% if session.get('user', {}).get('imageprofil') %}
@@ -73,127 +74,203 @@
                 </div>
             </div>
 
-            <!-- Menu Navigation (Difilter Sesuai Role Access) -->
+            <!-- Menu Navigation (Difilter Sesuai Role Access & Tipe User) -->
             {% set user_data = session.get('user', {}) %}
-            {% set allowed_menus = user_data.get('allowed_menus') if user_data.get('allowed_menus') is not none else (['dashboard', 'commercial', 'users', 'cabang', 'role_access'] if user_data.get('role') == 'superadmin' else ['dashboard']) %}
+            {% set is_airline_user = user_data.get('user_type') == 'airline' %}
+            {% set user_role = (user_data.get('role') or '') | lower %}
+            {% set is_superadmin = (user_role == 'superadmin') %}
+            {% set allowed_menus = user_data.get('allowed_menus') if user_data.get('allowed_menus') is not none else (['dashboard', 'commercial', 'users', 'cabang', 'role_access'] if is_superadmin else ['dashboard']) %}
             <div class="sidebar-menu">
                 <ul class="menu">
-                    <li class="sidebar-title">Menu Utama</li>
+                    {% if is_airline_user %}
+                        <!-- ================= MENU KHUSUS AIRLINE ================= -->
+                        <li class="sidebar-title">Airline Portal &bull; RISA</li>
 
-                    <!-- 1. Dashboard -->
-                    {% if 'dashboard' in allowed_menus %}
-                    <li class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
-                        <a href="{{ url_for('dashboard.index') }}" class='sidebar-link d-flex align-items-center gap-2' title="Dashboard">
-                            <i class="bi bi-grid-fill d-flex align-items-center justify-content-center"></i>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    {% endif %}
+                        <li class="sidebar-item {{ 'active' if request.endpoint == 'airline_portal.dashboard' else '' }}">
+                            <a href="{{ url_for('airline_portal.dashboard') }}" class="sidebar-link d-flex align-items-center gap-2" title="Dashboard">
+                                <i class="bi bi-grid-fill d-flex align-items-center justify-content-center"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
 
-                    <!-- 2. Commercial -->
-                    {% if 'mitra_usaha' in allowed_menus or 'commercial' in allowed_menus %}
-                    {% set is_commercial_active = request.endpoint and (request.endpoint in ['mitra.index']) %}
-                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_commercial_active else '' }}">
-                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Commercial">
-                            <i class="bi bi-shop d-flex align-items-center justify-content-center flex-shrink-0"></i>
-                            <span>Commercial</span>
-                        </a>
-                        <ul class="submenu {{ 'submenu-open active' if is_commercial_active else '' }}">
-                            {% if 'mitra_usaha' in allowed_menus %}
-                            <li class="submenu-item {{ 'active' if request.endpoint == 'mitra.index' else '' }}">
-                                <a href="{{ url_for('mitra.index') }}">Mitra Usaha</a>
-                            </li>
-                            {% endif %}
-                            <li class="submenu-item">
-                                <a href="#">Pendapatan/Revenue</a>
-                            </li>
-                        </ul>
-                    </li>
-                    {% endif %}
+                        <li class="sidebar-item">
+                            <a href="#" class="sidebar-link d-flex align-items-center gap-2" title="Upload Manifest">
+                                <i class="bi bi-file-earmark-arrow-up-fill d-flex align-items-center justify-content-center"></i>
+                                <span>Upload Manifest</span>
+                            </a>
+                        </li>
 
-                    <!-- 2A. Aeronautika -->
-                    {% set user_role = (user_data.get('role') or '') | lower %}
-                    {% set can_see_airlines = ('airlines' in allowed_menus) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
-                    {% set can_see_airlines_users = ('airlines_users' in allowed_menus) and (user_role in ['superadmin', 'pengawas']) %}
-                    {% set can_see_aero_admin = ('aeronautika_admin' in allowed_menus) or ('aeronautika' in allowed_menus) %}
-                    {% set can_see_aero_ops = ('aeronautika_ops' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+                        <li class="sidebar-item">
+                            <a href="#" class="sidebar-link d-flex align-items-center gap-2" title="PJP2U Reconciliation">
+                                <i class="bi bi-check2-circle d-flex align-items-center justify-content-center"></i>
+                                <span>PJP2U Reconciliation</span>
+                            </a>
+                        </li>
 
-                    {% if can_see_airlines or can_see_airlines_users or can_see_aero_admin or can_see_aero_ops %}
-                    {% set is_aero_active = request.endpoint and (request.endpoint in ['airline.index', 'airline_user.index']) %}
-                    {% set is_aero_setting_active = request.endpoint and (request.endpoint in ['airline.index', 'airline_user.index']) %}
-                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_aero_active else '' }}">
-                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Aeronautika">
-                            <i class="bi bi-airplane-engines-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
-                            <span>Aeronautika</span>
-                        </a>
-                        <ul class="submenu {{ 'submenu-open active' if is_aero_active else '' }}">
-                            {% if can_see_aero_admin %}
-                            <li class="submenu-item">
-                                <a href="#">Administrasi</a>
-                            </li>
-                            {% endif %}
+                        {% if user_role == 'admin' %}
+                        <li class="sidebar-title">Airline Admin</li>
+                        <li class="sidebar-item">
+                            <a href="#" class="sidebar-link d-flex align-items-center gap-2" title="Station PIC">
+                                <i class="bi bi-people-fill d-flex align-items-center justify-content-center"></i>
+                                <span>Station PIC</span>
+                            </a>
+                        </li>
+                        {% endif %}
 
-                            {% if can_see_aero_ops %}
-                            <li class="submenu-item">
-                                <a href="#">Operasional</a>
-                            </li>
-                            {% endif %}
+                    {% else %}
+                        <!-- ================= MENU EXISTING INTERNAL AIRPORT ================= -->
+                        <li class="sidebar-title">Menu Utama</li>
 
-                            {% if can_see_airlines or can_see_airlines_users %}
-                            <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_setting_active else '' }}">
-                                <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
-                                    <span>Setting</span>
-                                    <i class="bi bi-chevron-right small nested-arrow"></i>
-                                </a>
-                                <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_setting_active else '' }}">
-                                    {% if can_see_airlines %}
-                                    <li class="submenu-item {{ 'active' if request.endpoint == 'airline.index' else '' }}">
-                                        <a href="{{ url_for('airline.index') }}">Airlines</a>
-                                    </li>
-                                    {% endif %}
-                                    {% if can_see_airlines_users %}
-                                    <li class="submenu-item {{ 'active' if request.endpoint == 'airline_user.index' else '' }}">
-                                        <a href="{{ url_for('airline_user.index') }}">Airlines Users</a>
-                                    </li>
-                                    {% endif %}
-                                </ul>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </li>
-                    {% endif %}
+                        <!-- 1. Dashboard -->
+                        {% if 'dashboard' in allowed_menus %}
+                        <li class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
+                            <a href="{{ url_for('dashboard.index') }}" class='sidebar-link d-flex align-items-center gap-2' title="Dashboard">
+                                <i class="bi bi-grid-fill d-flex align-items-center justify-content-center"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        {% endif %}
 
-                    <!-- 3. Setting > Users, Cabang Perusahaan, & Role Access -->
-                    {% if 'users' in allowed_menus or 'cabang' in allowed_menus or 'role_access' in allowed_menus or 'coa_pendapatan' in allowed_menus %}
-                    {% set is_setting_active = request.endpoint and (request.endpoint in ['users.index', 'cabang.index', 'coa.index', 'roles.index']) %}
-                    <li class="sidebar-item has-sub {{ 'active submenu-open' if is_setting_active else '' }}">
-                        <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Setting">
-                            <i class="bi bi-gear-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
-                            <span>Setting</span>
-                        </a>
-                        <ul class="submenu {{ 'submenu-open active' if is_setting_active else '' }}">
-                            {% if 'users' in allowed_menus %}
-                            <li class="submenu-item {{ 'active' if request.endpoint == 'users.index' else '' }}">
-                                <a href="{{ url_for('users.index') }}">Users</a>
-                            </li>
-                            {% endif %}
-                            {% if 'cabang' in allowed_menus %}
-                            <li class="submenu-item {{ 'active' if request.endpoint == 'cabang.index' else '' }}">
-                                <a href="{{ url_for('cabang.index') }}">Cabang Perusahaan</a>
-                            </li>
-                            {% endif %}
-                            {% if 'coa_pendapatan' in allowed_menus %}
-                            <li class="submenu-item {{ 'active' if request.endpoint == 'coa.index' else '' }}">
-                                <a href="{{ url_for('coa.index') }}">COA Pendapatan</a>
-                            </li>
-                            {% endif %}
-                            {% if 'role_access' in allowed_menus %}
-                            <li class="submenu-item {{ 'active' if request.endpoint == 'roles.index' else '' }}">
-                                <a href="{{ url_for('roles.index') }}">Role Access</a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </li>
+                        <!-- 2. Commercial -->
+                        {% if 'mitra_usaha' in allowed_menus or 'commercial' in allowed_menus %}
+                        {% set is_commercial_active = request.endpoint and (request.endpoint in ['mitra.index']) %}
+                        <li class="sidebar-item has-sub {{ 'active submenu-open' if is_commercial_active else '' }}">
+                            <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Commercial">
+                                <i class="bi bi-shop d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                                <span>Commercial</span>
+                            </a>
+                            <ul class="submenu {{ 'submenu-open' if is_commercial_active else '' }}">
+                                {% if 'mitra_usaha' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint == 'mitra.index' else '' }}">
+                                    <a href="{{ url_for('mitra.index') }}">Mitra Usaha</a>
+                                </li>
+                                {% endif %}
+                                <li class="submenu-item">
+                                    <a href="#">Pendapatan/Revenue</a>
+                                </li>
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        <!-- 2A. Aeronautika -->
+                        {% set can_see_airlines = ('airlines' in allowed_menus) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
+                        {% set can_see_airlines_users = ('airlines_users' in allowed_menus) and (user_role in ['superadmin', 'pengawas']) %}
+                        {% set can_see_tarif_aero = is_superadmin or ('tarif_aeronautika' in allowed_menus) %}
+                        {% set can_see_routes = (('routes' in allowed_menus) or ('route' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas']) %}
+                        {% set can_see_registrations = is_superadmin or ('airline_registrations' in allowed_menus) %}
+                        {% set can_see_flight_numbers = (('flight_numbers' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
+                        {% set can_see_aero_admin = ('aeronautika_admin' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+                        {% set can_see_aero_ops = ('aeronautika_ops' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+
+                        {% if can_see_airlines or can_see_airlines_users or can_see_tarif_aero or can_see_routes or can_see_registrations or can_see_flight_numbers or can_see_aero_admin or can_see_aero_ops %}
+                        {% set is_aero_setting_active = request.endpoint and (
+                            request.endpoint in ['airline.index', 'airline_user.index', 'route_setting.index', 'flight_number.index']
+                            or request.endpoint.startswith('tarif_aero.')
+                            or request.endpoint.startswith('airline_registration.')
+                        ) %}
+                        {% set is_aero_active = is_aero_setting_active %}
+                        <li class="sidebar-item has-sub {{ 'active submenu-open' if is_aero_active else '' }}">
+                            <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Aeronautika">
+                                <i class="bi bi-airplane-engines-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                                <span>Aeronautika</span>
+                            </a>
+                            <ul class="submenu {{ 'submenu-open' if is_aero_active else '' }}">
+                                {% if can_see_aero_admin %}
+                                <li class="submenu-item">
+                                    <a href="#">Administrasi</a>
+                                </li>
+                                {% endif %}
+
+                                {% if can_see_aero_ops %}
+                                <li class="submenu-item">
+                                    <a href="#">Operasional</a>
+                                </li>
+                                {% endif %}
+
+                                {% if can_see_airlines or can_see_airlines_users or can_see_tarif_aero or can_see_routes or can_see_registrations or can_see_flight_numbers %}
+                                <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_setting_active else '' }}">
+                                    <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
+                                        <span>Setting</span>
+                                        <i class="bi bi-chevron-right small nested-arrow"></i>
+                                    </a>
+                                    <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_setting_active else '' }}">
+                                        {% if can_see_airlines %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint == 'airline.index' else '' }}">
+                                            <a href="{{ url_for('airline.index') }}">Airlines</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_airlines_users %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint == 'airline_user.index' else '' }}">
+                                            <a href="{{ url_for('airline_user.index') }}">Airlines Users</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_tarif_aero %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint and request.endpoint.startswith('tarif_aero.') else '' }}">
+                                            <a href="{{ url_for('tarif_aero.index') }}" class="submenu-link">Tarif</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_routes %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint == 'route_setting.index' else '' }}">
+                                            <a href="{{ url_for('route_setting.index') }}" data-no-ajax="true">Route</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_registrations %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint and request.endpoint.startswith('airline_registration.') else '' }}">
+                                            <a href="{{ url_for('airline_registration.index') }}" class="submenu-link">Registration</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_flight_numbers %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint == 'flight_number.index' else '' }}">
+                                            <a href="{{ url_for('flight_number.index') }}">Number Flight</a>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        <!-- 3. Setting > Users, Cabang Perusahaan, & Role Access -->
+                        {% if 'users' in allowed_menus or 'cabang' in allowed_menus or 'role_access' in allowed_menus or 'coa_pendapatan' in allowed_menus or is_superadmin or 'master_ppn' in allowed_menus %}
+                        {% set is_setting_active = request.endpoint and (
+                            request.endpoint in ['users.index', 'cabang.index', 'coa.index', 'roles.index']
+                            or request.endpoint.startswith('ppn.')
+                        ) %}
+                        <li class="sidebar-item has-sub {{ 'active submenu-open' if is_setting_active else '' }}">
+                            <a href="#" class='sidebar-link d-flex align-items-center gap-2' title="Setting">
+                                <i class="bi bi-gear-fill d-flex align-items-center justify-content-center flex-shrink-0"></i>
+                                <span>Setting</span>
+                            </a>
+                            <ul class="submenu {{ 'submenu-open' if is_setting_active else '' }}">
+                                {% if 'users' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint == 'users.index' else '' }}">
+                                    <a href="{{ url_for('users.index') }}">Users</a>
+                                </li>
+                                {% endif %}
+                                {% if 'cabang' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint == 'cabang.index' else '' }}">
+                                    <a href="{{ url_for('cabang.index') }}">Cabang Perusahaan</a>
+                                </li>
+                                {% endif %}
+                                {% if 'coa_pendapatan' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint == 'coa.index' else '' }}">
+                                    <a href="{{ url_for('coa.index') }}">COA Pendapatan</a>
+                                </li>
+                                {% endif %}
+                                {% if 'role_access' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint == 'roles.index' else '' }}">
+                                    <a href="{{ url_for('roles.index') }}">Role Access</a>
+                                </li>
+                                {% endif %}
+                                {% if is_superadmin or 'master_ppn' in allowed_menus %}
+                                <li class="submenu-item {{ 'active' if request.endpoint and request.endpoint.startswith('ppn.') else '' }}">
+                                    <a href="{{ url_for('ppn.index') }}" class="submenu-link">PPN</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
                     {% endif %}
                 </ul>
             </div>
@@ -202,7 +279,7 @@
         <!-- Floating Rounded User Button (Bottom - Tetap di bawah saat menu di-scroll) -->
         <div class="sidebar-footer p-3 flex-shrink-0">
             <div class="dropup d-flex justify-content-center w-100">
-                <button class="btn btn-primary rounded-pill w-100 d-flex align-items-center justify-content-between px-3 py-2 shadow-sm border-0 dropdown-toggle text-white" type="button" id="dropdownUserFloating" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false">
+                <button class="btn btn-primary rounded-pill w-100 d-flex align-items-center justify-content-between px-3 py-2 shadow-sm border-0 dropdown-toggle text-white" type="button" id="dropdownUserFloating" data-bs-toggle="dropdown" data-bs-display="static" data-bs-boundary="window" aria-expanded="false">
                     <div class="d-flex align-items-center gap-2 text-truncate me-1 user-btn-content">
                         <div class="position-relative d-flex align-items-center justify-content-center flex-shrink-0">
                             <div class="avatar bg-white text-primary rounded-circle overflow-hidden d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
@@ -224,14 +301,16 @@
                 <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mb-2" aria-labelledby="dropdownUserFloating" style="z-index: 9999; min-width: 205px;">
                     <li class="px-3 py-2 border-bottom mb-1">
                         <p class="mb-0 fw-bold small text-truncate">{{ session['user']['nama_lengkap'] if session.get('user') else 'User' }}</p>
-                        <span class="badge bg-primary-subtle text-primary small text-uppercase" style="font-size: 0.65rem;">
+                        <span class="badge bg-light-primary text-primary small text-uppercase" style="font-size: 0.65rem;">
                             {{ session['user']['role'] if session.get('user') else 'Active Session' }}
                         </span>
                     </li>
                     <li>
-                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {{ 'active' if request.endpoint == 'users.profile' else '' }}" href="{{ url_for('users.profile') }}">
+                        {% set profile_url = url_for('airline_portal.profile') if is_airline_user else url_for('users.profile') %}
+                        {% set is_profile_active = request.endpoint in ['airline_portal.profile', 'users.profile'] %}
+                        <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {{ 'active' if is_profile_active else '' }}" href="{{ profile_url }}">
                             <i class="bi bi-person-gear text-secondary d-flex align-items-center"></i>
-                            <span>Users Setting</span>
+                            <span>{{ 'Account Profile' if is_airline_user else 'Users Setting' }}</span>
                         </a>
                     </li>
                     <li>
@@ -247,7 +326,6 @@
 </div>
 
 <!-- Strict Override CSS: Floating Sidebar, Scroll Fix, Tablet Support & Centered Mini Logo -->
-<!-- Ganti bagian <style> dan <script> pada layouts/sidebar.html dengan kode berikut -->
 <style>
     /* === SMOOTH TRANSITION SIDEBAR & MAIN CONTENT === */
     #sidebar,
@@ -259,11 +337,15 @@
         z-index: 1000 !important;
     }
 
-    /* Nonaktifkan PerfectScrollbar bawaan Mazer */
+    /* Nonaktifkan PerfectScrollbar bawaan Mazer & paksa Flex Column */
     #sidebar .sidebar-wrapper {
-        overflow: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow: hidden !important;
         z-index: 1001 !important;
     }
+
     #sidebar .sidebar-wrapper > .ps__rail-x,
     #sidebar .sidebar-wrapper > .ps__rail-y,
     #sidebar .ps__rail-x,
@@ -275,13 +357,16 @@
 
     /* Area scroll mandiri untuk bagian atas + menu utama */
     #sidebar .sidebar-scroll-area {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
-        min-height: 0 !important;
+        overscroll-behavior: contain;
         scrollbar-width: none;
         -ms-overflow-style: none;
         -webkit-overflow-scrolling: touch;
     }
+
     #sidebar .sidebar-scroll-area::-webkit-scrollbar {
         display: none;
     }
@@ -296,22 +381,24 @@
     /* === SMOOTH FADE IN / OUT DROPDOWN FOOTER USER === */
     #sidebar .dropdown-menu {
         display: block !important;
+        position: fixed !important;
         opacity: 0;
         visibility: hidden;
-        transform: translateY(8px) scale(0.97);
-        transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-                    visibility 0.2s;
+        transform: translateX(-6px) scale(0.97) !important;
+        transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                    visibility 0.18s !important;
         pointer-events: none;
+        z-index: 1060 !important;
     }
     #sidebar .dropdown-menu.show {
         opacity: 1;
         visibility: visible;
-        transform: translateY(0) scale(1);
+        transform: translateX(0) scale(1) !important;
         pointer-events: auto;
     }
 
-    /* === FLOATING TOGGLE BUTTON DI SISI KANAN FLOATING SIDEBAR === */
+    /* === FLOATING TOGGLE BUTTON DI SISI KANAN FLOATING SIDEBAR (PALET INJOURNEY) === */
     .btn-floating-toggle {
         position: fixed;
         top: 84px;
@@ -320,7 +407,7 @@
         height: 30px;
         border-radius: 50%;
         background-color: var(--bs-body-bg, #ffffff);
-        color: var(--bs-primary, #435ebe);
+        color: var(--ij-blue, #006cb6);
         border: 1px solid var(--bs-border-color, #dee2e6);
         display: flex;
         align-items: center;
@@ -335,9 +422,9 @@
     }
 
     .btn-floating-toggle:hover {
-        background-color: var(--bs-primary, #435ebe);
+        background-color: var(--ij-turquoise, #04b0c0);
         color: #ffffff;
-        border-color: var(--bs-primary, #435ebe);
+        border-color: var(--ij-turquoise, #04b0c0);
     }
     .btn-floating-toggle i {
         font-size: 0.9rem;
@@ -403,33 +490,31 @@
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* === SMOOTH ANIMATION SUBMENU === */
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu {
+    /* === SMOOTH ANIMATION SUBMENU (FIX: BISA DI-HIDE MESKIPUN CHILD DI DALAMNYA ACTIVE) === */
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .submenu {
         display: block !important;
-        max-height: 0;
-        opacity: 0;
-        overflow: hidden;
-        padding-top: 0;
-        padding-bottom: 0;
+        max-height: 0 !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
         transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
                     opacity 0.25s ease,
                     padding 0.35s ease !important;
     }
-    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open .submenu,
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.submenu-open,
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.active {
-        max-height: 300px;
-        opacity: 1;
-        padding-top: 0.25rem;
-        padding-bottom: 0.25rem;
+    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open > .submenu,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .submenu.submenu-open {
+        max-height: 800px !important;
+        opacity: 1 !important;
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
     }
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu .submenu-item {
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .submenu .submenu-item {
         transform: translateY(-6px);
         transition: transform 0.3s ease;
     }
-    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open .submenu .submenu-item,
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.submenu-open .submenu-item,
-    #sidebar:not(.collapsed) .sidebar-item.has-sub .submenu.active .submenu-item {
+    #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open > .submenu .submenu-item,
+    #sidebar:not(.collapsed) .sidebar-item.has-sub > .submenu.submenu-open .submenu-item {
         transform: translateY(0);
     }
     #sidebar:not(.collapsed) .sidebar-item.has-sub.submenu-open > .sidebar-link::after {
@@ -579,15 +664,15 @@
 
     /* === NESTED SUBMENU (Aeronautika > Setting > Airlines) === */
     #sidebar:not(.collapsed) .submenu .nested-submenu {
-        max-height: 0;
-        opacity: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease, opacity 0.25s ease;
+        max-height: 0 !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+        transition: max-height 0.3s ease, opacity 0.25s ease !important;
     }
     #sidebar:not(.collapsed) .submenu .has-sub-nested.submenu-open > .nested-submenu,
     #sidebar:not(.collapsed) .submenu .nested-submenu.open {
-        max-height: 200px;
-        opacity: 1;
+        max-height: 400px !important;
+        opacity: 1 !important;
     }
     #sidebar:not(.collapsed) .submenu .nested-arrow {
         transition: transform 0.25s ease;
@@ -607,7 +692,50 @@
         const main = document.getElementById("main");
         const btnFloatingToggle = document.getElementById("btn-sidebar-floating-toggle");
 
-        // Hapus backdrop & kunci scroll bawaan Mazer di tablet (< 1200px)
+        // Posisikan dropdown user secara fixed agar tidak terpotong overflow:hidden sidebar
+        const dropdownUserBtn = document.getElementById("dropdownUserFloating");
+        const dropdownUserMenu = dropdownUserBtn?.nextElementSibling;
+
+        function positionUserDropdown() {
+            if (!dropdownUserBtn || !dropdownUserMenu) return;
+            const rect = dropdownUserBtn.getBoundingClientRect();
+            const isCollapsed = sidebar && sidebar.classList.contains("collapsed");
+
+            dropdownUserMenu.style.inset = "auto";
+            dropdownUserMenu.style.margin = "0";
+
+            if (isCollapsed) {
+                dropdownUserMenu.style.left = (rect.right + 10) + "px";
+                dropdownUserMenu.style.bottom = (window.innerHeight - rect.bottom) + "px";
+                dropdownUserMenu.style.top = "auto";
+                dropdownUserMenu.style.width = "210px";
+            } else {
+                dropdownUserMenu.style.left = rect.left + "px";
+                dropdownUserMenu.style.bottom = (window.innerHeight - rect.top + 8) + "px";
+                dropdownUserMenu.style.top = "auto";
+                dropdownUserMenu.style.width = rect.width + "px";
+            }
+        }
+
+        if (dropdownUserBtn && dropdownUserMenu) {
+            dropdownUserBtn.addEventListener("show.bs.dropdown", function () {
+                positionUserDropdown();
+                requestAnimationFrame(positionUserDropdown);
+            });
+            window.addEventListener("resize", function () {
+                if (dropdownUserMenu.classList.contains("show")) {
+                    positionUserDropdown();
+                }
+            });
+        }
+
+        const scrollArea = document.querySelector("#sidebar .sidebar-scroll-area");
+        if (scrollArea) {
+            scrollArea.addEventListener("wheel", function (e) {
+                e.stopPropagation();
+            }, { passive: true });
+        }
+
         function clearMazerBackdrop() {
             document.querySelectorAll(".sidebar-backdrop").forEach(el => el.remove());
             document.body.style.overflowY = "";
@@ -632,7 +760,6 @@
         themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme", "class"] });
         themeObserver.observe(document.body, { attributes: true, attributeFilter: ["data-bs-theme", "class"] });
 
-        // Terapkan Status Sidebar (Collapsed vs Expanded) tanpa memicu backdrop Mazer
         function applySidebarState(isCollapsed) {
             clearMazerBackdrop();
             if (isCollapsed) {
@@ -671,7 +798,6 @@
             }, true);
         }
 
-        // Tangkap klik burger-btn (jika masih ada) dan cegah handler Mazer membuat backdrop
         document.addEventListener("click", function (e) {
             const burgerBtn = e.target.closest(".burger-btn");
             if (burgerBtn) {
@@ -681,7 +807,6 @@
             }
         }, true);
 
-        // Awasi jika Mazer mencoba menyuntikkan .sidebar-backdrop secara otomatis saat resize tablet
         const bodyObserver = new MutationObserver(function () {
             if (window.innerWidth >= 768 && document.querySelector(".sidebar-backdrop")) {
                 clearMazerBackdrop();
@@ -689,7 +814,7 @@
         });
         bodyObserver.observe(document.body, { childList: true });
 
-        // Smooth Submenu Toggle Handler
+        // Smooth Submenu Toggle Handler (Pakai Capture & stopImmediatePropagation agar tidak bentrok dengan app.js Mazer)
         const subMenuLinks = document.querySelectorAll("#sidebar .sidebar-item.has-sub > .sidebar-link");
         subMenuLinks.forEach(function (link) {
             link.addEventListener("click", function (e) {
@@ -698,14 +823,32 @@
                     return;
                 }
                 e.preventDefault();
-                const parentItem = this.parentElement;
-                const submenu = parentItem.querySelector(".submenu");
+                e.stopImmediatePropagation();
 
-                parentItem.classList.toggle("submenu-open");
+                const parentItem = this.parentElement;
+                const submenu = parentItem.querySelector(":scope > .submenu");
+                const willOpen = !parentItem.classList.contains("submenu-open");
+
+                parentItem.classList.toggle("submenu-open", willOpen);
                 if (submenu) {
-                    submenu.classList.toggle("submenu-open");
+                    submenu.classList.remove("active");
+                    submenu.classList.toggle("submenu-open", willOpen);
                 }
-            });
+            }, true);
+        });
+
+        // Handler toggle nested submenu (Aeronautika > Setting)
+        document.querySelectorAll("#sidebar .nested-toggle").forEach(function (nLink) {
+            nLink.addEventListener("click", function (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                const parentLi = this.closest(".has-sub-nested");
+                const nestedUl = parentLi?.querySelector(":scope > .nested-submenu");
+                const willOpen = !parentLi?.classList.contains("submenu-open");
+
+                parentLi?.classList.toggle("submenu-open", willOpen);
+                nestedUl?.classList.toggle("open", willOpen);
+            }, true);
         });
 
         if (toggleDark) {
@@ -713,17 +856,5 @@
         }
 
         updateLogo();
-    });
-
-    // Handler toggle nested submenu (Setting > Airlines)
-    document.querySelectorAll("#sidebar .nested-toggle").forEach(function (nLink) {
-        nLink.addEventListener("click", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const parentLi = this.closest(".has-sub-nested");
-            const nestedUl = parentLi?.querySelector(".nested-submenu");
-            parentLi?.classList.toggle("submenu-open");
-            nestedUl?.classList.toggle("open");
-        });
     });
 </script>

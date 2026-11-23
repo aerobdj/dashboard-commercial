@@ -14,7 +14,7 @@
 </div>
 
 <section class="section">
-    <!-- Ringkasan Statistik (Ringkas Sejajar di Mobile) -->
+    <!-- Ringkasan Statistik -->
     {% set active_users = airline_users | selectattr('delete_at', 'none') | list %}
     {% set deleted_users = airline_users | rejectattr('delete_at', 'none') | list %}
     {% set admin_count = active_users | selectattr('role', 'equalto', 'admin') | list | length %}
@@ -77,172 +77,294 @@
         {% endif %}
     </div>
 
-    <!-- Tabel Airlines Users -->
+    <!-- Card Utama dengan Nav Tabs (Khusus Superadmin) -->
     <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-transparent border-bottom-0 pt-3 pt-md-4 pb-2">
-            <div class="row g-2 align-items-center">
-                <!-- Pencarian + Tombol Filter Mobile -->
-                <div class="col-12 col-md-3">
-                    <div class="d-flex gap-2">
-                        <div class="input-group flex-grow-1">
-                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="searchAirlineUserInput" class="form-control border-start-0" placeholder="Cari Nama, Email, Cabang, Airline...">
+        {% if is_superadmin %}
+        <div class="card-header bg-transparent border-bottom pb-0 pt-3 px-3 px-md-4">
+            <ul class="nav nav-tabs border-bottom-0" id="airlineUsersTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold d-flex align-items-center gap-2 px-3 py-2"
+                            id="tab-active-airline-users"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-active-airline-users"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-active-airline-users"
+                            aria-selected="true">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Akun Aktif ({{ active_users | length }})</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                            id="tab-deleted-airline-users"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-deleted-airline-users"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-deleted-airline-users"
+                            aria-selected="false">
+                        <i class="bi bi-trash3"></i>
+                        <span>Terhapus ({{ deleted_users | length }})</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="card-body pt-3">
+            <div class="tab-content" id="airlineUsersTabContent">
+                <!-- TAB 1: AKUN AKTIF -->
+                <div class="tab-pane fade show active" id="pane-active-airline-users" role="tabpanel" aria-labelledby="tab-active-airline-users">
+                    <!-- Toolbar Filter Tab Aktif -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex gap-2">
+                                <div class="input-group flex-grow-1">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchAirlineUserInput" class="form-control border-start-0" placeholder="Cari Nama, Email, Cabang, Airline...">
+                                </div>
+                                <button type="button"
+                                        class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterAirlineUserSheet"
+                                        aria-controls="filterAirlineUserSheet"
+                                        title="Filter Airlines Users">
+                                    <i class="bi bi-sliders2 text-primary"></i>
+                                    <span id="mobileAirlineUserFilterCount"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
+                                          style="font-size: 0.65rem;">0</span>
+                                </button>
+                            </div>
                         </div>
-                        <button type="button"
-                                class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
-                                data-bs-toggle="offcanvas"
-                                data-bs-target="#filterAirlineUserSheet"
-                                aria-controls="filterAirlineUserSheet"
-                                title="Filter Airlines Users">
-                            <i class="bi bi-sliders2 text-primary"></i>
-                            <span id="mobileAirlineUserFilterCount"
-                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none"
-                                  style="font-size: 0.65rem;">0</span>
-                        </button>
+
+                        {% if cabang_list | length > 1 %}
+                        <div class="col-md-3 d-none d-md-block">
+                            <select id="filterCabangAirlineUser" class="form-select js-search-select" placeholder="Semua Cabang...">
+                                <option value="">Semua Cabang</option>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterRoleAirlineUser" class="form-select js-search-select" placeholder="Semua Role...">
+                                <option value="">Semua Role</option>
+                                <option value="admin">Admin</option>
+                                <option value="user">User</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 d-none d-md-block">
+                            <select id="filterStatusAirlineUser" class="form-select js-search-select" placeholder="Semua Status...">
+                                <option value="">Semua Status</option>
+                                <option value="active">Aktif</option>
+                                <option value="inactive">Nonaktif</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
+                            <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
+                                Menampilkan: <span id="airlineUserCountLabel">{{ active_users | length }}</span> Akun
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableAirlinesUsers"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Nama & Email</th>
+                                    <th class="text-center">Cabang</th>
+                                    <th>Jabatan</th>
+                                    <th class="text-center">Role</th>
+                                    <th class="text-center">Status</th>
+                                    <th>Akses Airlines</th>
+                                    {% if is_superadmin %}
+                                    <th>Terakhir Diperbarui</th>
+                                    {% endif %}
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in active_users %}
+                                {% set is_active = u.status is not false %}
+                                {% set u_role = (u.role or 'user') | lower %}
+                                {% set u_airlines = u.airlines or [] %}
+                                <tr data-cabang="{{ u.kode_cabang }}"
+                                    data-role="{{ u_role }}"
+                                    data-status="{{ 'active' if is_active else 'inactive' }}"
+                                    class="{{ 'opacity-75' if not is_active else '' }}">
+                                    <td>
+                                        <div class="fw-bold text-primary">{{ u.nama_lengkap }}</div>
+                                        <div class="small text-muted">{{ u.email }}</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary-subtle text-secondary fw-semibold px-2 py-1">
+                                            {{ u.kode_cabang }}
+                                        </span>
+                                    </td>
+                                    <td class="small">{{ u.jabatan or '-' }}</td>
+                                    <td class="text-center">
+                                        {% if u_role == 'admin' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-uppercase px-2 py-1">Admin</span>
+                                        {% else %}
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle text-uppercase px-2 py-1">User</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if is_active %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Aktif</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Nonaktif</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for aid in u_airlines %}
+                                                {% set al = airline_map.get(aid) %}
+                                                {% if al %}
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-airplane-fill" style="font-size: 0.65rem;"></i>
+                                                        <span>{{ al.code_2 or al.code_3 or al.airline_name }}</span>
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-muted border">#{{ aid }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted small">-</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    {% if is_superadmin %}
+                                    <td class="small text-muted">
+                                        <div>{{ u.updated_by or u.created_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (u.update_at or u.created_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    {% endif %}
+                                    <td class="text-center text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailAirlineUser{{ u.id_airlineusers }}" title="Detail">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </button>
+                                        <form action="{{ url_for('airline_user.toggle_status', id_airlineusers=u.id_airlineusers) }}" method="POST" class="d-inline">
+                                            {% if is_active %}
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-3 me-1" title="Nonaktifkan Akun">
+                                                    <i class="bi bi-person-slash"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-sm btn-outline-success rounded-3 me-1" title="Aktifkan Akun">
+                                                    <i class="bi bi-person-check-fill"></i>
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditAirlineUser{{ u.id_airlineusers }}" title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-airline-user"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalConfirmDeleteAirlineUser"
+                                                data-action="{{ url_for('airline_user.delete', id_airlineusers=u.id_airlineusers) }}"
+                                                data-name="{{ u.nama_lengkap }}"
+                                                data-email="{{ u.email }}"
+                                                title="Hapus">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="{{ 8 if is_superadmin else 7 }}" class="text-center py-4 text-muted">Belum ada data Airlines Users aktif.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Filter Cabang (Desktop) -->
-                {% if cabang_list | length > 1 %}
-                <div class="col-md-2 d-none d-md-block">
-                    <select id="filterCabangAirlineUser" class="form-select">
-                        <option value="">Semua Cabang</option>
-                        {% for c in cabang_list %}
-                        <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
-
-                <!-- Filter Role (Desktop) -->
-                <div class="col-md-2 d-none d-md-block">
-                    <select id="filterRoleAirlineUser" class="form-select">
-                        <option value="">Semua Role</option>
-                        <option value="admin">Admin</option>
-                        <option value="user">User</option>
-                    </select>
-                </div>
-
-                <!-- Filter Status Akun (Desktop) -->
-                <div class="col-md-2 d-none d-md-block">
-                    <select id="filterStatusAirlineUser" class="form-select">
-                        <option value="">Semua Status</option>
-                        <option value="active">Aktif</option>
-                        <option value="inactive">Nonaktif</option>
-                    </select>
-                </div>
-
-                <!-- Filter Status Data (Superadmin Desktop) -->
+                <!-- TAB 2: TERHAPUS (KHUSUS SUPERADMIN) -->
                 {% if is_superadmin %}
-                <div class="col-md-1 d-none d-md-block">
-                    <select id="filterDeletedAirlineUser" class="form-select">
-                        <option value="">Data</option>
-                        <option value="active">Ada</option>
-                        <option value="deleted">Hapus</option>
-                    </select>
-                </div>
-                {% endif %}
+                <div class="tab-pane fade" id="pane-deleted-airline-users" role="tabpanel" aria-labelledby="tab-deleted-airline-users">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-12 col-md-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                <input type="text" id="searchDeletedAirlineUserInput" class="form-control border-start-0" placeholder="Cari akun terhapus...">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md d-flex justify-content-md-end">
+                            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill">
+                                Terhapus: <span id="deletedAirlineUserCountLabel">{{ deleted_users | length }}</span> Akun
+                            </span>
+                        </div>
+                    </div>
 
-                <!-- Counter -->
-                <div class="col-12 col-md d-flex justify-content-between justify-content-md-end align-items-center mt-2 mt-md-0">
-                    <span class="badge bg-light-primary text-primary px-3 py-2 rounded-pill ms-auto">
-                        Menampilkan: <span id="airlineUserCountLabel">{{ airline_users | length }}</span> Akun
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card-body pt-2 pt-md-3">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 js-datatable"
-                    id="tableAirlinesUsers"
-                    data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
-                    <thead>
-                        <tr>
-                            <th>Nama & Email</th>
-                            <th class="text-center">Cabang</th>
-                            <th>Jabatan</th>
-                            <th class="text-center">Role</th>
-                            <th class="text-center">Status</th>
-                            <th>Akses Airlines</th>
-                            {% if is_superadmin %}
-                            <th>Terakhir Diperbarui</th>
-                            {% endif %}
-                            <th class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in airline_users %}
-                        {% set is_deleted = u.delete_at is not none %}
-                        {% set is_active = u.status is not false %}
-                        {% set u_role = (u.role or 'user') | lower %}
-                        {% set u_airlines = u.airlines or [] %}
-                        <tr data-cabang="{{ u.kode_cabang }}"
-                            data-role="{{ u_role }}"
-                            data-status="{{ 'active' if is_active else 'inactive' }}"
-                            data-deleted="{{ 'deleted' if is_deleted else 'active' }}"
-                            class="{{ 'table-danger opacity-75' if is_deleted else ('opacity-75' if not is_active else '') }}">
-                            <td>
-                                <div class="fw-bold {{ 'text-decoration-line-through text-muted' if is_deleted else 'text-primary' }}">
-                                    {{ u.nama_lengkap }}
-                                </div>
-                                <div class="small text-muted">{{ u.email }}</div>
-                                {% if is_deleted and is_superadmin %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
-                                        <i class="bi bi-trash3 me-1"></i>TERHAPUS{% if u.delete_by %} oleh {{ u.delete_by }}{% endif %}
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-secondary-subtle text-secondary fw-semibold px-2 py-1">
-                                    {{ u.kode_cabang }}
-                                </span>
-                            </td>
-                            <td class="small">{{ u.jabatan or '-' }}</td>
-                            <td class="text-center">
-                                {% if u_role == 'admin' %}
-                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-uppercase px-2 py-1">Admin</span>
-                                {% else %}
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle text-uppercase px-2 py-1">User</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if is_active %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Aktif</span>
-                                {% else %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Nonaktif</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex flex-wrap gap-1">
-                                    {% for aid in u_airlines %}
-                                        {% set al = airline_map.get(aid) %}
-                                        {% if al %}
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1">
-                                                <i class="bi bi-airplane-fill" style="font-size: 0.65rem;"></i>
-                                                <span>{{ al.code_2 or al.code_3 or al.airline_name }}</span>
-                                            </span>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 js-datatable"
+                            id="tableDeletedAirlinesUsers"
+                            data-dt-dom="<'table-responsive'tr><'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7 d-flex justify-content-md-end'p>>">
+                            <thead>
+                                <tr>
+                                    <th>Nama & Email</th>
+                                    <th class="text-center">Cabang</th>
+                                    <th>Jabatan</th>
+                                    <th class="text-center">Role</th>
+                                    <th>Akses Airlines</th>
+                                    <th>Info Penghapusan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in deleted_users %}
+                                {% set u_role = (u.role or 'user') | lower %}
+                                {% set u_airlines = u.airlines or [] %}
+                                <tr class="table-danger opacity-75">
+                                    <td>
+                                        <div class="fw-bold text-decoration-line-through text-muted">{{ u.nama_lengkap }}</div>
+                                        <div class="small text-muted">{{ u.email }}</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary-subtle text-secondary fw-semibold px-2 py-1">
+                                            {{ u.kode_cabang }}
+                                        </span>
+                                    </td>
+                                    <td class="small">{{ u.jabatan or '-' }}</td>
+                                    <td class="text-center">
+                                        {% if u_role == 'admin' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-uppercase px-2 py-1">Admin</span>
                                         {% else %}
-                                            <span class="badge bg-light text-muted border">#{{ aid }}</span>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle text-uppercase px-2 py-1">User</span>
                                         {% endif %}
-                                    {% else %}
-                                        <span class="text-muted small">-</span>
-                                    {% endfor %}
-                                </div>
-                            </td>
-                            {% if is_superadmin %}
-                            <td class="small text-muted">
-                                <div>{{ u.updated_by or u.created_by or '-' }}</div>
-                                <div style="font-size: 0.75rem;">{{ (u.update_at or u.created_at or '')[:16].replace('T', ' ') }}</div>
-                            </td>
-                            {% endif %}
-                            <td class="text-center text-nowrap">
-                                <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailAirlineUser{{ u.id_airlineusers }}" title="Detail">
-                                    <i class="bi bi-eye-fill"></i>
-                                </button>
-
-                                {% if is_deleted %}
-                                    {% if is_superadmin %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for aid in u_airlines %}
+                                                {% set al = airline_map.get(aid) %}
+                                                {% if al %}
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-airplane-fill" style="font-size: 0.65rem;"></i>
+                                                        <span>{{ al.code_2 or al.code_3 or al.airline_name }}</span>
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-muted border">#{{ aid }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted small">-</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="small text-danger">
+                                        <div><i class="bi bi-person-x me-1"></i>{{ u.delete_by or '-' }}</div>
+                                        <div style="font-size: 0.75rem;">{{ (u.delete_at or '')[:16].replace('T', ' ') }}</div>
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalDetailAirlineUser{{ u.id_airlineusers }}" title="Detail">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </button>
                                         <button type="button"
                                                 class="btn btn-sm btn-success rounded-3 btn-confirm-restore-airline-user"
                                                 data-bs-toggle="modal"
@@ -253,42 +375,18 @@
                                                 title="Restore Akun">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
                                         </button>
-                                    {% endif %}
+                                    </td>
+                                </tr>
                                 {% else %}
-                                    <form action="{{ url_for('airline_user.toggle_status', id_airlineusers=u.id_airlineusers) }}" method="POST" class="d-inline">
-                                        {% if is_active %}
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-3 me-1" title="Nonaktifkan Akun">
-                                                <i class="bi bi-person-slash"></i>
-                                            </button>
-                                        {% else %}
-                                            <button type="submit" class="btn btn-sm btn-outline-success rounded-3 me-1" title="Aktifkan Akun">
-                                                <i class="bi bi-person-check-fill"></i>
-                                            </button>
-                                        {% endif %}
-                                    </form>
-                                    <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1" data-bs-toggle="modal" data-bs-target="#modalEditAirlineUser{{ u.id_airlineusers }}" title="Edit">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-danger rounded-3 btn-confirm-delete-airline-user"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalConfirmDeleteAirlineUser"
-                                            data-action="{{ url_for('airline_user.delete', id_airlineusers=u.id_airlineusers) }}"
-                                            data-name="{{ u.nama_lengkap }}"
-                                            data-email="{{ u.email }}"
-                                            title="Hapus">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{{ 8 if is_superadmin else 7 }}" class="text-center py-4 text-muted">Belum ada data Airlines Users.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">Tidak ada data Airlines Users yang terhapus.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -306,7 +404,7 @@
         {% if cabang_list | length > 1 %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Unit Cabang Bandara</label>
-            <select id="mobileFilterCabangAirlineUser" class="form-select">
+            <select id="mobileFilterCabangAirlineUser" class="form-select js-search-select" placeholder="Semua Cabang...">
                 <option value="">Semua Cabang</option>
                 {% for c in cabang_list %}
                 <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
@@ -316,7 +414,7 @@
         {% endif %}
         <div class="mb-3">
             <label class="form-label small fw-semibold">Role Akun</label>
-            <select id="mobileFilterRoleAirlineUser" class="form-select">
+            <select id="mobileFilterRoleAirlineUser" class="form-select js-search-select" placeholder="Semua Role...">
                 <option value="">Semua Role</option>
                 <option value="admin">Admin</option>
                 <option value="user">User</option>
@@ -324,22 +422,12 @@
         </div>
         <div class="mb-3">
             <label class="form-label small fw-semibold">Status Akun</label>
-            <select id="mobileFilterStatusAirlineUser" class="form-select">
+            <select id="mobileFilterStatusAirlineUser" class="form-select js-search-select" placeholder="Semua Status...">
                 <option value="">Semua Status</option>
                 <option value="active">Aktif</option>
                 <option value="inactive">Nonaktif</option>
             </select>
         </div>
-        {% if is_superadmin %}
-        <div class="mb-3">
-            <label class="form-label small fw-semibold">Status Data</label>
-            <select id="mobileFilterDeletedAirlineUser" class="form-select">
-                <option value="">Semua Data</option>
-                <option value="active">Tersedia</option>
-                <option value="deleted">Terhapus</option>
-            </select>
-        </div>
-        {% endif %}
         <div class="d-flex gap-2 pt-2">
             <button type="button" class="btn btn-light rounded-pill flex-fill py-2" id="btnResetMobileAirlineUserFilter">
                 Reset
@@ -379,7 +467,10 @@
                     </div>
                     <div class="col-6 col-md-4">
                         <label class="form-label small fw-semibold">Cabang Bandara <span class="text-danger">*</span></label>
-                        <select name="kode_cabang" class="form-select" required>
+                        <select name="kode_cabang"
+                                class="form-select {{ 'js-search-select' if cabang_list | length > 1 else '' }}"
+                                placeholder="Cari cabang..."
+                                required>
                             {% if cabang_list | length > 1 %}
                                 <option value="">-- Pilih Cabang --</option>
                             {% endif %}
@@ -390,14 +481,14 @@
                     </div>
                     <div class="col-6 col-md-4">
                         <label class="form-label small fw-semibold">Role Akun <span class="text-danger">*</span></label>
-                        <select name="role" class="form-select" required>
+                        <select name="role" class="form-select js-search-select" placeholder="Pilih Role..." required>
                             <option value="user" selected>User</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-4">
                         <label class="form-label small fw-semibold">Status Akun <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select" required>
+                        <select name="status" class="form-select js-search-select" placeholder="Pilih Status..." required>
                             <option value="1" selected>Aktif</option>
                             <option value="0">Nonaktif</option>
                         </select>
@@ -542,7 +633,10 @@
                     </div>
                     <div class="col-6 col-md-4">
                         <label class="form-label small fw-semibold">Cabang Bandara <span class="text-danger">*</span></label>
-                        <select name="kode_cabang" class="form-select" required>
+                        <select name="kode_cabang"
+                                class="form-select {{ 'js-search-select' if cabang_list | length > 1 else '' }}"
+                                placeholder="Cari cabang..."
+                                required>
                             {% for c in cabang_list %}
                             <option value="{{ c.kode_cabang }}" {{ 'selected' if c.kode_cabang == u.kode_cabang else '' }}>
                                 {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
@@ -552,14 +646,14 @@
                     </div>
                     <div class="col-6 col-md-4">
                         <label class="form-label small fw-semibold">Role Akun <span class="text-danger">*</span></label>
-                        <select name="role" class="form-select" required>
+                        <select name="role" class="form-select js-search-select" placeholder="Pilih Role..." required>
                             <option value="user" {{ 'selected' if (u.role or '') | lower == 'user' else '' }}>User</option>
                             <option value="admin" {{ 'selected' if (u.role or '') | lower == 'admin' else '' }}>Admin</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-4">
                         <label class="form-label small fw-semibold">Status Akun <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select" required>
+                        <select name="status" class="form-select js-search-select" placeholder="Pilih Status..." required>
                             <option value="1" {{ 'selected' if u.status is not false else '' }}>Aktif</option>
                             <option value="0" {{ 'selected' if u.status is false else '' }}>Nonaktif</option>
                         </select>
@@ -657,14 +751,13 @@
 
 <script>
 (function () {
-    // Custom Mobile Card Renderer untuk Airlines Users
+    // Custom Mobile Card Renderer untuk Tab Aktif
     function renderAirlineUserMobileCards(dt) {
         const tableEl = document.getElementById('tableAirlinesUsers');
         if (!tableEl) return;
         const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
         if (!wrapper) return;
 
-        // Wajib agar CSS global menyembunyikan .table-responsive dan memunculkan .dt-mobile-cards-wrapper di < 768px
         wrapper.classList.add('has-mobile-cards');
 
         let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
@@ -686,7 +779,6 @@
             const cells = tr.children;
             if (cells.length < 7) return;
 
-            const isDeleted = tr.getAttribute('data-deleted') === 'deleted';
             const userHtml = cells[0].innerHTML;
             const cabangHtml = cells[1].innerHTML;
             const jabatanText = cells[2].textContent.trim();
@@ -696,7 +788,7 @@
             const aksiHtml = cells[cells.length - 1].innerHTML;
 
             const card = document.createElement('div');
-            card.className = `dt-mobile-card ${isDeleted ? 'border-danger-subtle bg-danger-subtle bg-opacity-10' : ''}`;
+            card.className = 'dt-mobile-card';
             card.innerHTML = `
                 <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                     <div class="min-w-0">${userHtml}</div>
@@ -725,104 +817,211 @@
         cardsContainer.appendChild(fragment);
     }
 
+    // Custom Mobile Card Renderer untuk Tab Terhapus
+    function renderDeletedAirlineUserMobileCards(dt) {
+        const tableEl = document.getElementById('tableDeletedAirlinesUsers');
+        if (!tableEl) return;
+        const wrapper = tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
+        if (!wrapper) return;
+
+        wrapper.classList.add('has-mobile-cards');
+
+        let cardsContainer = wrapper.querySelector('.dt-mobile-cards-wrapper');
+        if (!cardsContainer) {
+            cardsContainer = document.createElement('div');
+            cardsContainer.className = 'dt-mobile-cards-wrapper d-md-none';
+            const tableResp = wrapper.querySelector('.table-responsive') || tableEl;
+            tableResp.parentNode.insertBefore(cardsContainer, tableResp);
+        }
+
+        const visibleRows = dt.rows({ page: 'current', search: 'applied' }).nodes().toArray();
+        if (!visibleRows.length) {
+            cardsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Data akun terhapus tidak ditemukan.</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        visibleRows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length < 7) return;
+
+            const userHtml = cells[0].innerHTML;
+            const cabangHtml = cells[1].innerHTML;
+            const jabatanText = cells[2].textContent.trim();
+            const roleHtml = cells[3].innerHTML;
+            const airlinesHtml = cells[4].innerHTML;
+            const deleteInfoHtml = cells[5].innerHTML;
+            const aksiHtml = cells[6].innerHTML;
+
+            const card = document.createElement('div');
+            card.className = 'dt-mobile-card border-danger-subtle bg-danger-subtle bg-opacity-10';
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div class="min-w-0">${userHtml}</div>
+                    <div class="d-flex flex-wrap justify-content-end align-items-center gap-1 flex-shrink-0">
+                        ${cabangHtml}
+                        ${roleHtml}
+                    </div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Jabatan</span>
+                    <div class="dt-mobile-card-value">${jabatanText}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Akses Airlines</span>
+                    <div class="dt-mobile-card-value d-flex flex-wrap justify-content-end">${airlinesHtml}</div>
+                </div>
+                <div class="dt-mobile-card-row">
+                    <span class="dt-mobile-card-label">Dihapus</span>
+                    <div class="dt-mobile-card-value text-end">${deleteInfoHtml}</div>
+                </div>
+                <div class="dt-mobile-card-actions">
+                    ${aksiHtml}
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        cardsContainer.innerHTML = '';
+        cardsContainer.appendChild(fragment);
+    }
+
     function initAirlineUserDataTable() {
         if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
-        const $table = jQuery('#tableAirlinesUsers');
-        if (!$table.length || $table.find('tbody tr td[colspan]').length > 0) return;
 
-        if (!jQuery.fn.DataTable.isDataTable('#tableAirlinesUsers') && typeof window.initAllDataTables === 'function') {
+        if (typeof window.initAllDataTables === 'function') {
             window.initAllDataTables();
         }
-        if (!jQuery.fn.DataTable.isDataTable('#tableAirlinesUsers')) return;
 
-        const dt = $table.DataTable();
-        const searchInput = document.getElementById('searchAirlineUserInput');
-        const cabangFilter = document.getElementById('filterCabangAirlineUser');
-        const roleFilter = document.getElementById('filterRoleAirlineUser');
-        const statusFilter = document.getElementById('filterStatusAirlineUser');
-        const deletedFilter = document.getElementById('filterDeletedAirlineUser');
+        // 1. Inisialisasi Tabel Tab Aktif
+        const $table = jQuery('#tableAirlinesUsers');
+        if ($table.length && $table.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableAirlinesUsers')) {
+            const dt = $table.DataTable();
+            const searchInput = document.getElementById('searchAirlineUserInput');
+            const cabangFilter = document.getElementById('filterCabangAirlineUser');
+            const roleFilter = document.getElementById('filterRoleAirlineUser');
+            const statusFilter = document.getElementById('filterStatusAirlineUser');
 
-        const mCabangFilter = document.getElementById('mobileFilterCabangAirlineUser');
-        const mRoleFilter = document.getElementById('mobileFilterRoleAirlineUser');
-        const mStatusFilter = document.getElementById('mobileFilterStatusAirlineUser');
-        const mDeletedFilter = document.getElementById('mobileFilterDeletedAirlineUser');
-        const mobileBadge = document.getElementById('mobileAirlineUserFilterCount');
-        const btnResetMobile = document.getElementById('btnResetMobileAirlineUserFilter');
-        const countLabel = document.getElementById('airlineUserCountLabel');
+            const mCabangFilter = document.getElementById('mobileFilterCabangAirlineUser');
+            const mRoleFilter = document.getElementById('mobileFilterRoleAirlineUser');
+            const mStatusFilter = document.getElementById('mobileFilterStatusAirlineUser');
+            const mobileBadge = document.getElementById('mobileAirlineUserFilterCount');
+            const btnResetMobile = document.getElementById('btnResetMobileAirlineUserFilter');
+            const countLabel = document.getElementById('airlineUserCountLabel');
 
-        jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isAirlineUserFilter);
+            jQuery.fn.dataTable.ext.search = jQuery.fn.dataTable.ext.search.filter(fn => !fn._isAirlineUserFilter);
 
-        const filterFn = function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'tableAirlinesUsers') return true;
-            const rowNode = settings.aoData[dataIndex].nTr;
-            if (!rowNode) return true;
+            const filterFn = function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'tableAirlinesUsers') return true;
+                const rowNode = settings.aoData[dataIndex].nTr;
+                if (!rowNode) return true;
 
-            const cabVal = cabangFilter?.value || '';
-            const roleVal = roleFilter?.value || '';
-            const statusVal = statusFilter?.value || '';
-            const delVal = deletedFilter?.value || '';
+                const cabVal = cabangFilter?.value || '';
+                const roleVal = roleFilter?.value || '';
+                const statusVal = statusFilter?.value || '';
 
-            const matchCab = !cabVal || rowNode.getAttribute('data-cabang') === cabVal;
-            const matchRole = !roleVal || rowNode.getAttribute('data-role') === roleVal;
-            const matchStatus = !statusVal || rowNode.getAttribute('data-status') === statusVal;
-            const matchDel = !delVal || rowNode.getAttribute('data-deleted') === delVal;
+                const matchCab = !cabVal || rowNode.getAttribute('data-cabang') === cabVal;
+                const matchRole = !roleVal || rowNode.getAttribute('data-role') === roleVal;
+                const matchStatus = !statusVal || rowNode.getAttribute('data-status') === statusVal;
 
-            return matchCab && matchRole && matchStatus && matchDel;
-        };
-        filterFn._isAirlineUserFilter = true;
-        jQuery.fn.dataTable.ext.search.push(filterFn);
+                return matchCab && matchRole && matchStatus;
+            };
+            filterFn._isAirlineUserFilter = true;
+            jQuery.fn.dataTable.ext.search.push(filterFn);
 
-        const updateUI = () => {
-            if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
-            let activeFilters = 0;
-            if (cabangFilter?.value) activeFilters++;
-            if (roleFilter?.value) activeFilters++;
-            if (statusFilter?.value) activeFilters++;
-            if (deletedFilter?.value) activeFilters++;
-            if (mobileBadge) {
-                mobileBadge.textContent = activeFilters;
-                mobileBadge.classList.toggle('d-none', activeFilters === 0);
+            const updateUI = () => {
+                if (countLabel) countLabel.textContent = dt.rows({ filter: 'applied' }).count();
+                let activeFilters = 0;
+                if (cabangFilter?.value) activeFilters++;
+                if (roleFilter?.value) activeFilters++;
+                if (statusFilter?.value) activeFilters++;
+                if (mobileBadge) {
+                    mobileBadge.textContent = activeFilters;
+                    mobileBadge.classList.toggle('d-none', activeFilters === 0);
+                }
+            };
+
+            dt.off('draw.airlineUserMobileCard').on('draw.airlineUserMobileCard', function () {
+                setTimeout(() => renderAirlineUserMobileCards(dt), 0);
+            });
+            renderAirlineUserMobileCards(dt);
+
+            searchInput?.addEventListener('input', function () {
+                dt.search(this.value).draw();
+                updateUI();
+            });
+
+            function bindSyncFilter(desktopEl, mobileEl) {
+                desktopEl?.addEventListener('change', function () {
+                    if (mobileEl) {
+                        if (typeof window.setSearchSelectValue === 'function' && mobileEl.id) {
+                            window.setSearchSelectValue(mobileEl.id, this.value, true);
+                        }
+                        mobileEl.value = this.value;
+                    }
+                    dt.draw();
+                    updateUI();
+                });
+                mobileEl?.addEventListener('change', function () {
+                    if (desktopEl) {
+                        if (typeof window.setSearchSelectValue === 'function' && desktopEl.id) {
+                            window.setSearchSelectValue(desktopEl.id, this.value, true);
+                        }
+                        desktopEl.value = this.value;
+                    }
+                    dt.draw();
+                    updateUI();
+                });
             }
-        };
 
-        // Jalankan setelah renderer generik base.html
-        dt.off('draw.airlineUserMobileCard').on('draw.airlineUserMobileCard', function () {
-            setTimeout(() => renderAirlineUserMobileCards(dt), 0);
-        });
-        renderAirlineUserMobileCards(dt);
+            bindSyncFilter(cabangFilter, mCabangFilter);
+            bindSyncFilter(roleFilter, mRoleFilter);
+            bindSyncFilter(statusFilter, mStatusFilter);
 
-        searchInput?.addEventListener('input', function () {
-            dt.search(this.value).draw();
-            updateUI();
-        });
-
-        function bindSyncFilter(desktopEl, mobileEl) {
-            desktopEl?.addEventListener('change', function () {
-                if (mobileEl) mobileEl.value = this.value;
+            btnResetMobile?.addEventListener('click', function () {
+                [cabangFilter, mCabangFilter, roleFilter, mRoleFilter, statusFilter, mStatusFilter].forEach(el => {
+                    if (!el) return;
+                    if (typeof window.setSearchSelectValue === 'function' && el.id) {
+                        window.setSearchSelectValue(el.id, '', true);
+                    }
+                    el.value = '';
+                });
                 dt.draw();
                 updateUI();
             });
-            mobileEl?.addEventListener('change', function () {
-                if (desktopEl) desktopEl.value = this.value;
-                dt.draw();
-                updateUI();
+
+            updateUI();
+        }
+
+        // 2. Inisialisasi Tabel Tab Terhapus
+        const $delTable = jQuery('#tableDeletedAirlinesUsers');
+        if ($delTable.length && $delTable.find('tbody tr td[colspan]').length === 0 && jQuery.fn.DataTable.isDataTable('#tableDeletedAirlinesUsers')) {
+            const delDt = $delTable.DataTable();
+            const delSearchInput = document.getElementById('searchDeletedAirlineUserInput');
+            const delCountLabel = document.getElementById('deletedAirlineUserCountLabel');
+
+            delDt.off('draw.deletedAirlineUserMobileCard').on('draw.deletedAirlineUserMobileCard', function () {
+                setTimeout(() => renderDeletedAirlineUserMobileCards(delDt), 0);
+            });
+            renderDeletedAirlineUserMobileCards(delDt);
+
+            delSearchInput?.addEventListener('input', function () {
+                delDt.search(this.value).draw();
+                if (delCountLabel) delCountLabel.textContent = delDt.rows({ filter: 'applied' }).count();
             });
         }
 
-        bindSyncFilter(cabangFilter, mCabangFilter);
-        bindSyncFilter(roleFilter, mRoleFilter);
-        bindSyncFilter(statusFilter, mStatusFilter);
-        bindSyncFilter(deletedFilter, mDeletedFilter);
-
-        btnResetMobile?.addEventListener('click', function () {
-            [cabangFilter, mCabangFilter, roleFilter, mRoleFilter, statusFilter, mStatusFilter, deletedFilter, mDeletedFilter].forEach(el => {
-                if (el) el.value = '';
+        // Recalculate kolom DataTables saat tab berpindah
+        document.querySelectorAll('#airlineUsersTabs button[data-bs-toggle="tab"]').forEach(tabBtn => {
+            tabBtn.addEventListener('shown.bs.tab', function () {
+                if (jQuery.fn.DataTable.isDataTable('#tableAirlinesUsers')) {
+                    jQuery('#tableAirlinesUsers').DataTable().columns.adjust().draw(false);
+                }
+                if (jQuery.fn.DataTable.isDataTable('#tableDeletedAirlinesUsers')) {
+                    jQuery('#tableDeletedAirlinesUsers').DataTable().columns.adjust().draw(false);
+                }
             });
-            dt.draw();
-            updateUI();
         });
-
-        updateUI();
     }
 
     if (document.readyState === 'loading') {
@@ -841,14 +1040,12 @@
             if (badge) badge.textContent = `${checked} dipilih`;
         }
 
-        // Hitung jumlah airline yang dicentang
         document.addEventListener('change', function (e) {
             if (e.target && e.target.classList.contains('airline-checkbox')) {
                 refreshPickerCounter(e.target.closest('.modal-body'));
             }
         });
 
-        // Filter pencarian di dalam Multi-Select Airline
         document.addEventListener('input', function (e) {
             if (e.target && e.target.classList.contains('airline-picker-search')) {
                 const keyword = e.target.value.trim().toLowerCase();
@@ -860,7 +1057,6 @@
             }
         });
 
-        // Tombol Pilih Semua / Reset di Multi-Select Airline
         document.addEventListener('click', function (e) {
             const selectAllBtn = e.target.closest('.btn-select-all-airlines');
             if (selectAllBtn) {
@@ -882,7 +1078,6 @@
                 return;
             }
 
-            // Modal Delete
             const delBtn = e.target.closest('.btn-confirm-delete-airline-user');
             if (delBtn) {
                 document.getElementById('formConfirmDeleteAirlineUser')?.setAttribute('action', delBtn.getAttribute('data-action'));
@@ -891,7 +1086,6 @@
                 return;
             }
 
-            // Modal Restore
             const resBtn = e.target.closest('.btn-confirm-restore-airline-user');
             if (resBtn) {
                 document.getElementById('formConfirmRestoreAirlineUser')?.setAttribute('action', resBtn.getAttribute('data-action'));

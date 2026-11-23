@@ -1,0 +1,189 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Account Profile - RISA Airline{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-7 order-md-1 order-last">
+                <h3 class="mb-1">Account Profile</h3>
+                <p class="text-subtitle text-muted mb-0">Kelola informasi identitas perwakilan maskapai dan keamanan akun Anda.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="section">
+    <div class="row g-3 g-lg-4">
+        <!-- Kolom Kiri: Kartu Ringkasan Identitas & Scope Maskapai -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body py-4 px-3 px-md-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex justify-content-center align-items-center flex-column text-center">
+                        <div class="rounded-circle border border-3 border-primary shadow-sm bg-primary-subtle text-primary mb-3 account-avatar-box">
+                            <i class="bi bi-airplane-engines-fill"></i>
+                        </div>
+
+                        <h5 class="mt-1 mb-1 fw-bold">{{ user.nama_lengkap }}</h5>
+                        <p class="small text-muted mb-2">
+                            {{ user.jabatan }}
+                        </p>
+
+                        <div class="d-flex flex-wrap justify-content-center gap-1 mb-3">
+                            <span class="badge bg-primary-subtle text-primary text-uppercase px-3 py-1">
+                                Role: {{ user.role or 'user' }}
+                            </span>
+                            <span class="badge bg-info-subtle text-info px-3 py-1">
+                                Unit: {{ user.kode_cabang or 'ALL' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-3 mt-2">
+                        <small class="text-muted fw-semibold d-block mb-2">
+                            <i class="bi bi-shield-check text-primary me-1"></i>Maskapai Terdaftar (View Only):
+                        </small>
+                        {% if authorized_airlines %}
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for airline in authorized_airlines %}
+                                    {% set c2 = airline.code_2 or '' %}
+                                    {% set c3 = airline.code_3 or '' %}
+                                    {% set code_label = (c2 ~ '/' ~ c3) if (c2 and c3) else (c2 or c3) %}
+                                    {% set name = airline.nama_airline or airline.airline_name or ('ID #' ~ airline.id_airline) %}
+
+                                    <span class="badge bg-primary text-white px-2 py-1">
+                                        <i class="bi bi-airplane-fill me-1"></i>
+                                        {{ (code_label ~ ' - ' ~ name) if code_label else name }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted small fst-italic">Belum ada maskapai yang di-assign.</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Form Edit Account Profile -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-3 p-md-4">
+                    <form action="{{ url_for('airline_portal.profile') }}" method="POST" id="formAirlineAccountProfile">
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="nama_lengkap" class="form-label fw-semibold small">Nama Lengkap <span class="text-danger">*</span></label>
+                                <input type="text" name="nama_lengkap" id="nama_lengkap" class="form-control" value="{{ user.nama_lengkap }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="email" class="form-label fw-semibold small">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" id="email" class="form-control" value="{{ user.email }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="jabatan" class="form-label fw-semibold small">Jabatan <span class="text-danger">*</span></label>
+                                <input type="text" name="jabatan" id="jabatan" class="form-control" value="{{ user.jabatan }}" required>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label class="form-label fw-semibold small">Unit Cabang &amp; Role</label>
+                                <input type="text" class="form-control bg-body-tertiary" value="{{ user.kode_cabang or '-' }} ({{ (user.role or 'user') | upper }})" readonly>
+                            </div>
+
+                            <!-- View Only: Daftar Airlines -->
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-semibold small">
+                                    Airline Access <span class="text-muted fw-normal">(Hanya dapat diubah oleh Administrator Bandara)</span>
+                                </label>
+                                <div class="p-2 px-3 rounded-3 border bg-body-tertiary d-flex flex-wrap align-items-center gap-2" style="min-height: 42px;">
+                                    {% if authorized_airlines %}
+                                        {% for airline in authorized_airlines %}
+                                            {% set c2 = airline.code_2 or '' %}
+                                            {% set c3 = airline.code_3 or '' %}
+                                            {% set code_label = (c2 ~ '/' ~ c3) if (c2 and c3) else (c2 or c3) %}
+                                            {% set name = airline.nama_airline or airline.airline_name or ('ID #' ~ airline.id_airline) %}
+
+                                            <span class="badge bg-primary text-white px-2 py-1">
+                                                <i class="bi bi-airplane-fill me-1"></i>
+                                                {{ (code_label ~ ' - ' ~ name) if code_label else name }}
+                                            </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small">Tidak ada maskapai terdaftar pada akun ini.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-12 mb-3">
+                                <label for="password" class="form-label fw-semibold small">
+                                    Password Baru <span class="text-muted fw-normal">(Kosongkan jika tidak ingin mengubah password)</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" name="password" id="password" class="form-control" placeholder="Masukkan password baru...">
+                                    <button class="btn btn-outline-secondary" type="button" id="toggleAirlineProfilePwd" aria-label="Tampilkan password">
+                                        <i class="bi bi-eye" id="toggleAirlineProfilePwdIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm w-100 w-md-auto">
+                                <i class="bi bi-check-circle me-2"></i>Simpan Perubahan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .account-avatar-box {
+        width: 112px;
+        height: 112px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        position: relative;
+    }
+    .account-avatar-box i {
+        font-size: 2.6rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .account-avatar-box i::before {
+        line-height: 1 !important;
+        vertical-align: middle !important;
+    }
+    @media (max-width: 767.98px) {
+        .account-avatar-box {
+            width: 92px;
+            height: 92px;
+        }
+        .account-avatar-box i {
+            font-size: 2.15rem;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    const btnPwd = document.getElementById('toggleAirlineProfilePwd');
+    const inpPwd = document.getElementById('password');
+    const iconPwd = document.getElementById('toggleAirlineProfilePwdIcon');
+
+    if (btnPwd && inpPwd && iconPwd) {
+        btnPwd.addEventListener('click', function () {
+            const isPwd = inpPwd.getAttribute('type') === 'password';
+            inpPwd.setAttribute('type', isPwd ? 'text' : 'password');
+            iconPwd.classList.toggle('bi-eye', !isPwd);
+            iconPwd.classList.toggle('bi-eye-slash', isPwd);
+        });
+    }
+})();
+</script>
+{% endblock %}

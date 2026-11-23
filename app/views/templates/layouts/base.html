@@ -13,12 +13,213 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='extensions/toastify-js/src/toastify.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='extensions/datatables.net-bs5/css/dataTables.bootstrap5.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/table-datatable-jquery.css') }}">
+    <!-- Global Tom Select CSS (untuk <select class="js-search-select">) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
     {% block extra_css %}{% endblock %}
 
     <style>
+        /* =====================================================================
+           INJOURNEY BRAND COLOR SYSTEM OVERRIDE
+           Palet Aplikasi: #04b0c0 (Turquoise), #8cc63f (Hijau), #006cb6 (Biru)
+           Palet Logo    : #f26657 (Merah), #fbb040 (Jingga), #414142 (Charcoal)
+           ===================================================================== */
+        :root,
+        [data-bs-theme="light"] {
+            --ij-turquoise: #04b0c0;
+            --ij-turquoise-dark: #0393a1;
+            --ij-blue: #006cb6;
+            --ij-blue-dark: #005691;
+            --ij-green: #8cc63f;
+            --ij-green-logo: #a2c02f;
+            --ij-orange: #fbb040;
+            --ij-red: #f26657;
+            --ij-charcoal: #414142;
+
+            --bs-primary: #04b0c0;
+            --bs-primary-rgb: 4, 176, 192;
+            --bs-info: #006cb6;
+            --bs-info-rgb: 0, 108, 182;
+            --bs-success: #8cc63f;
+            --bs-success-rgb: 140, 198, 63;
+            --bs-warning: #fbb040;
+            --bs-warning-rgb: 251, 176, 64;
+            --bs-danger: #f26657;
+            --bs-danger-rgb: 242, 102, 87;
+
+            --bs-body-color: #414142;
+            --bs-heading-color: #414142;
+            --bs-link-color: #006cb6;
+            --bs-link-hover-color: #04b0c0;
+        }
+
+        [data-bs-theme="dark"],
+        body.theme-dark {
+            --ij-turquoise: #04b0c0;
+            --ij-turquoise-dark: #0393a1;
+            --ij-blue: #2994de;
+            --ij-blue-dark: #006cb6;
+            --ij-green: #8cc63f;
+            --ij-orange: #fbb040;
+            --ij-red: #f26657;
+
+            --bs-primary: #04b0c0;
+            --bs-primary-rgb: 4, 176, 192;
+            --bs-info: #2994de;
+            --bs-info-rgb: 41, 148, 222;
+            --bs-success: #8cc63f;
+            --bs-success-rgb: 140, 198, 63;
+            --bs-warning: #fbb040;
+            --bs-warning-rgb: 251, 176, 64;
+            --bs-danger: #f26657;
+            --bs-danger-rgb: 242, 102, 87;
+        }
+
+        /* Override Komponen Utama Mazer (Ganti #435ebe ke Palet InJourney) */
+        .btn-primary {
+            --bs-btn-bg: var(--ij-turquoise);
+            --bs-btn-border-color: var(--ij-turquoise);
+            --bs-btn-color: #ffffff;
+            --bs-btn-hover-bg: var(--ij-blue);
+            --bs-btn-hover-border-color: var(--ij-blue);
+            --bs-btn-hover-color: #ffffff;
+            --bs-btn-active-bg: var(--ij-blue-dark);
+            --bs-btn-active-border-color: var(--ij-blue-dark);
+            --bs-btn-disabled-bg: var(--ij-turquoise);
+            --bs-btn-disabled-border-color: var(--ij-turquoise);
+        }
+
+        .btn-outline-primary {
+            --bs-btn-color: var(--ij-blue);
+            --bs-btn-border-color: var(--ij-turquoise);
+            --bs-btn-hover-bg: var(--ij-turquoise);
+            --bs-btn-hover-border-color: var(--ij-turquoise);
+            --bs-btn-hover-color: #ffffff;
+            --bs-btn-active-bg: var(--ij-blue);
+            --bs-btn-active-border-color: var(--ij-blue);
+        }
+
+        .btn-outline-info {
+            --bs-btn-color: var(--ij-blue);
+            --bs-btn-border-color: var(--ij-blue);
+            --bs-btn-hover-bg: var(--ij-blue);
+            --bs-btn-hover-border-color: var(--ij-blue);
+            --bs-btn-hover-color: #ffffff;
+        }
+
+        .btn-outline-warning {
+            --bs-btn-color: #c98212;
+            --bs-btn-border-color: var(--ij-orange);
+            --bs-btn-hover-bg: var(--ij-orange);
+            --bs-btn-hover-border-color: var(--ij-orange);
+            --bs-btn-hover-color: #212529;
+        }
+
+        .btn-outline-danger {
+            --bs-btn-color: var(--ij-red);
+            --bs-btn-border-color: var(--ij-red);
+            --bs-btn-hover-bg: var(--ij-red);
+            --bs-btn-hover-border-color: var(--ij-red);
+            --bs-btn-hover-color: #ffffff;
+        }
+
+        .text-primary { color: var(--ij-blue) !important; }
+        .bg-light-primary {
+            background-color: rgba(4, 176, 192, 0.14) !important;
+            color: var(--ij-blue) !important;
+        }
+
+        /* Sidebar Menu Aktif & Hover */
+        .sidebar-wrapper .menu .sidebar-item.active > .sidebar-link {
+            background: linear-gradient(135deg, var(--ij-turquoise), var(--ij-blue)) !important;
+            box-shadow: 0 6px 16px rgba(4, 176, 192, 0.32) !important;
+            color: #ffffff !important;
+        }
+
+        .sidebar-wrapper .menu .sidebar-item.active > .sidebar-link i,
+        .sidebar-wrapper .menu .sidebar-item.active > .sidebar-link span {
+            color: #ffffff !important;
+        }
+
+        .sidebar-wrapper .menu .sidebar-link:hover {
+            background-color: rgba(4, 176, 192, 0.1) !important;
+            color: var(--ij-blue) !important;
+        }
+
+        .sidebar-wrapper .menu .submenu .submenu-item.active > a,
+        .sidebar-wrapper .menu .submenu .submenu-item a:hover {
+            color: var(--ij-blue) !important;
+            font-weight: 600;
+        }
+
+        /* Nav Tabs & Pagination DataTables */
+        .nav-tabs .nav-link.active {
+            color: var(--ij-blue) !important;
+            border-bottom: 2px solid var(--ij-turquoise) !important;
+        }
+
+        .pagination-primary .page-item.active .page-link {
+            background-color: var(--ij-turquoise) !important;
+            border-color: var(--ij-turquoise) !important;
+            color: #ffffff !important;
+        }
+
+        .pagination-primary .page-link {
+            color: var(--ij-blue);
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--ij-turquoise);
+            box-shadow: 0 0 0 0.22rem rgba(4, 176, 192, 0.2);
+        }
+
         body.preload * {
             transition: none !important;
             animation: none !important;
+        }
+
+        /* =====================================================================
+           0. GLOBAL TOM SELECT STYLING (LIGHT & DARK MODE + MODAL SAFE)
+           ===================================================================== */
+        .ts-wrapper.form-select,
+        .ts-wrapper.single .ts-control {
+            border-radius: 0.5rem;
+            padding: 0.45rem 0.75rem;
+            min-height: 39px;
+            background-color: var(--bs-body-bg, #ffffff);
+            color: var(--bs-body-color, #414142);
+            border-color: var(--bs-border-color, #dce7f1);
+        }
+
+        .ts-wrapper.focus .ts-control {
+            border-color: var(--ij-turquoise) !important;
+            box-shadow: 0 0 0 0.22rem rgba(4, 176, 192, 0.2) !important;
+        }
+
+        .ts-wrapper.single .ts-control input {
+            color: var(--bs-body-color, #414142);
+        }
+
+        .ts-dropdown {
+            z-index: 1090 !important;
+            background-color: var(--bs-body-bg, #ffffff);
+            color: var(--bs-body-color, #414142);
+            border-color: var(--bs-border-color, #dce7f1);
+            border-radius: 0.65rem;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+        }
+
+        .ts-dropdown .option {
+            padding: 0.5rem 0.85rem;
+            font-size: 0.875rem;
+            color: var(--bs-body-color, #414142);
+        }
+
+        .ts-dropdown .active,
+        .ts-dropdown .option:hover {
+            background-color: rgba(4, 176, 192, 0.14) !important;
+            color: var(--ij-blue) !important;
+            font-weight: 600;
         }
 
         /* 1. Animasi Smooth Fade In / Fade Out untuk Floating Submenu Sidebar (Desktop) */
@@ -61,7 +262,7 @@
         #floating-sidebar-submenu a {
             display: block;
             padding: 0.55rem 1.15rem;
-            color: var(--bs-body-color, #25396f);
+            color: var(--bs-body-color, #414142);
             text-decoration: none;
             font-size: 0.92rem;
             white-space: nowrap;
@@ -70,8 +271,8 @@
 
         #floating-sidebar-submenu a:hover,
         #floating-sidebar-submenu a.active {
-            background-color: rgba(67, 94, 190, 0.12);
-            color: #435ebe;
+            background-color: rgba(4, 176, 192, 0.14);
+            color: var(--ij-blue);
             font-weight: 600;
         }
 
@@ -97,66 +298,20 @@
         }
 
         /* =====================================================================
-           2B. FLOATING SIDEBAR (DESKTOP & TABLET >= 768px)
-           ===================================================================== */
-        @media (min-width: 768px) {
-            #sidebar .sidebar-wrapper {
-                position: fixed !important;
-                top: 14px !important;
-                left: 14px !important;
-                bottom: 14px !important;
-                height: calc(100vh - 28px) !important;
-                width: 280px;
-                border-radius: 1.25rem !important;
-                border: 1px solid rgba(128, 128, 128, 0.14) !important;
-                box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
-                background-color: var(--bs-body-bg, #ffffff) !important;
-            }
-
-            html[data-bs-theme="dark"] #sidebar .sidebar-wrapper,
-            body.theme-dark #sidebar .sidebar-wrapper {
-                border-color: rgba(255, 255, 255, 0.08) !important;
-                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38) !important;
-            }
-
-            #sidebar .sidebar-header {
-                border-radius: 1.25rem 1.25rem 0 0 !important;
-                padding-top: 1.35rem !important;
-                padding-bottom: 1rem !important;
-            }
-        }
-
-        @media (min-width: 768px) and (max-width: 1199.98px) {
-            #sidebar:not(.active) .sidebar-wrapper {
-                left: -310px !important;
-            }
-        }
-
-        @media (min-width: 1200px) {
-            #main {
-                margin-left: 308px !important; /* 14px kiri + 280px sidebar + 14px jarak ke konten */
-                padding-top: 1.25rem !important;
-            }
-        }
-
-        /* =====================================================================
            2B. FLOATING SIDEBAR (TABLET & DESKTOP >= 768px)
            ===================================================================== */
         @media (min-width: 768px) {
-            /* Hilangkan total tombol burger lama di tablet & desktop */
             header .burger-btn,
             .burger-btn {
                 display: none !important;
             }
 
-            /* Paksa sidebar selalu berada di tempat (tidak tergeser -300px oleh Mazer tablet) */
             #sidebar,
             #sidebar.active,
             #sidebar:not(.active) {
                 left: 0 !important;
             }
 
-            /* Blokir total backdrop gelap Mazer di layar tablet/iPad */
             .sidebar-backdrop {
                 display: none !important;
                 opacity: 0 !important;
@@ -188,7 +343,6 @@
                 padding-bottom: 1rem !important;
             }
 
-            /* Main content melebar penuh mengikuti kondisi sidebar */
             #app #main {
                 margin-left: 308px !important;
                 width: calc(100% - 308px) !important;
@@ -206,14 +360,12 @@
            3. ADAPTIVE MOBILE UI (< 768px) — NATIVE-LIKE EXPERIENCE
            ===================================================================== */
         @media (max-width: 767.98px) {
-            /* Sembunyikan Sidebar & Burger Button di Mobile */
             #sidebar,
             .sidebar-backdrop,
             header .burger-btn {
                 display: none !important;
             }
 
-            /* Beri ruang atas (untuk fixed top bar) dan ruang bawah (untuk fixed bottom nav) */
             #main {
                 margin-left: 0 !important;
                 padding-top: calc(64px + env(safe-area-inset-top, 0px)) !important;
@@ -233,7 +385,6 @@
                 float: none !important;
             }
 
-            /* Fixed Glassmorphic Top Header Bar (Selalu diam di atas seperti Bottom Nav) */
             .mobile-top-bar {
                 position: fixed !important;
                 top: 0 !important;
@@ -286,7 +437,7 @@
                 font-weight: 700;
                 font-size: 0.96rem;
                 letter-spacing: -0.2px;
-                color: var(--bs-heading-color, #25396f);
+                color: var(--bs-heading-color, #414142);
             }
 
             .mobile-top-bar .mobile-user-subtitle {
@@ -298,7 +449,6 @@
                 display: block;
             }
 
-            /* Pill Akun dengan Avatar Foto Profil + Indikator Online */
             .mobile-account-pill {
                 display: inline-flex;
                 align-items: center;
@@ -307,7 +457,7 @@
                 border-radius: 999px;
                 background: var(--bs-tertiary-bg, #f1f5f9);
                 border: 1px solid rgba(128, 128, 128, 0.18);
-                color: var(--bs-body-color, #25396f);
+                color: var(--bs-body-color, #414142);
                 font-size: 0.78rem;
                 font-weight: 600;
                 transition: transform 0.15s ease, background-color 0.15s ease;
@@ -321,7 +471,7 @@
                 width: 28px;
                 height: 28px;
                 border-radius: 50%;
-                background: var(--bs-primary, #435ebe);
+                background: linear-gradient(135deg, var(--ij-turquoise), var(--ij-blue));
                 color: #ffffff;
                 display: flex;
                 align-items: center;
@@ -337,7 +487,6 @@
                 object-fit: cover;
             }
 
-            /* Bottom Navigation Bar (Thumb-Friendly) */
             #mobile-bottom-nav {
                 position: fixed !important;
                 left: 0 !important;
@@ -398,7 +547,7 @@
             }
 
             #mobile-bottom-nav .mbn-item.active {
-                color: #435ebe;
+                color: var(--ij-blue);
             }
 
             #mobile-bottom-nav .mbn-item.active::before {
@@ -408,14 +557,13 @@
                 width: 28px;
                 height: 3px;
                 border-radius: 0 0 4px 4px;
-                background: #435ebe;
+                background: var(--ij-turquoise);
             }
 
             #mobile-bottom-nav .mbn-item.active i {
                 transform: translateY(-1px);
             }
 
-            /* Konversi Otomatis Semua Bootstrap Modal Menjadi Mobile Bottom Sheet */
             .modal.fade .modal-dialog {
                 margin: 0 !important;
                 max-width: 100% !important;
@@ -439,7 +587,6 @@
                 box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.22) !important;
             }
 
-            /* Drag Handle Visual di Atas Bottom Sheet */
             .modal .modal-content::before {
                 content: "";
                 display: block;
@@ -471,7 +618,6 @@
                 min-height: 44px;
             }
 
-            /* Offcanvas Bottom Sheet Styling (Selalu di atas Bottom Nav & Support Swipe) */
             .offcanvas-backdrop {
                 z-index: 1055 !important;
             }
@@ -512,7 +658,7 @@
                 justify-content: space-between;
                 padding: 0.85rem 1rem;
                 border-radius: 0.85rem;
-                color: var(--bs-body-color, #25396f);
+                color: var(--bs-body-color, #414142);
                 text-decoration: none;
                 font-weight: 500;
                 min-height: 48px;
@@ -521,12 +667,11 @@
 
             .mobile-sheet-link:active,
             .mobile-sheet-link.active {
-                background-color: rgba(67, 94, 190, 0.12);
-                color: #435ebe;
+                background-color: rgba(4, 176, 192, 0.14);
+                color: var(--ij-blue);
                 font-weight: 600;
             }
 
-            /* Global Mobile Card View untuk Tabel DataTables */
             .dt-mobile-cards-wrapper + .table-responsive,
             .has-mobile-cards .table-responsive {
                 display: none !important;
@@ -584,7 +729,6 @@
                 min-width: 38px;
             }
 
-            /* Pagination DataTables Thumb-Friendly di Mobile */
             .dataTables_wrapper .dataTables_info {
                 text-align: center;
                 font-size: 0.78rem;
@@ -614,7 +758,7 @@
     </div>
 
     <div id="app">
-        <!-- Load Sidebar Layout (Desktop tetap menggunakan sidebar; Mobile membaca strukturnya untuk Bottom Nav) -->
+        <!-- Load Sidebar Layout -->
         {% include 'layouts/sidebar.html' %}
 
         <div id="main" class="layout-horizontal-style">
@@ -630,7 +774,9 @@
                              alt="InJourney Airports">
                     </div>
                     <div class="min-w-0">
-                        <div class="mobile-brand-title lh-1">Commercial</div>
+                        <div class="mobile-brand-title lh-1">
+                            {{ 'RISA Airline' if u_sess.get('user_type') == 'airline' else 'Aero Commercial' }}
+                        </div>
                         <small class="text-muted mobile-user-subtitle mt-1" id="mobileUserCabangLabel" data-cabang="{{ u_cabang }}">
                             {{ u_name }} ({{ u_cabang }})
                         </small>
@@ -650,7 +796,7 @@
                 </button>
             </div>
 
-            <!-- Main Content Section (Hanya bagian ini yang diperbarui saat navigasi / CRUD) -->
+            <!-- Main Content Section -->
             <div class="page-content" id="main-content">
                 {% block content %}{% endblock %}
             </div>
@@ -666,7 +812,7 @@
         </div>
     </div>
 
-    <!-- Mobile Bottom Navigation Bar (Tanpa menu Akun karena sudah ada di Top Bar) -->
+    <!-- Mobile Bottom Navigation Bar -->
     <nav id="mobile-bottom-nav" class="d-md-none" aria-label="Navigasi Utama Mobile"></nav>
 
     <!-- Mobile Bottom Sheet untuk Submenu & Menu Akun -->
@@ -679,7 +825,7 @@
     </div>
 
     <!-- Pop-up Notifikasi Jika Phone, Tanggal Lahir, atau Gender Masih Kosong -->
-    {% if session.get('user', {}).get('is_profile_incomplete') and request.endpoint != 'users.profile' %}
+    {% if session.get('user', {}).get('user_type') == 'airport' and session.get('user', {}).get('is_profile_incomplete') and request.endpoint != 'users.profile' %}
     <div class="modal fade" id="modalIncompleteProfile" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -712,6 +858,8 @@
     <script src="{{ url_for('static', filename='extensions/jquery/jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='extensions/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ url_for('static', filename='extensions/datatables.net-bs5/js/dataTables.bootstrap5.min.js') }}"></script>
+    <!-- Global Tom Select JS -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
     <script>
         window.addEventListener('load', function () {
@@ -719,6 +867,38 @@
                 document.body.classList.remove('preload');
             });
         });
+
+        /* =====================================================================
+           0. GLOBAL SEARCHABLE SELECT (TOM SELECT)
+           Gunakan class="form-select js-search-select" untuk dropdown dari DB.
+           Select statis (misal Domestik / Internasional) tidak perlu class ini.
+           ===================================================================== */
+        window.initAllSearchSelects = function (root) {
+            if (typeof TomSelect === 'undefined') return;
+            const scope = root || document;
+            scope.querySelectorAll('select.js-search-select').forEach(el => {
+                if (el.tomselect) {
+                    el.tomselect.sync();
+                    return;
+                }
+                new TomSelect(el, {
+                    create: false,
+                    allowEmptyOption: true,
+                    dropdownParent: 'body',
+                    maxOptions: 500
+                });
+            });
+        };
+
+        window.setSearchSelectValue = function (elOrId, val, silent = true) {
+            const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+            if (!el) return;
+            if (el.tomselect) {
+                el.tomselect.setValue(String(val ?? ''), silent);
+            } else {
+                el.value = String(val ?? '');
+            }
+        };
 
         /* =====================================================================
            A. GLOBAL DATATABLES + AUTO MOBILE CARD RENDERER
@@ -858,7 +1038,7 @@
         };
 
         /* =====================================================================
-           B. FLASH TOASTIFY
+           B. FLASH TOASTIFY (PALET RESMI INJOURNEY)
            ===================================================================== */
         function showFlashToasts() {
             const flashContainer = document.getElementById('flask-flash-messages');
@@ -874,10 +1054,10 @@
             flashContainer.setAttribute('data-messages', '[]');
 
             const bgColors = {
-                danger: 'linear-gradient(135deg, #dc3545, #b02a37)',
-                warning: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                success: 'linear-gradient(135deg, #198754, #146c43)',
-                info: 'linear-gradient(135deg, #0dcaf0, #0aa2c0)'
+                danger: 'linear-gradient(135deg, #f26657, #d94c3d)',
+                warning: 'linear-gradient(135deg, #fbb040, #e09624)',
+                success: 'linear-gradient(135deg, #8cc63f, #6fa329)',
+                info: 'linear-gradient(135deg, #006cb6, #04b0c0)'
             };
 
             messages.forEach(function (item) {
@@ -891,7 +1071,7 @@
                     position: "right",
                     stopOnFocus: true,
                     style: {
-                        background: bgColors[category] || 'linear-gradient(135deg, #435ebe, #25396f)',
+                        background: bgColors[category] || 'linear-gradient(135deg, #04b0c0, #006cb6)',
                         borderRadius: '10px',
                         boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
                         fontWeight: '500'
@@ -918,7 +1098,6 @@
                 if (!mobileLabel || !sidebar) return;
 
                 const cabang = mobileLabel.getAttribute('data-cabang') || 'HO';
-                // Cari elemen nama user di sidebar (profil atas atau tombol footer sidebar)
                 const nameEl = sidebar.querySelector('.sidebar-profile h6, .sidebar-profile .fw-bold, #dropdownUserFloating .fw-semibold, #dropdownUserFloating span');
                 const sidebarName = nameEl ? nameEl.textContent.trim() : '';
 
@@ -949,7 +1128,12 @@
 
             // 1. Pindahkan modal & offcanvas sheet ke document.body agar tidak tertimpa backdrop / bottom nav
             function relocateModals(container) {
-                document.querySelectorAll('body > .modal:not(#modalIncompleteProfile)').forEach(m => m.remove());
+                document.querySelectorAll('body > .modal:not(#modalIncompleteProfile)').forEach(m => {
+                    m.querySelectorAll('select.js-search-select').forEach(sel => {
+                        if (sel.tomselect) sel.tomselect.destroy();
+                    });
+                    m.remove();
+                });
                 document.querySelectorAll('body > .offcanvas.mobile-sheet:not(#mobileMenuSheet)').forEach(o => o.remove());
 
                 (container || document).querySelectorAll('.modal:not(#modalIncompleteProfile)').forEach(modalEl => {
@@ -966,16 +1150,14 @@
                 let startY = 0;
                 let currentY = 0;
                 let activeSheet = null;
-                let activeType = null; // 'offcanvas' | 'modal'
+                let activeType = null;
                 let isDragging = false;
 
                 document.addEventListener('touchstart', function (e) {
-                    // Hanya aktif di layar mobile (< 768px)
                     if (window.innerWidth >= 768) return;
 
-                    // Jangan mulai drag jika jari menyentuh input/select/textarea yang sedang fokus atau slider
                     const tag = e.target.tagName;
-                    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.closest('.ts-wrapper, .ts-dropdown')) return;
 
                     const offcanvasSheet = e.target.closest('.offcanvas.offcanvas-bottom.mobile-sheet.show');
                     const modalSheet = e.target.closest('.modal.show .modal-content');
@@ -987,12 +1169,10 @@
                         activeSheet = offcanvasSheet;
                         activeType = 'offcanvas';
                     } else if (modalSheet) {
-                        // Jangan tutup modal dengan swipe jika modal bersifat static backdrop (seperti modalIncompleteProfile)
                         const modalRoot = modalSheet.closest('.modal');
                         if (modalRoot && modalRoot.getAttribute('data-bs-backdrop') === 'static') return;
 
                         const body = modalSheet.querySelector('.modal-body');
-                        // Jika jari berada di dalam area form (.modal-body) dan scroll belum di paling atas, biarkan user scroll form
                         if (body && body.scrollTop > 0 && e.target.closest('.modal-body')) return;
 
                         activeSheet = modalSheet;
@@ -1142,7 +1322,6 @@
                 const sidebarItems = Array.from(sidebar.querySelectorAll('.sidebar-menu .menu > .sidebar-item'));
                 if (!sidebarItems.length) return;
 
-                // Tampilkan hingga 5 menu utama langsung di bottom bar (tanpa slot Akun karena sudah ada di Top Bar)
                 const hasOverflow = sidebarItems.length > 5;
                 const primaryItems = hasOverflow ? sidebarItems.slice(0, 4) : sidebarItems;
                 const overflowItems = hasOverflow ? sidebarItems.slice(4) : [];
@@ -1196,7 +1375,6 @@
                     bottomNav.appendChild(btn);
                 });
 
-                // Jika total menu utama > 5, tambahkan tombol "Lainnya" untuk menampung sisa menu
                 if (overflowItems.length) {
                     const isOverflowActive = overflowItems.some(it => it.classList.contains('active'));
                     const moreBtn = document.createElement('button');
@@ -1240,7 +1418,6 @@
                     bottomNav.appendChild(moreBtn);
                 }
 
-                // Event tombol "Akun" di Mobile Top Bar -> membuka Bottom Sheet Akun Pengguna
                 const quickAccountBtn = document.getElementById('btnMobileQuickAccount');
                 if (quickAccountBtn) {
                     quickAccountBtn.onclick = function () {
@@ -1272,7 +1449,7 @@
                 if (!link) return;
 
                 if (link.getAttribute('data-no-ajax') === 'true') {
-                    return; // Biarkan logout berjalan normal
+                    return;
                 }
 
                 e.preventDefault();
@@ -1313,6 +1490,7 @@
                     currentContent.innerHTML = newContent.innerHTML;
                     relocateModals(currentContent);
                     window.initAllDataTables();
+                    window.initAllSearchSelects(document);
                     executeContentScripts(currentContent);
                     syncSidebarFromDoc(doc);
                     buildMobileBottomNav();
@@ -1344,9 +1522,13 @@
 
             // 4. Tampilkan Pop-up Notifikasi Profil Belum Lengkap (jika ada)
             const incompleteModalEl = document.getElementById('modalIncompleteProfile');
-            if (incompleteModalEl && window.bootstrap) {
+            if (incompleteModalEl && window.bootstrap && !sessionStorage.getItem('dismissed_incomplete_profile')) {
                 const incompleteModal = new bootstrap.Modal(incompleteModalEl);
                 incompleteModal.show();
+
+                incompleteModalEl.addEventListener('hidden.bs.modal', function () {
+                    sessionStorage.setItem('dismissed_incomplete_profile', '1');
+                });
 
                 const btnGoProfile = document.getElementById('btnGoToUsersSetting');
                 if (btnGoProfile) {
@@ -1432,7 +1614,7 @@
             // 6. Intercept klik menu biasa di sidebar (Desktop)
             document.querySelectorAll('#sidebar a[href]').forEach(link => {
                 const href = link.getAttribute('href');
-                if (!href || href === '#' || href.startsWith('javascript:') || href.includes('/logout')) return;
+                if (!href || href === '#' || href.startsWith('javascript:') || href.includes('/logout') || link.getAttribute('data-no-ajax') === 'true') return;
 
                 link.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -1502,8 +1684,9 @@
                 loadPage(location.pathname, false);
             });
 
-            // 9. Inisialisasi DataTables saat halaman awal selesai dimuat
+            // 9. Inisialisasi DataTables & Searchable Select saat halaman awal selesai dimuat
             window.initAllDataTables();
+            window.initAllSearchSelects(document);
         });
     </script>
 

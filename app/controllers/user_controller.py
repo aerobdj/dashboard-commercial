@@ -6,7 +6,7 @@ from app.models.user_model import UserModel
 from app.models.cabang_model import CabangModel
 from app.models.role_model import RoleModel
 from app.controllers.auth_controller import sync_user_session
-from app.utils.decorators import menu_required
+from app.utils.decorators import menu_required, airport_required
 
 user_bp = Blueprint('users', __name__, url_prefix='/settings/users')
 
@@ -279,10 +279,8 @@ def restore(kd_user):
 
 
 @user_bp.route('/profile', methods=['GET', 'POST'])
+@airport_required
 def profile():
-    if 'user' not in session:
-        return redirect(url_for('auth.login'))
-
     kd_user = session['user']['kd_user']
     user = UserModel.get_by_id(kd_user)
 
