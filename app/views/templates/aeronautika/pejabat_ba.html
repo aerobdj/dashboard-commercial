@@ -1,0 +1,471 @@
+{% extends "layouts/base.html" %}
+{% block title %}Master Pejabat Berita Acara - Aero Commercial{% endblock %}
+
+{% block content %}
+<style>
+    .pba-mobile-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        padding: 0.9rem 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    @media (max-width: 767.98px) {
+        .pba-desktop-table { display: none !important; }
+        .pba-mobile-list { display: flex !important; }
+    }
+    @media (min-width: 768px) {
+        .pba-desktop-table { display: block !important; }
+        .pba-mobile-list { display: none !important; }
+    }
+</style>
+
+<div class="page-heading mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h3 class="mb-1">Master Pejabat Berita Acara (Pihak Pertama)</h3>
+            <p class="text-muted small mb-0">Kelola penanggung jawab penandatangan BA Normal, Offload, &amp; Adjustment beserta periode masa jabatan</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" id="btnOpenCreatePejabat">
+            <i class="bi bi-person-plus me-1"></i> Tambah Pejabat BA
+        </button>
+    </div>
+</div>
+
+<!-- Ringkasan Kartu -->
+<div class="row g-2 g-md-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small">Total Terdaftar</div>
+                <div class="fs-4 fw-bold text-dark">{{ rows|length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small">BA Normal</div>
+                <div class="fs-4 fw-bold text-primary">{{ normal_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small">BA Offload</div>
+                <div class="fs-4 fw-bold text-warning">{{ offload_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small">BA Adjustment</div>
+                <div class="fs-4 fw-bold text-info">{{ adj_count }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== FILTER BAR (DESKTOP INLINE + MOBILE BOTTOM SHEET TRIGGER) ==================== -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body p-3">
+        <!-- Mobile Search + Sliders Button (< 768px) -->
+        <div class="d-flex gap-2 d-md-none">
+            <div class="input-group flex-grow-1">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="pbaQuickSearchMobile" class="form-control border-start-0" placeholder="Cari Nama, Jabatan, Cabang...">
+            </div>
+            <button type="button"
+                    class="btn btn-light border rounded-3 px-3 position-relative flex-shrink-0"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#filterPejabatBaSheet"
+                    aria-controls="filterPejabatBaSheet"
+                    title="Filter Pejabat BA">
+                <i class="bi bi-sliders2 text-primary"></i>
+                {% set active_filter_cnt = (1 if filter_cabang else 0) + (1 if filter_jenis else 0) %}
+                <span id="mobilePbaFilterCount"
+                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary {{ '' if active_filter_cnt > 0 else 'd-none' }}"
+                      style="font-size: 0.65rem;">
+                    {{ active_filter_cnt }}
+                </span>
+            </button>
+        </div>
+
+        <!-- Desktop & Tablet Inline Filter Form (>= 768px) -->
+        <form method="GET" action="{{ url_for('pejabat_ba.index') }}" class="row g-2 align-items-end d-none d-md-flex">
+            <div class="col-md-4 col-lg-4">
+                <label class="form-label small fw-semibold mb-1">Cari Cepat</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="pbaQuickSearchDesktop" class="form-control border-start-0" placeholder="Cari Nama, NIPP, Jabatan, Cabang...">
+                </div>
+            </div>
+            {% if not is_single_cabang and cabang_list|length > 1 %}
+            <div class="col-md-3 col-lg-3">
+                <label class="form-label small fw-semibold mb-1">Cabang</label>
+                <select name="cabang" class="form-select form-select-sm js-search-select">
+                    <option value="">Semua Cabang</option>
+                    {% for c in cabang_list %}
+                    <option value="{{ c.kode_cabang }}" {{ 'selected' if filter_cabang == c.kode_cabang else '' }}>
+                        {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3 col-lg-3">
+                <label class="form-label small fw-semibold mb-1">Jenis Berita Acara</label>
+                <select name="jenis_ba" class="form-select form-select-sm">
+                    <option value="">Semua Jenis BA</option>
+                    <option value="NORMAL" {{ 'selected' if filter_jenis == 'NORMAL' else '' }}>BA Normal</option>
+                    <option value="OFFLOAD" {{ 'selected' if filter_jenis == 'OFFLOAD' else '' }}>BA Offload</option>
+                    <option value="ADJUSTMENT" {{ 'selected' if filter_jenis == 'ADJUSTMENT' else '' }}>BA Adjustment</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-lg-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary rounded-3 flex-fill fw-semibold">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+                <a href="{{ url_for('pejabat_ba.index') }}" class="btn btn-sm btn-light border rounded-3" title="Reset">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== MOBILE FILTER BOTTOM SHEET (< 768px) ==================== -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterPejabatBaSheet" aria-labelledby="filterPejabatBaSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterPejabatBaSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Pejabat BA
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <form method="GET" action="{{ url_for('pejabat_ba.index') }}">
+            {% if not is_single_cabang and cabang_list|length > 1 %}
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Cabang Bandara</label>
+                <select name="cabang" class="form-select">
+                    <option value="">Semua Cabang Akses</option>
+                    {% for c in cabang_list %}
+                    <option value="{{ c.kode_cabang }}" {{ 'selected' if filter_cabang == c.kode_cabang else '' }}>
+                        {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Jenis Berita Acara</label>
+                <select name="jenis_ba" class="form-select">
+                    <option value="">Semua Jenis BA</option>
+                    <option value="NORMAL" {{ 'selected' if filter_jenis == 'NORMAL' else '' }}>BA Normal</option>
+                    <option value="OFFLOAD" {{ 'selected' if filter_jenis == 'OFFLOAD' else '' }}>BA Offload</option>
+                    <option value="ADJUSTMENT" {{ 'selected' if filter_jenis == 'ADJUSTMENT' else '' }}>BA Adjustment</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2 pt-2">
+                <a href="{{ url_for('pejabat_ba.index') }}" class="btn btn-light border rounded-pill flex-fill py-2 text-center">
+                    Reset
+                </a>
+                <button type="submit" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold">
+                    Terapkan Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== DAFTAR PEJABAT BA (DESKTOP TABLE + MOBILE CARDS) ==================== -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-3 p-md-0">
+        {% if not rows %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-person-badge fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Belum ada data pejabat Berita Acara. Klik <strong>Tambah Pejabat BA</strong> untuk menambahkan.</p>
+        </div>
+        {% else %}
+        <!-- DESKTOP & TABLET (>= 768px) -->
+        <div class="table-responsive pba-desktop-table">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Cabang</th>
+                        <th>Jenis BA</th>
+                        <th>Nama &amp; NIPP</th>
+                        <th>Jabatan</th>
+                        <th>Periode Masa Jabatan</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    {% set in_period = (r.berlaku_mulai <= today_str) and (not r.berlaku_selesai or r.berlaku_selesai >= today_str) %}
+                    <tr class="pba-search-row"
+                        data-search="{{ (r.kode_cabang ~ ' ' ~ (r.nama_cabang or '') ~ ' ' ~ r.jenis_ba ~ ' ' ~ r.nama_pejabat ~ ' ' ~ (r.nipp or '') ~ ' ' ~ r.jabatan)|lower }}">
+                        <td>
+                            <span class="badge bg-secondary-subtle text-dark fw-bold">{{ r.kode_cabang }}</span>
+                            <div class="small text-muted">{{ r.nama_cabang }}</div>
+                        </td>
+                        <td>
+                            {% if r.jenis_ba == 'NORMAL' %}
+                                <span class="badge bg-primary">BA Normal</span>
+                            {% elif r.jenis_ba == 'OFFLOAD' %}
+                                <span class="badge bg-warning text-dark">BA Offload</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">BA Adjustment</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ r.nama_pejabat }}</div>
+                            {% if r.nipp %}<small class="text-muted">NIPP: {{ r.nipp }}</small>{% endif %}
+                        </td>
+                        <td>{{ r.jabatan }}</td>
+                        <td>
+                            <div class="small fw-semibold">
+                                {{ r.berlaku_mulai }} &rarr; {{ r.berlaku_selesai or 'Sekarang (Aktif)' }}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if r.is_active and in_period %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aktif Menjabat</span>
+                            {% elif r.is_active %}
+                                <span class="badge bg-secondary">Di Luar Periode</span>
+                            {% else %}
+                                <span class="badge bg-danger">Nonaktif</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-warning btn-edit-pejabat"
+                                        data-row='{{ r | tojson | safe }}' title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('pejabat_ba.delete', id_pejabat=r.id_pejabat) }}"
+                                      class="d-inline" onsubmit="return confirm('Hapus data pejabat {{ r.nama_pejabat }}?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Hapus">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MOBILE (< 768px) -->
+        <div class="pba-mobile-list flex-column gap-2">
+            {% for r in rows %}
+            {% set in_period = (r.berlaku_mulai <= today_str) and (not r.berlaku_selesai or r.berlaku_selesai >= today_str) %}
+            <div class="pba-mobile-card pba-search-row"
+                 data-search="{{ (r.kode_cabang ~ ' ' ~ (r.nama_cabang or '') ~ ' ' ~ r.jenis_ba ~ ' ' ~ r.nama_pejabat ~ ' ' ~ (r.nipp or '') ~ ' ' ~ r.jabatan)|lower }}">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                    <div class="min-w-0">
+                        <div class="fw-bold text-dark text-truncate">{{ r.nama_pejabat }}</div>
+                        <div class="small text-muted">{{ r.jabatan }}{% if r.nipp %} &bull; NIPP {{ r.nipp }}{% endif %}</div>
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+                        <span class="badge bg-secondary-subtle text-dark fw-bold">{{ r.kode_cabang }}</span>
+                        {% if r.jenis_ba == 'NORMAL' %}
+                            <span class="badge bg-primary">BA Normal</span>
+                        {% elif r.jenis_ba == 'OFFLOAD' %}
+                            <span class="badge bg-warning text-dark">BA Offload</span>
+                        {% else %}
+                            <span class="badge bg-info text-dark">BA Adjustment</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="small text-muted border-top pt-2 mt-2 mb-2">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    Periode: <strong class="text-dark">{{ r.berlaku_mulai }}</strong> &rarr;
+                    <strong class="text-dark">{{ r.berlaku_selesai or 'Sekarang' }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div>
+                        {% if r.is_active and in_period %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                <i class="bi bi-check-circle-fill me-1"></i>Aktif Menjabat
+                            </span>
+                        {% elif r.is_active %}
+                            <span class="badge bg-secondary-subtle text-secondary">Di Luar Periode</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger">Nonaktif</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 px-2 btn-edit-pejabat"
+                                data-row='{{ r | tojson | safe }}' title="Edit">
+                            <i class="bi bi-pencil-square me-1"></i>Edit
+                        </button>
+                        <form method="POST" action="{{ url_for('pejabat_ba.delete', id_pejabat=r.id_pejabat) }}"
+                              class="d-inline" onsubmit="return confirm('Hapus data pejabat {{ r.nama_pejabat }}?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-3 px-2" title="Hapus">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Tambah / Edit Pejabat BA -->
+<div class="modal fade" id="modalPejabatBa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <form id="formPejabatBa" method="POST" action="{{ url_for('pejabat_ba.create') }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="modalPejabatBaTitle">Tambah Pejabat Berita Acara</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3 p-md-4">
+                    <div class="row g-3">
+                        {% if not is_single_cabang and cabang_list|length > 1 %}
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">Cabang <span class="text-danger">*</span></label>
+                            <select name="kode_cabang" id="pba_cabang" class="form-select" required>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="kode_cabang" id="pba_cabang" value="{{ default_cabang }}">
+                        {% endif %}
+
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">Jenis Berita Acara <span class="text-danger">*</span></label>
+                            <select name="jenis_ba" id="pba_jenis" class="form-select" required>
+                                <option value="NORMAL">BA Normal</option>
+                                <option value="OFFLOAD">BA Offload</option>
+                                <option value="ADJUSTMENT">BA Adjustment</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-bold">NIPP (Opsional)</label>
+                            <input type="text" name="nipp" id="pba_nipp" class="form-control" placeholder="Contoh: 19901234">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Nama Pejabat <span class="text-danger">*</span></label>
+                            <input type="text" name="nama_pejabat" id="pba_nama" class="form-control" placeholder="Nama lengkap penandatangan" required>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Jabatan <span class="text-danger">*</span></label>
+                            <input type="text" name="jabatan" id="pba_jabatan" class="form-control" placeholder="Contoh: Aero Commercial Officer" required>
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Berlaku Mulai <span class="text-danger">*</span></label>
+                            <input type="date" name="berlaku_mulai" id="pba_mulai" class="form-control" required>
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Berlaku Selesai (Kosongkan jika masih aktif)</label>
+                            <input type="date" name="berlaku_selesai" id="pba_selesai" class="form-control">
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="pba_active" value="1" checked>
+                                <label class="form-check-label small fw-semibold" for="pba_active">Status Aktif</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top d-flex gap-2">
+                    <button type="button" class="btn btn-light border rounded-pill flex-fill py-2" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold">
+                        <i class="bi bi-save me-1"></i> Simpan Pejabat BA
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const defaultCab = "{{ default_cabang }}";
+    const todayStr = "{{ today_str }}";
+
+    function handlePbaQuickSearch(val) {
+        const q = (val || '').trim().toLowerCase();
+        document.querySelectorAll('.pba-search-row').forEach(el => {
+            const hay = el.getAttribute('data-search') || '';
+            el.style.display = (!q || hay.includes(q)) ? '' : 'none';
+        });
+    }
+
+    document.getElementById('pbaQuickSearchDesktop')?.addEventListener('input', function () {
+        const mob = document.getElementById('pbaQuickSearchMobile');
+        if (mob) mob.value = this.value;
+        handlePbaQuickSearch(this.value);
+    });
+
+    document.getElementById('pbaQuickSearchMobile')?.addEventListener('input', function () {
+        const desk = document.getElementById('pbaQuickSearchDesktop');
+        if (desk) desk.value = this.value;
+        handlePbaQuickSearch(this.value);
+    });
+
+    document.getElementById('formPejabatBa')?.addEventListener('submit', function (e) {
+        const mulai = document.getElementById('pba_mulai')?.value || '';
+        const selesai = document.getElementById('pba_selesai')?.value || '';
+        if (mulai && selesai && selesai < mulai) {
+            e.preventDefault();
+            alert('Tanggal Berlaku Selesai tidak boleh lebih awal dari Berlaku Mulai.');
+        }
+    });
+
+    document.getElementById('btnOpenCreatePejabat')?.addEventListener('click', function () {
+        const form = document.getElementById('formPejabatBa');
+        form.reset();
+        form.action = "{{ url_for('pejabat_ba.create') }}";
+        document.getElementById('modalPejabatBaTitle').textContent = 'Tambah Pejabat Berita Acara';
+        const cabEl = document.getElementById('pba_cabang');
+        if (cabEl && defaultCab) cabEl.value = defaultCab;
+        document.getElementById('pba_mulai').value = todayStr;
+        document.getElementById('pba_selesai').value = '';
+        document.getElementById('pba_active').checked = true;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPejabatBa')).show();
+    });
+
+    document.querySelectorAll('.btn-edit-pejabat').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const r = JSON.parse(this.getAttribute('data-row'));
+            const form = document.getElementById('formPejabatBa');
+            form.action = `/aeronautika/master/pejabat-ba/update/${r.id_pejabat}`;
+            document.getElementById('modalPejabatBaTitle').textContent = `Edit Pejabat — ${r.nama_pejabat}`;
+
+            const cabEl = document.getElementById('pba_cabang');
+            if (cabEl && r.kode_cabang) cabEl.value = r.kode_cabang;
+            document.getElementById('pba_jenis').value = r.jenis_ba || 'NORMAL';
+            document.getElementById('pba_nipp').value = r.nipp || '';
+            document.getElementById('pba_nama').value = r.nama_pejabat || '';
+            document.getElementById('pba_jabatan').value = r.jabatan || '';
+            document.getElementById('pba_mulai').value = (r.berlaku_mulai || '').slice(0, 10);
+            document.getElementById('pba_selesai').value = (r.berlaku_selesai || '').slice(0, 10);
+            document.getElementById('pba_active').checked = !!r.is_active;
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPejabatBa')).show();
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 Forbidden - Akses Ditolak | RISA InJourney Airports</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/error.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='extensions/bootstrap-icons/font/bootstrap-icons.css') }}">
+    <style>
+        .error-code-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        .error-card-box {
+            max-width: 560px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="error">
+        <div class="error-page container">
+            <div class="col-md-10 col-lg-8 mx-auto text-center error-card-box">
+                <div class="mb-3">
+                    <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}"
+                         alt="InJourney Airports"
+                         style="height: 52px; width: auto; object-fit: contain;"
+                         onerror="this.style.display='none';">
+                </div>
+
+                <span class="error-code-badge">
+                    <i class="bi bi-shield-lock-fill"></i> HTTP 403 &bull; Forbidden
+                </span>
+
+                <h1 class="error-title">Akses Ditolak</h1>
+                <p class="fs-5 text-gray-600 mb-4">
+                    {{ message or 'Anda tidak memiliki hak akses untuk membuka halaman atau dokumen ini.' }}
+                </p>
+
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button type="button" onclick="window.history.back();" class="btn btn-lg btn-outline-secondary rounded-pill px-4">
+                        <i class="bi bi-arrow-left me-1"></i> Kembali
+                    </button>
+                    <a href="/" class="btn btn-lg btn-primary rounded-pill px-4">
+                        <i class="bi bi-house-door me-1"></i> Ke Beranda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

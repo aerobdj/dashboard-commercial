@@ -100,8 +100,8 @@
                             </a>
                         </li>
 
-                        <li class="sidebar-item">
-                            <a href="#" class="sidebar-link d-flex align-items-center gap-2" title="PJP2U Reconciliation">
+                        <li class="sidebar-item {{ 'active' if request.endpoint == 'airline_portal.pjp2u' else '' }}">
+                            <a href="{{ url_for('airline_portal.pjp2u') }}" class="sidebar-link d-flex align-items-center gap-2" title="PJP2U Reconciliation">
                                 <i class="bi bi-check2-circle d-flex align-items-center justify-content-center"></i>
                                 <span>PJP2U Reconciliation</span>
                             </a>
@@ -159,10 +159,14 @@
                         {% set can_see_routes = (('routes' in allowed_menus) or ('route' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas']) %}
                         {% set can_see_registrations = is_superadmin or ('airline_registrations' in allowed_menus) %}
                         {% set can_see_flight_numbers = (('flight_numbers' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas', 'admin']) %}
+                        {% set can_see_pejabat_ba = (('pejabat_ba' in allowed_menus) or is_superadmin) and (user_role in ['superadmin', 'pengawas']) %}
                         {% set can_see_aero_admin = ('aeronautika_admin' in allowed_menus) or ('aeronautika' in allowed_menus) %}
+                        {% set can_see_pjp2u = is_superadmin or ('aeronautika_pjp2u' in allowed_menus) %}
+                        {% set can_see_tools = is_superadmin or ('aeronautika_tools' in allowed_menus) %}
+                        {% set can_see_aero_ops = is_superadmin or ('aeronautika_ops' in allowed_menus) or can_see_pjp2u or can_see_tools %}
 
                         {% set is_aero_tools_active = request.endpoint and request.endpoint.startswith('tools_aero.') %}
-                        {% set is_aero_ops_active = is_aero_tools_active %}
+                        {% set is_aero_ops_active = is_aero_tools_active or (request.endpoint and request.endpoint.startswith('pjp2u.')) %}
                         {% set is_aero_setting_active = request.endpoint and (
                             request.endpoint in ['airline.index', 'airline_user.index', 'route_setting.index', 'flight_number.index']
                             or request.endpoint.startswith('tarif_aero.')
@@ -182,6 +186,7 @@
                                 </li>
                                 {% endif %}
 
+                                {% if can_see_aero_ops %}
                                 <!-- Operasional (Terbuka untuk semua role) -->
                                 <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_ops_active else '' }}">
                                     <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
@@ -189,6 +194,12 @@
                                         <i class="bi bi-chevron-right small nested-arrow"></i>
                                     </a>
                                     <ul class="nested-submenu list-unstyled ps-3 {{ 'open' if is_aero_ops_active else '' }}">
+                                        {% if can_see_pjp2u %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint and request.endpoint.startswith('pjp2u.') else '' }}">
+                                            <a href="{{ url_for('pjp2u.index') }}" class="submenu-link">PJP2U</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_tools %}
                                         <!-- Tools (Terbuka untuk semua role) -->
                                         <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_tools_active else '' }}">
                                             <a href="#" class="d-flex align-items-center justify-content-between nested-toggle">
@@ -208,8 +219,10 @@
                                                 </li>
                                             </ul>
                                         </li>
+                                        {% endif %}
                                     </ul>
                                 </li>
+                                {% endif %}
 
                                 {% if can_see_airlines or can_see_airlines_users or can_see_tarif_aero or can_see_routes or can_see_registrations or can_see_flight_numbers %}
                                 <li class="submenu-item has-sub-nested {{ 'active submenu-open' if is_aero_setting_active else '' }}">
@@ -246,6 +259,11 @@
                                         {% if can_see_flight_numbers %}
                                         <li class="submenu-item {{ 'active' if request.endpoint == 'flight_number.index' else '' }}">
                                             <a href="{{ url_for('flight_number.index') }}">Number Flight</a>
+                                        </li>
+                                        {% endif %}
+                                        {% if can_see_pejabat_ba %}
+                                        <li class="submenu-item {{ 'active' if request.endpoint and request.endpoint.startswith('pejabat_ba.') else '' }}">
+                                            <a href="{{ url_for('pejabat_ba.index') }}" class="submenu-link">Pejabat BA</a>
                                         </li>
                                         {% endif %}
                                     </ul>

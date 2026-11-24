@@ -1,0 +1,1596 @@
+{% extends "layouts/base.html" %}
+{% block title %}Operasional PJP2U - Aero Commercial{% endblock %}
+
+{% block content %}
+<style>
+    .airline-group-header {
+        background: linear-gradient(90deg, rgba(4, 176, 192, 0.12), rgba(0, 108, 182, 0.05)) !important;
+        border-left: 4px solid var(--ij-turquoise, #04b0c0);
+    }
+    .calc-preview-box {
+        background: var(--bs-tertiary-bg, #f8fafc);
+        border: 1px solid rgba(4, 176, 192, 0.3);
+        border-radius: 1rem;
+    }
+    .calc-metric-pill {
+        background: var(--bs-body-bg, #ffffff);
+        border: 1px solid rgba(128, 128, 128, 0.16);
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+    }
+    /* Fix Bootstrap 5 scrollable modal saat <form> membungkus header-body-footer */
+    .pjp2u-modal-form {
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 3.5rem);
+        overflow: hidden;
+    }
+    .pjp2u-modal-form .modal-header,
+    .pjp2u-modal-form .modal-footer {
+        flex-shrink: 0;
+    }
+    .pjp2u-modal-form .modal-body {
+        overflow-y: auto;
+        flex: 1 1 auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Horizontal Swipe NavTabs Mobile & Tablet */
+    .nav-tabs-scroll-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .nav-tabs-scroll-wrapper::-webkit-scrollbar {
+        display: none;
+    }
+    .nav-tabs-scroll-wrapper .nav-tabs {
+        flex-wrap: nowrap !important;
+        width: max-content;
+        min-width: 100%;
+        border-bottom: 0;
+    }
+    .nav-tabs-scroll-wrapper .nav-item {
+        flex: 0 0 auto;
+    }
+    .nav-tabs-scroll-wrapper .nav-link {
+        white-space: nowrap;
+        touch-action: pan-x;
+    }
+
+    /* Mobile Flight Card Polish */
+    .pjp2u-mobile-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        padding: 0.9rem 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+    .pjp2u-airline-banner {
+        border-left: 4px solid var(--bs-primary);
+        border-radius: 0.75rem;
+        background: linear-gradient(90deg, rgba(var(--bs-primary-rgb), 0.1) 0%, rgba(var(--bs-primary-rgb), 0.02) 100%);
+        padding: 0.65rem 0.85rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .pjp2u-modal-form {
+            max-height: calc(100vh - 1rem);
+        }
+    }
+    @media (max-width: 767.98px) {
+        .pjp2u-desktop-table { display: none !important; }
+        .pjp2u-mobile-list { display: block !important; }
+    }
+    @media (min-width: 768px) {
+        .pjp2u-desktop-table { display: block !important; }
+        .pjp2u-mobile-list { display: none !important; }
+    }
+    @media (max-width: 991.98px) {
+        .nav-tabs-scroll-wrapper .nav-link {
+            font-size: 0.85rem;
+            padding: 0.6rem 0.85rem !important;
+        }
+    }
+</style>
+
+{% macro render_grouped_table(groups, tab_type, is_superadmin, is_privileged) %}
+    {% if not groups %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-airplane fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Belum ada data penerbangan PJP2U pada periode/filter ini.</p>
+        </div>
+    {% else %}
+        <!-- TAMPILAN DESKTOP & TABLET -->
+        <div class="table-responsive pjp2u-desktop-table">
+            <table class="table table-hover align-middle mb-0 pjp2u-filterable-table" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tanggal &amp; Jam</th>
+                        <th>Flight &amp; Reg</th>
+                        <th>Rute &amp; Scope</th>
+                        <th class="text-center">Rincian Pax (A/C/I/Tr/Cr)</th>
+                        <th class="text-center">Offload / Baru / Disc</th>
+                        <th class="text-end">Produksi PSC</th>
+                        <th class="text-end">Pendapatan PSC (Inc. PPN)</th>
+                        <th class="text-end">Counter &amp; CUCS (Inc. PPN)</th>
+                        <th>Verifikasi Airline</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for grp in groups %}
+                    <!-- Group Header Row per Maskapai -->
+                    <tr class="airline-group-header pjp2u-group-row" data-airline="{{ grp.airline_name|lower }}">
+                        <td colspan="5" class="py-2 px-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary rounded-pill">{{ grp.airline_code_2 }}</span>
+                                <strong class="text-primary fs-6">~ {{ grp.airline_name }}</strong>
+                                <span class="badge bg-light text-dark border">{{ grp.rows|length }} Flight</span>
+                            </div>
+                        </td>
+                        <td class="text-end py-2 fw-bold text-primary">{{ "{:,}".format(grp.sum_psc) }} Pax</td>
+                        <td class="text-end py-2 fw-bold text-success">Rp {{ "{:,.0f}".format(grp.sum_pend_psc) }}</td>
+                        <td class="text-end fw-semibold text-info">
+                            <div>Rp {{ "{:,.0f}".format(grp.sum_pend_counter_cucs) }}</div>
+                            {% if grp.sum_pend_counter_usd > 0 %}
+                                <div class="small text-primary">+ USD {{ "{:,.2f}".format(grp.sum_pend_counter_usd) }}</div>
+                            {% endif %}
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+
+                    {% for r in grp.rows %}
+                    <tr class="pjp2u-data-row"
+                        data-search="{{ (grp.airline_name ~ ' ' ~ r.flight_number ~ ' ' ~ (r.registration or '') ~ ' ' ~ r.origin ~ ' ' ~ r.destination ~ ' ' ~ r.cabang)|lower }}">
+                        <td>
+                            <div class="fw-semibold">{{ r.tanggal }}</div>
+                            <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ (r.boarding_time or '-')[:5] }} &bull; <span class="badge bg-secondary-subtle text-secondary">{{ r.cabang }}</span></small>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ r.flight_number }}</div>
+                            <small class="text-muted">{{ r.registration or '-' }} ({{ r.scope_registration or 'Domestik' }})</small>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ r.origin }} <i class="bi bi-arrow-right text-primary"></i> {{ r.destination }}</div>
+                            <span class="badge {{ 'bg-info-subtle text-info' if (r.scope_registration == 'Internasional' or r.scope_route == 'Internasional') else ('bg-warning-subtle text-warning-emphasis' if r.scope_route == 'Haji' else 'bg-success-subtle text-success') }}">
+                                {{ r.scope_route or 'Domestik' }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border" title="Adult / Child / Infant / Transit / Crew">
+                                {{ r.adult }} / {{ r.child }} / {{ r.infant }} / {{ r.transit }} / {{ r.crew }}
+                            </span>
+                            <div class="small text-muted mt-1">Total Pax: <strong>{{ r.jumlah_pax }}</strong> (LF: {{ r.persentase_lf }}%)</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning-subtle text-warning-emphasis" title="Offload">Off: {{ r.offload }}</span>
+                            <span class="badge bg-primary-subtle text-primary" title="Tarif Baru">Baru: {{ r.pax_baru }}</span>
+                            <span class="badge bg-danger-subtle text-danger" title="Diskon Promo">Disc: {{ r.pax_diskon }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="fw-bold">{{ "{:,}".format(r.total_prod_psc) }} Pax</div>
+                            <small class="text-muted">Paying: {{ r.persentase_payingpax }}%</small>
+                        </td>
+                        <td class="text-end">
+                            <div class="fw-bold text-success">Rp {{ "{:,.0f}".format(r.pend_psc) }}</div>
+                            <small class="text-muted d-block">Norm: {{ "{:,.0f}".format(r.pend_psc_normal) }} | Disc: {{ "{:,.0f}".format(r.pend_psc_diskon) }}</small>
+                        </td>
+                        <td class="text-end">
+                            <div class="small">
+                                Cnt:
+                                {% if r.mata_uang_counter == 'USD' %}
+                                    <span class="fw-semibold text-primary">USD {{ "{:,.2f}".format(r.pend_counter) }}</span>
+                                {% else %}
+                                    Rp {{ "{:,.0f}".format(r.pend_counter) }}
+                                {% endif %}
+                            </div>
+                            <div class="small">CUCS: Rp {{ "{:,.0f}".format(r.pend_cucs) }}</div>
+                        </td>
+                        <td>
+                            {% if tab_type in ['NORMAL', 'DEL_NORMAL'] %}
+                                {% if r.verification_at %}
+                                    <span class="badge bg-success mb-1"><i class="bi bi-check-circle me-1"></i>Verified</span>
+                                    <div class="small text-muted lh-sm">{{ r.name_verification }}</div>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Menunggu Airline</span>
+                                {% endif %}
+                                {% if r.offload|int > 0 %}
+                                    <div class="mt-1">
+                                        {% if r.verification_offload_at %}
+                                            <span class="badge bg-info"><i class="bi bi-check2-all me-1"></i>Offload Verified</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Offload Pending</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                {% if r.verification_adjustment_at %}
+                                    <span class="badge bg-success mb-1"><i class="bi bi-check-circle me-1"></i>Adj Verified</span>
+                                    <div class="small text-muted lh-sm">{{ r.name_verification_adjustment }}</div>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Menunggu Admin Airline</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                {% if tab_type in ['DEL_NORMAL', 'DEL_ADJ'] %}
+                                    {% if is_superadmin %}
+                                    <form method="POST" action="{{ url_for('pjp2u.restore', id_pjp2u=r.id_pjp2u) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-success" title="Pulihkan Data">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% else %}
+                                    {% if r.perm.can_edit %}
+                                    <button type="button" class="btn btn-outline-warning btn-edit-pjp2u"
+                                            data-row='{{ r | tojson | safe }}' title="Edit Data">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if r.perm.can_adjust %}
+                                    <button type="button" class="btn btn-outline-info btn-adjust-pjp2u"
+                                            data-row='{{ r | tojson | safe }}' title="Buat Adjustment (J)">
+                                        <i class="bi bi-sliders"></i> Adj
+                                    </button>
+                                    {% endif %}
+
+                                    {% if r.perm.can_ba_normal %}
+                                    <button type="button" class="btn btn-outline-success btn-ba-placeholder"
+                                            data-id="{{ r.id_pjp2u }}"
+                                            data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                            data-ba-type="NORMAL"
+                                            data-flight="{{ r.flight_number }}" title="Cetak BA Verifikasi">
+                                        <i class="bi bi-file-earmark-check"></i> BA
+                                    </button>
+                                    {% endif %}
+
+                                    {% if r.perm.can_ba_offload %}
+                                    <button type="button" class="btn btn-outline-primary btn-ba-placeholder"
+                                            data-id="{{ r.id_pjp2u }}"
+                                            data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                            data-ba-type="OFFLOAD"
+                                            data-flight="{{ r.flight_number }}" title="Cetak BA Offload">
+                                        <i class="bi bi-file-earmark-text"></i> BA Offload
+                                    </button>
+                                    {% endif %}
+
+                                    {% if r.perm.can_ba_adjustment %}
+                                    <button type="button" class="btn btn-outline-success btn-ba-placeholder"
+                                            data-id="{{ r.id_pjp2u }}"
+                                            data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                            data-ba-type="ADJUSTMENT"
+                                            data-flight="{{ r.flight_number }}" title="Cetak BA Adjustment">
+                                        <i class="bi bi-file-earmark-diff"></i> BA Adj
+                                    </button>
+                                    {% endif %}
+
+                                    {% if r.perm.can_delete %}
+                                    <form method="POST" action="{{ url_for('pjp2u.delete', id_pjp2u=r.id_pjp2u) }}"
+                                          class="d-inline" onsubmit="return confirm('Hapus penerbangan {{ r.flight_number }} ({{ r.tanggal }})?');">
+                                        <button type="submit" class="btn btn-outline-danger" title="Hapus Data">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAMPILAN MOBILE (< 768px) -->
+        <div class="d-md-none d-flex flex-column gap-3">
+            {% for grp in groups %}
+            <div class="pjp2u-airline-group" data-group>
+                <!-- Header Maskapai -->
+                <div class="pjp2u-airline-banner d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        <span class="badge bg-primary fw-bold px-2 py-1 flex-shrink-0">{{ grp.airline_code_2 }}</span>
+                        <div class="fw-bold text-dark text-truncate">{{ grp.airline_name }}</div>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        <div class="text-muted" style="font-size: 0.68rem;">Total PSC</div>
+                        <div class="fw-bold text-success small text-nowrap">
+                            Rp {{ '{:,.0f}'.format(grp.sum_pend_psc) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daftar Kartu Penerbangan -->
+                <div class="d-flex flex-column gap-2">
+                    {% for r in grp.rows %}
+                    <div class="pjp2u-mobile-card pjp2u-data-row"
+                        data-search="{{ (r.flight_number ~ ' ' ~ (r.registration or '') ~ ' ' ~ r.origin ~ ' ' ~ r.destination ~ ' ' ~ grp.airline_name ~ ' ' ~ r.cabang) | lower }}">
+                        <!-- Baris 1: No Flight + Rute -->
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <div class="fw-bold fs-6 text-dark text-nowrap">{{ r.flight_number }}</div>
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle text-truncate" style="max-width: 65%;">
+                                {{ r.origin }} &rarr; {{ r.destination }} ({{ r.scope_route }})
+                            </span>
+                        </div>
+
+                        <!-- Baris 2: Cabang, Tanggal, Jam, Registrasi -->
+                        <div class="d-flex flex-wrap align-items-center gap-1 text-muted small mb-2">
+                            <span class="badge bg-light text-dark border fw-semibold">{{ r.cabang }}</span>
+                            <span class="text-nowrap">{{ r.tanggal }}</span>
+                            {% if r.boarding_time %}
+                                <span>&bull;</span>
+                                <span class="text-nowrap">{{ (r.boarding_time or '')[:5] }}</span>
+                            {% endif %}
+                            <span>&bull;</span>
+                            <span class="font-monospace fw-semibold text-dark text-nowrap">{{ r.registration or '-' }}</span>
+                        </div>
+
+                        <!-- Baris 3: Ringkasan Pax (3 Kolom Rapi) -->
+                        <div class="row g-1 text-center bg-body-tertiary rounded-3 py-2 px-1 mb-2 mx-0">
+                            <div class="col-4 border-end">
+                                <div class="text-muted" style="font-size: 0.7rem;">Total Pax</div>
+                                <div class="fw-bold text-dark">{{ r.jumlah_pax }}</div>
+                            </div>
+                            <div class="col-4 border-end">
+                                <div class="text-muted" style="font-size: 0.7rem;">Prod PSC</div>
+                                <div class="fw-bold text-primary">{{ r.total_prod_psc }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted" style="font-size: 0.7rem;">Offload</div>
+                                <div class="fw-bold text-dark">{{ r.offload }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Baris 4: Pendapatan PSC & Counter/CUCS -->
+                        <div class="d-flex justify-content-between align-items-center small mb-1">
+                            <span class="text-muted">Pend. PSC (Inc. PPN)</span>
+                            <span class="fw-bold text-success text-nowrap">Rp {{ '{:,.0f}'.format(r.pend_psc) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small border-bottom pb-2 mb-2">
+                            <span class="text-muted">Counter &amp; CUCS</span>
+                            <span class="fw-semibold text-info text-nowrap">
+                                {% if r.mata_uang_counter == 'USD' %}
+                                    USD {{ '{:,.2f}'.format(r.pend_counter or 0) }} + Rp {{ '{:,.0f}'.format(r.pend_cucs or 0) }}
+                                {% else %}
+                                    Rp {{ '{:,.0f}'.format((r.pend_counter or 0) + (r.pend_cucs or 0)) }}
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <!-- Baris 5: Status Verifikasi & Tombol Aksi -->
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                {% if tab_type in ['NORMAL', 'DEL_NORMAL'] %}
+                                    {% if r.verification_at %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Terverifikasi
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pending Verifikasi</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if r.verification_adjustment_at %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Adj Verified
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pending Admin Airline</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                {% if tab_type in ['DEL_NORMAL', 'DEL_ADJ'] %}
+                                    {% if is_superadmin %}
+                                    <form method="POST" action="{{ url_for('pjp2u.restore', id_pjp2u=r.id_pjp2u) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-3 px-2">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% else %}
+                                    {% if r.perm.can_ba_normal %}
+                                        <button type="button" class="btn btn-sm btn-outline-success rounded-3 btn-ba-placeholder"
+                                                data-id="{{ r.id_pjp2u }}"
+                                                data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                                data-ba-type="NORMAL"
+                                                data-flight="{{ r.flight_number }}" title="Cetak BA">
+                                            <i class="bi bi-printer-fill"></i>
+                                        </button>
+                                    {% endif %}
+                                    {% if r.perm.can_ba_offload %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-3 btn-ba-placeholder"
+                                                data-id="{{ r.id_pjp2u }}"
+                                                data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                                data-ba-type="OFFLOAD"
+                                                data-flight="{{ r.flight_number }}" title="Cetak BA Offload">
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        </button>
+                                    {% endif %}
+                                    {% if r.perm.can_ba_adjustment %}
+                                        <button type="button" class="btn btn-sm btn-outline-success rounded-3 btn-ba-placeholder"
+                                                data-id="{{ r.id_pjp2u }}"
+                                                data-cabang="{{ r.cabang or r.kode_cabang }}"
+                                                data-ba-type="ADJUSTMENT"
+                                                data-flight="{{ r.flight_number }}" title="Cetak BA Adj">
+                                            <i class="bi bi-file-earmark-diff"></i>
+                                        </button>
+                                    {% endif %}
+                                    {% if r.perm.can_edit %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning rounded-3 btn-edit-pjp2u"
+                                                data-row='{{ r | tojson | safe }}' title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                    {% endif %}
+                                    {% if r.perm.can_adjust %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-3 px-2 fw-semibold btn-adjust-pjp2u"
+                                                data-row='{{ r | tojson | safe }}' title="Adjustment">
+                                            Adj
+                                        </button>
+                                    {% endif %}
+                                    {% if r.perm.can_delete %}
+                                        <form method="POST" action="{{ url_for('pjp2u.delete', id_pjp2u=r.id_pjp2u) }}" class="d-inline"
+                                            onsubmit="return confirm('Hapus data penerbangan {{ r.flight_number }}?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Hapus">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+<div class="page-heading mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h3 class="mb-1">Operasional PJP2U</h3>
+            <p class="text-muted mb-0 small">Pencatatan Produksi Penumpang, Tarif Promo/Baru-Lama, Counter &amp; CUCS (Termasuk PPN)</p>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" id="btnOpenCreatePjp2u">
+            <i class="bi bi-plus-circle me-1"></i> Input Penerbangan PJP2U
+        </button>
+    </div>
+</div>
+
+<!-- ==================== FILTER BAR (DESKTOP INLINE + MOBILE BOTTOM SHEET TRIGGER) ==================== -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body p-3">
+        <!-- Mobile Search + Sliders Button (< 768px) -->
+        <div class="d-flex gap-2 d-md-none">
+            <div class="input-group flex-grow-1">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="pjp2uQuickSearch" class="form-control border-start-0" placeholder="Cari No Flight, Reg, Rute, Maskapai...">
+            </div>
+            <button type="button"
+                    class="btn btn-light border rounded-3 px-3 d-md-none position-relative flex-shrink-0"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#filterPjp2uSheet"
+                    aria-controls="filterPjp2uSheet"
+                    title="Filter Operasional PJP2U">
+                <i class="bi bi-sliders2 text-primary"></i>
+                <span id="mobilePjp2uFilterCount"
+                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary {{ '' if (filter_cabang or date_from or date_to) else 'd-none' }}"
+                      style="font-size: 0.65rem;">
+                    {{ (1 if filter_cabang else 0) + (1 if (date_from or date_to) else 0) }}
+                </span>
+            </button>
+        </div>
+
+        <!-- Desktop Inline Filter Form (>= 768px) -->
+        <form method="GET" action="{{ url_for('pjp2u.index') }}" class="row g-2 align-items-end d-none d-md-flex">
+            <div class="col-md-4">
+                <label class="form-label small text-muted fw-semibold mb-1">Pencarian Cepat</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="pjp2uQuickSearchDesktop" class="form-control border-start-0" placeholder="Cari No Flight, Registrasi, Rute, Maskapai...">
+                </div>
+            </div>
+            {% if not is_single_cabang and cabang_list | length > 1 %}
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold mb-1">Cabang</label>
+                <select name="cabang" class="form-select js-search-select">
+                    <option value="">Semua Cabang</option>
+                    {% for c in cabang_list %}
+                        <option value="{{ c.kode_cabang }}" {{ 'selected' if filter_cabang == c.kode_cabang else '' }}>
+                            {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold mb-1">Dari Tanggal</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold mb-1">Sampai Tanggal</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary rounded-3 flex-fill fw-semibold">
+                    <i class="bi bi-funnel-fill me-1"></i>Filter
+                </button>
+                <a href="{{ url_for('pjp2u.index') }}" class="btn btn-light border rounded-3" title="Reset Filter">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== MOBILE FILTER BOTTOM SHEET (< 768px) ==================== -->
+<div class="offcanvas offcanvas-bottom mobile-sheet d-md-none" tabindex="-1" id="filterPjp2uSheet" aria-labelledby="filterPjp2uSheetLabel">
+    <div class="offcanvas-header pb-2 pt-2">
+        <h6 class="offcanvas-title fw-bold mb-0" id="filterPjp2uSheetLabel">
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Filter Operasional PJP2U
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-2 pb-4">
+        <form method="GET" action="{{ url_for('pjp2u.index') }}" id="mobileFilterPjp2uForm">
+            {% if not is_single_cabang and cabang_list | length > 1 %}
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Cabang Bandara</label>
+                <select name="cabang" class="form-select js-search-select">
+                    <option value="">Semua Cabang</option>
+                    {% for c in cabang_list %}
+                        <option value="{{ c.kode_cabang }}" {{ 'selected' if filter_cabang == c.kode_cabang else '' }}>
+                            {{ c.kode_cabang }} - {{ c.nama_cabang or c.kode_cabang }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label small fw-semibold">Dari Tanggal</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-semibold">Sampai Tanggal</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+            </div>
+            <div class="d-flex gap-2 pt-2">
+                <a href="{{ url_for('pjp2u.index') }}" class="btn btn-light border rounded-pill flex-fill py-2 text-center">
+                    Reset
+                </a>
+                <button type="submit" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold">
+                    Terapkan Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Navtabs: Normal, Adjustment, Hapus Normal (Superadmin), Hapus Adjustment (Superadmin) -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-transparent border-bottom p-0 pt-2 px-2 px-md-4">
+        <div class="nav-tabs-scroll-wrapper">
+            <ul class="nav nav-tabs border-bottom-0" id="pjp2uTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold d-flex align-items-center gap-2 px-3 py-2"
+                            data-bs-toggle="tab" data-bs-target="#pane-normal" type="button" role="tab">
+                        <span>Normal</span>
+                        <span class="badge rounded-pill bg-primary">{{ normal_count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold d-flex align-items-center gap-2 px-3 py-2"
+                            data-bs-toggle="tab" data-bs-target="#pane-adjustment" type="button" role="tab">
+                        <span>Adjustment</span>
+                        <span class="badge rounded-pill bg-info text-dark">{{ adjustment_count }}</span>
+                    </button>
+                </li>
+                {% if is_superadmin %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                            data-bs-toggle="tab" data-bs-target="#pane-del-normal" type="button" role="tab">
+                        <span>Hapus Normal</span>
+                        <span class="badge rounded-pill bg-danger">{{ deleted_normal_count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold text-danger d-flex align-items-center gap-2 px-3 py-2"
+                            data-bs-toggle="tab" data-bs-target="#pane-del-adjustment" type="button" role="tab">
+                        <span>Hapus Adjustment</span>
+                        <span class="badge rounded-pill bg-danger">{{ deleted_adjustment_count }}</span>
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="card-body p-3">
+        <div class="tab-content" id="pjp2uTabsContent">
+            <div class="tab-pane fade show active" id="pane-normal" role="tabpanel">
+                {{ render_grouped_table(normal_groups, 'NORMAL', is_superadmin, is_privileged) }}
+            </div>
+            <div class="tab-pane fade" id="pane-adjustment" role="tabpanel">
+                {{ render_grouped_table(adjustment_groups, 'ADJUSTMENT', is_superadmin, is_privileged) }}
+            </div>
+            {% if is_superadmin %}
+            <div class="tab-pane fade" id="pane-del-normal" role="tabpanel">
+                {{ render_grouped_table(deleted_normal_groups, 'DEL_NORMAL', is_superadmin, is_privileged) }}
+            </div>
+            <div class="tab-pane fade" id="pane-del-adjustment" role="tabpanel">
+                {{ render_grouped_table(deleted_adjustment_groups, 'DEL_ADJ', is_superadmin, is_privileged) }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     MODAL TAMBAH / EDIT PJP2U NORMAL
+     ========================================================================= -->
+<div class="modal fade" id="modalFormPjp2u" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <form id="formPjp2u" class="pjp2u-modal-form" method="POST" action="{{ url_for('pjp2u.create') }}" data-create-url="{{ url_for('pjp2u.create') }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="modalPjp2uTitle">Input Data Operasional PJP2U</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3 p-md-4">
+                    <!-- Hidden fields (berjalan di belakang layar) -->
+                    <input type="hidden" name="id_flightnumber" id="inp_id_flightnumber">
+                    <input type="hidden" name="id_registration" id="inp_id_registration">
+                    <input type="hidden" name="seat" id="inp_seat" value="0">
+                    <input type="hidden" name="scope_registration" id="inp_scope_registration" value="Domestik">
+
+                    <!-- Baris 1: Identitas Penerbangan & Rute -->
+                    <div class="row g-3 mb-3">
+                        {% if not is_single_cabang %}
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">Cabang <span class="text-danger">*</span></label>
+                            <select name="cabang" id="inp_cabang" class="form-select js-search-select" required>
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="cabang" id="inp_cabang" value="{{ default_cabang }}">
+                        {% endif %}
+
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">Tanggal Terbang <span class="text-danger">*</span></label>
+                            <input type="date" name="tanggal" id="inp_tanggal" class="form-control" required>
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small fw-bold">Boarding Time</label>
+                            <input type="time" name="boarding_time" id="inp_boarding_time" class="form-control">
+                        </div>
+
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">No Flight <span class="text-danger">*</span></label>
+                            <select name="flight_number" id="inp_flight_number" class="form-select" required>
+                                <option value="">-- Cari / Pilih No Flight --</option>
+                                {% for fn in master_bundle.flight_numbers %}
+                                <option value="{{ fn.flight_number }}"
+                                        data-id="{{ fn.id_flightnumber }}"
+                                        data-airline="{{ fn.id_airline or '' }}"
+                                        data-dest="{{ fn.destination_iata or '' }}"
+                                        data-scope="{{ fn.destination_scope or 'Domestik' }}"
+                                        data-cabang="{{ fn.kode_cabang or '' }}">
+                                    {{ fn.flight_number }} ({{ fn.airline_name }} &bull; {{ fn.origin_iata }}-{{ fn.destination_iata }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small fw-semibold">Registrasi Pesawat <span class="text-danger">*</span></label>
+                            <select name="registration" id="inp_registration" placeholder="Pilih registrasi terdaftar..." required>
+                                <option value="">-- Pilih Registrasi Pesawat --</option>
+                                {% for reg in master_bundle.registrations %}
+                                    <option value="{{ reg.registration }}">
+                                        {{ reg.registration }} ({{ reg.airline_name }} • {{ reg.scope }} • {{ reg.seat }} Seat)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div id="reg_unregistered_alert" class="alert alert-danger py-1 px-2 small mt-1 mb-0 d-none">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                <strong>Registrasi belum terdaftar!</strong> Tambahkan terlebih dahulu di menu <em>Airline Registration</em>, bukan lewat menu PJP2U.
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label small fw-semibold">Operator (Otomatis dari Registrasi)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-tertiary"><i class="bi bi-airplane-fill text-primary"></i></span>
+                                <input type="text" id="inp_operator_display" class="form-control bg-body-tertiary fw-semibold" placeholder="Otomatis terisi saat registrasi dipilih..." readonly>
+                            </div>
+                            <input type="hidden" name="operator" id="inp_operator">
+                        </div>
+
+                        {% if not is_single_cabang %}
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">Origin (Bandara Asal)</label>
+                            <select name="origin" id="inp_origin" class="form-select js-search-select">
+                                {% for c in cabang_list %}
+                                <option value="{{ c.kode_cabang }}">{{ c.kode_cabang }} - {{ c.nama_cabang }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="origin" id="inp_origin" value="{{ default_cabang }}">
+                        {% endif %}
+
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">Destination (Tujuan) <span class="text-danger">*</span></label>
+                            <select name="destination" id="inp_destination" class="form-select js-search-select" required>
+                                <option value="">-- Cari / Pilih Bandara Tujuan --</option>
+                                {% for ap in master_bundle.airports %}
+                                <option value="{{ ap.iata }}" data-scope="{{ ap.scope or 'Domestik' }}">
+                                    {{ ap.iata }} - {{ ap.airport_name }} ({{ ap.city }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold">Scope Rute</label>
+                            <select name="scope_route" id="inp_scope_route" class="form-select">
+                                <option value="Domestik">Domestik</option>
+                                <option value="Internasional">Internasional</option>
+                                <option value="Haji">Haji</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Baris 2: Pengisian Pax Utama -->
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-people-fill me-1"></i> Baris Pengisian Pax</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-4 col-md">
+                            <label class="form-label small fw-semibold">Adult</label>
+                            <input type="number" name="adult" id="inp_adult" class="form-control calc-trigger" min="0" value="0" required>
+                        </div>
+                        <div class="col-4 col-md">
+                            <label class="form-label small fw-semibold">Child</label>
+                            <input type="number" name="child" id="inp_child" class="form-control calc-trigger" min="0" value="0" required>
+                        </div>
+                        <div class="col-4 col-md">
+                            <label class="form-label small fw-semibold">Infant</label>
+                            <input type="number" name="infant" id="inp_infant" class="form-control calc-trigger" min="0" value="0" required>
+                        </div>
+                        <div class="col-6 col-md">
+                            <label class="form-label small fw-semibold">Transit</label>
+                            <input type="number" name="transit" id="inp_transit" class="form-control calc-trigger" min="0" value="0" required>
+                        </div>
+                        <div class="col-6 col-md">
+                            <label class="form-label small fw-semibold">Crew</label>
+                            <input type="number" name="crew" id="inp_crew" class="form-control calc-trigger" min="0" value="0" required>
+                        </div>
+                    </div>
+
+                    <!-- Baris 3: Baris Tambahan (Offload, Baru, Diskon) -->
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-tags-fill me-1"></i> Baris Tambahan (Offload, Tarif Baru, &amp; Diskon Promo)</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label small fw-semibold">Offload</label>
+                            <input type="number" name="offload" id="inp_offload" class="form-control calc-trigger" min="0" value="0">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-semibold">Pax Tarif Lama</label>
+                            <input type="number" name="lama" id="inp_lama" class="form-control calc-trigger" value="0" min="0">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-semibold">Pax Diskon Promo</label>
+                            <input type="number" name="diskon" id="inp_diskon" class="form-control calc-trigger" min="0" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Baris 4: Kalkulasi Preview (Produksi & Pendapatan Inc. PPN) -->
+                    <div class="calc-preview-box p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <span class="fw-bold text-primary"><i class="bi bi-calculator me-1"></i> Kalkulasi Preview (Sudah Termasuk PPN)</span>
+                            <span class="badge bg-info-subtle text-info" id="prev_promo_badge">Tarif Reguler</span>
+                        </div>
+                        <div class="row g-2 small">
+                            <div class="col-12 col-md-4">
+                                <div class="calc-metric-pill h-100">
+                                    <div class="text-muted">Jumlah Produksi PSC</div>
+                                    <div class="fs-5 fw-bold text-dark" id="prev_prod_psc">0 Pax</div>
+                                    <div class="fw-bold text-success" id="prev_pend_psc">Rp 0</div>
+                                    <div class="text-muted mt-1" style="font-size: 0.72rem;" id="prev_lf_info">Total Pax: 0 | LF: 0% | Paying: 0%</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="calc-metric-pill h-100">
+                                    <div class="text-muted">Produksi Normal &amp; Diskon</div>
+                                    <div>Normal: <strong id="prev_pax_normal">0</strong> Pax (<span class="text-success fw-semibold" id="prev_pend_normal">Rp 0</span>)</div>
+                                    <div>Diskon: <strong id="prev_pax_diskon">0</strong> Pax (<span class="text-success fw-semibold" id="prev_pend_diskon">Rp 0</span>)</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="calc-metric-pill h-100">
+                                    <div class="text-muted">Produksi Baru &amp; Lama</div>
+                                    <div>Baru: <strong id="prev_pax_baru">0</strong> Pax (<span class="text-success fw-semibold" id="prev_pend_baru">Rp 0</span>)</div>
+                                    <div>Lama: <strong id="prev_pax_lama">0</strong> Pax (<span class="text-success fw-semibold" id="prev_pend_lama">Rp 0</span>)</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="calc-metric-pill d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <span class="text-muted">Produksi Counter:</span> <strong id="prev_prod_counter">0 Pax</strong>
+                                        &rarr; <strong class="text-primary" id="prev_pend_counter">Rp 0</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted">Produksi CUCS:</span> <strong id="prev_prod_cucs">0 Pax</strong>
+                                        &rarr; <strong class="text-primary" id="prev_pend_cucs">Rp 0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" id="btnSubmitPjp2u" class="btn btn-primary rounded-pill px-4">
+                        <i class="bi bi-save me-1"></i> Simpan Data PJP2U
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     MODAL ADJUSTMENT PJP2U (PENGAWAS & SUPERADMIN)
+     ========================================================================= -->
+<div class="modal fade" id="modalAdjustPjp2u" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <form id="formAdjustPjp2u" class="pjp2u-modal-form" method="POST" action="">
+                <div class="modal-header border-bottom bg-info-subtle">
+                    <h5 class="modal-title fw-bold text-info-emphasis"><i class="bi bi-sliders me-1"></i> Buat Adjustment PJP2U</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3 p-md-4">
+                    <input type="hidden" name="cabang" id="adj_cabang">
+                    <input type="hidden" name="operator" id="adj_operator">
+                    <input type="hidden" name="id_flightnumber" id="adj_id_flightnumber">
+                    <input type="hidden" name="id_registration" id="adj_id_registration">
+                    <input type="hidden" name="origin" id="adj_origin">
+                    <input type="hidden" name="destination" id="adj_destination">
+                    <input type="hidden" name="scope_registration" id="adj_scope_registration">
+                    <input type="hidden" name="scope_route" id="adj_scope_route">
+                    <input type="hidden" name="seat" id="adj_seat">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">No Flight (Otomatis Akhiran J)</label>
+                            <input type="text" name="flight_number" id="adj_flight_number" class="form-control fw-bold text-info" readonly>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">Tanggal Terbang</label>
+                            <input type="date" name="tanggal" id="adj_tanggal" class="form-control" readonly>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">Boarding Time</label>
+                            <input type="time" name="boarding_time" id="adj_boarding_time" class="form-control">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold">Registrasi</label>
+                            <input type="text" name="registration" id="adj_registration" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <!-- Tabel Perbandingan: Pax Sebelumnya | Field Pengisian Selisih (+/-) | Pax Setelah Adjustment -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered align-middle text-center mb-0" style="font-size: 0.85rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Keterangan</th>
+                                    <th>Adult</th>
+                                    <th>Child</th>
+                                    <th>Infant</th>
+                                    <th>Transit</th>
+                                    <th>Crew</th>
+                                    <th>Offload</th>
+                                    <th>Lama</th>
+                                    <th>Diskon</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="table-secondary">
+                                    <td class="text-start fw-semibold">Pax Sebelumnya (Normal)</td>
+                                    <td id="prev_adj_adult">0</td>
+                                    <td id="prev_adj_child">0</td>
+                                    <td id="prev_adj_infant">0</td>
+                                    <td id="prev_adj_transit">0</td>
+                                    <td id="prev_adj_crew">0</td>
+                                    <td id="prev_adj_offload">0</td>
+                                    <td id="prev_adj_lama">0</td>
+                                    <td id="prev_adj_diskon">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold text-info">Input Selisih (+/-)</td>
+                                    <td><input type="number" name="adult" id="adj_inp_adult" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="child" id="adj_inp_child" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="infant" id="adj_inp_infant" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="transit" id="adj_inp_transit" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="crew" id="adj_inp_crew" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="offload" id="adj_inp_offload" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="lama" id="adj_inp_lama" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                    <td><input type="number" name="diskon" id="adj_inp_diskon" class="form-control form-control-sm text-center adj-calc-trigger" value="0"></td>
+                                </tr>
+                                <tr class="table-info fw-bold">
+                                    <td class="text-start">Pax Setelah Adjustment</td>
+                                    <td id="after_adj_adult">0</td>
+                                    <td id="after_adj_child">0</td>
+                                    <td id="after_adj_infant">0</td>
+                                    <td id="after_adj_transit">0</td>
+                                    <td id="after_adj_crew">0</td>
+                                    <td id="after_adj_offload">0</td>
+                                    <td id="after_adj_lama">0</td>
+                                    <td id="after_adj_diskon">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Kalkulasi Selisih Adjustment -->
+                    <div class="calc-preview-box p-3 mb-3">
+                        <div class="fw-bold text-info-emphasis mb-2"><i class="bi bi-calculator me-1"></i> Kalkulasi Dampak Adjustment (Inc. PPN)</div>
+                        <div class="row g-2 small">
+                            <div class="col-6 col-md-3">
+                                <div class="calc-metric-pill">
+                                    <div class="text-muted">Selisih Prod PSC</div>
+                                    <strong class="fs-6" id="adj_prev_psc">0 Pax</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="calc-metric-pill">
+                                    <div class="text-muted">Selisih Pend. PSC</div>
+                                    <strong class="fs-6 text-success" id="adj_prev_pend_psc">Rp 0</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="calc-metric-pill">
+                                    <div class="text-muted">Selisih Counter</div>
+                                    <strong class="fs-6 text-primary" id="adj_prev_pend_counter">Rp 0</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="calc-metric-pill">
+                                    <div class="text-muted">Selisih CUCS</div>
+                                    <strong class="fs-6 text-primary" id="adj_prev_pend_cucs">Rp 0</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Justifikasi Adjustment -->
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Justifikasi Adjustment <span class="text-danger">*</span></label>
+                            <input type="text" name="justifikasi_adjustment" class="form-control" placeholder="Contoh: Koreksi selisih manifest boarding pass" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Tanggal Adjustment</label>
+                            <input type="date" name="date_adjustment" id="adj_date_adjustment" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Detail Justifikasi Adjustment</label>
+                            <textarea name="detail_justifikasi_adjustment" class="form-control" rows="2" placeholder="Uraian kronologi penyesuaian data penumpang..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-info text-white rounded-pill px-4">
+                        <i class="bi bi-check2-circle me-1"></i> Simpan Adjustment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JSON Bundle aman untuk IDE Linter & SPA AJAX -->
+<script type="application/json" id="pjp2u-master-data">{{ (master_bundle or {}) | tojson | safe }}</script>
+
+<script>
+(function () {
+    let MASTER = {};
+    try {
+        const masterEl = document.getElementById('pjp2u-master-data');
+        MASTER = masterEl ? JSON.parse(masterEl.textContent || '{}') : {};
+    } catch (e) {
+        console.error('Gagal membaca master_bundle PJP2U:', e);
+        MASTER = {};
+    }
+
+    function handleQuickSearch(val) {
+        const q = (val || '').trim().toLowerCase();
+        document.querySelectorAll('.pjp2u-data-row').forEach(row => {
+            const hay = row.getAttribute('data-search') || '';
+            row.style.display = (!q || hay.includes(q)) ? '' : 'none';
+        });
+        document.querySelectorAll('.pjp2u-airline-group').forEach(grp => {
+            const items = Array.from(grp.querySelectorAll('.pjp2u-data-row'));
+            const anyVisible = items.some(el => el.style.display !== 'none');
+            grp.style.display = anyVisible ? '' : 'none';
+        });
+    }
+
+    document.getElementById('pjp2uQuickSearch')?.addEventListener('input', function () {
+        const desk = document.getElementById('pjp2uQuickSearchDesktop');
+        if (desk) desk.value = this.value;
+        handleQuickSearch(this.value);
+    });
+
+    document.getElementById('pjp2uQuickSearchDesktop')?.addEventListener('input', function () {
+        const mob = document.getElementById('pjp2uQuickSearch');
+        if (mob) mob.value = this.value;
+        handleQuickSearch(this.value);
+    });
+
+    document.querySelectorAll('#pjp2uTabs button[data-bs-toggle="tab"]').forEach(tabBtn => {
+        tabBtn.addEventListener('shown.bs.tab', function () {
+            this.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        });
+    });
+
+    function initCreatableTomSelect(elId, placeholderText, allowCreate) {
+        const el = document.getElementById(elId);
+        if (!el) return null;
+        if (el.tomselect) return el.tomselect;
+        if (typeof TomSelect !== 'undefined') {
+            return new TomSelect(el, {
+                create: allowCreate ? function (input) {
+                    const clean = input.trim().toUpperCase();
+                    return { value: clean, text: clean };
+                } : false,
+                createOnBlur: allowCreate,
+                persist: false,
+                maxOptions: 500,
+                placeholder: placeholderText,
+                allowEmptyOption: true
+            });
+        }
+        return null;
+    }
+
+    const tsFlight = initCreatableTomSelect('inp_flight_number', '-- Cari / Ketik No Flight --', true);
+    const tsReg = initCreatableTomSelect('inp_registration', '-- Cari / Ketik Registrasi --', true);
+
+    function setSelectOrTomValue(elId, val, labelText) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        const cleanVal = (val === null || val === undefined) ? '' : String(val).trim();
+        if (el.tomselect) {
+            if (cleanVal && !el.tomselect.options[cleanVal]) {
+                el.tomselect.addOption({ value: cleanVal, text: labelText || cleanVal });
+            }
+            el.tomselect.setValue(cleanVal, true);
+        } else {
+            if (cleanVal && el.tagName === 'SELECT') {
+                const exists = Array.from(el.options).some(o => String(o.value) === cleanVal);
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = cleanVal;
+                    opt.textContent = labelText || cleanVal;
+                    el.appendChild(opt);
+                }
+            }
+            if (typeof window.setSearchSelectValue === 'function') {
+                window.setSearchSelectValue(elId, cleanVal);
+            } else {
+                el.value = cleanVal;
+            }
+        }
+    }
+
+    function getActiveCabang() {
+        const cabEl = document.getElementById('inp_cabang');
+        if (!cabEl) return '';
+        let val = (cabEl.tomselect ? cabEl.tomselect.getValue() : cabEl.value) || '';
+        val = String(val).trim().toUpperCase();
+        if (!val && cabEl.tagName === 'SELECT' && cabEl.options.length > 0) {
+            const firstOpt = Array.from(cabEl.options).find(o => o.value && o.value.trim() !== '');
+            if (firstOpt) {
+                val = firstOpt.value.trim().toUpperCase();
+                setSelectOrTomValue('inp_cabang', val);
+            }
+        }
+        return val;
+    }
+
+    function refreshFlightOptionsByCabang(cabangCode, preserveValue) {
+        const cab = (cabangCode || getActiveCabang()).trim().toUpperCase();
+        const allFlights = MASTER.flight_numbers || [];
+        const filtered = cab
+            ? allFlights.filter(f => (f.kode_cabang || '').trim().toUpperCase() === cab)
+            : allFlights;
+
+        const flightEl = document.getElementById('inp_flight_number');
+        const ts = flightEl?.tomselect || tsFlight;
+
+        if (ts) {
+            const currentVal = preserveValue !== undefined ? preserveValue : ts.getValue();
+            ts.clear(true);
+            ts.clearOptions();
+            ts.addOption({ value: '', text: '-- Cari / Pilih No Flight --' });
+            filtered.forEach(fn => {
+                const label = `${fn.flight_number} (${fn.airline_name || '-'} • ${fn.origin_iata || cab}-${fn.destination_iata || '-'})`;
+                ts.addOption({ value: fn.flight_number, text: label });
+            });
+            ts.refreshOptions(false);
+            if (currentVal) {
+                if (!ts.options[currentVal]) {
+                    ts.addOption({ value: currentVal, text: currentVal });
+                }
+                ts.setValue(currentVal, true);
+            }
+        } else if (flightEl && flightEl.tagName === 'SELECT') {
+            const currentVal = preserveValue !== undefined ? preserveValue : flightEl.value;
+            flightEl.innerHTML = '<option value="">-- Cari / Pilih No Flight --</option>';
+            filtered.forEach(fn => {
+                const opt = document.createElement('option');
+                opt.value = fn.flight_number;
+                opt.textContent = `${fn.flight_number} (${fn.airline_name || '-'} • ${fn.origin_iata || cab}-${fn.destination_iata || '-'})`;
+                flightEl.appendChild(opt);
+            });
+            if (currentVal) flightEl.value = currentVal;
+        }
+    }
+
+    function applyRegistrationSelection(rawVal) {
+        const val = (rawVal || '').trim().toUpperCase();
+        const alertEl = document.getElementById('reg_unregistered_alert');
+        const submitBtn = document.getElementById('btnSubmitPjp2u');
+        const opHidden = document.getElementById('inp_operator');
+        const opDisplay = document.getElementById('inp_operator_display');
+
+        if (!val) {
+            document.getElementById('inp_id_registration').value = '';
+            document.getElementById('inp_seat').value = 0;
+            document.getElementById('inp_scope_registration').value = 'Domestik';
+            if (opHidden) opHidden.value = '';
+            if (opDisplay) opDisplay.value = '';
+            alertEl?.classList.add('d-none');
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+        }
+
+        const found = (MASTER.registrations || []).find(
+            r => (r.registration || '').trim().toUpperCase() === val
+        );
+
+        if (found) {
+            document.getElementById('inp_id_registration').value = found.id_registration;
+            document.getElementById('inp_seat').value = found.seat || 0;
+            document.getElementById('inp_scope_registration').value = found.scope || 'Domestik';
+            if (opHidden) opHidden.value = found.id_airline || '';
+            if (opDisplay) {
+                const code = found.code_2 ? `[${found.code_2}] ` : '';
+                opDisplay.value = `${code}${found.airline_name || 'Unknown Airline'}`;
+            }
+            alertEl?.classList.add('d-none');
+            if (submitBtn) submitBtn.disabled = false;
+        } else {
+            document.getElementById('inp_id_registration').value = '';
+            document.getElementById('inp_seat').value = 0;
+            document.getElementById('inp_scope_registration').value = 'Domestik';
+            if (opHidden) opHidden.value = '';
+            if (opDisplay) opDisplay.value = 'Registrasi belum terdaftar!';
+            alertEl?.classList.remove('d-none');
+            if (submitBtn) submitBtn.disabled = true;
+        }
+    }
+
+    function fmtMoney(num, currency) {
+        const cur = (currency || 'IDR').toUpperCase();
+        const sign = num < 0 ? '-' : '';
+        const absVal = Math.abs(num || 0);
+        if (cur === 'USD') {
+            return sign + 'USD ' + absVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        return sign + 'Rp ' + Math.round(absVal).toLocaleString('id-ID');
+    }
+
+    function resolveEffectiveTariffScope(scopeReg, scopeRoute) {
+        const reg = (scopeReg || 'Domestik').trim().toLowerCase();
+        if (reg.includes('inter')) return 'Internasional';
+        return (scopeRoute || 'Domestik').trim() || 'Domestik';
+    }
+
+    function resolveClientPricing(cabang, scopeReg, scopeRoute, tanggal, idAirline) {
+        const cab = (cabang || getActiveCabang() || '').trim().toUpperCase();
+        const effectiveScope = resolveEffectiveTariffScope(scopeReg, scopeRoute);
+        const scopeLow = effectiveScope.trim().toLowerCase();
+        const tgl = (tanggal || '').slice(0, 10);
+
+        let ppnPct = 11.0;
+        for (const p of (MASTER.ppn_list || [])) {
+            const bm = (p.berlaku_mulai || '').slice(0, 10);
+            if (!bm || bm <= tgl) {
+                ppnPct = parseFloat(p.persentase || 11.0);
+                break;
+            }
+        }
+
+        const matchTarif = (jenis) => {
+            let matched = (MASTER.tarifs || []).filter(t => {
+                const tCab = (t.kode_cabang || '').trim().toUpperCase();
+                const tJenis = (t.jenis_jasa || '').trim().toUpperCase();
+                const tScope = (t.sub_kategori || '').trim().toLowerCase();
+                const tMulai = (t.berlaku_mulai || '').slice(0, 10);
+                return tCab === cab && tJenis === jenis && tScope === scopeLow && (!tMulai || tMulai <= tgl);
+            });
+            if (!matched.length && (jenis === 'COUNTER' || jenis === 'CUCS')) {
+                matched = (MASTER.tarifs || []).filter(t => {
+                    const tCab = (t.kode_cabang || '').trim().toUpperCase();
+                    const tJenis = (t.jenis_jasa || '').trim().toUpperCase();
+                    const tScope = (t.sub_kategori || '').trim().toLowerCase();
+                    const tMulai = (t.berlaku_mulai || '').slice(0, 10);
+                    return tCab === cab && tJenis === jenis && tScope === 'domestik' && (!tMulai || tMulai <= tgl);
+                });
+            }
+            return matched;
+        };
+
+        const pscTarifs = matchTarif('PJP2U');
+        const curPsc = (pscTarifs[0]?.mata_uang || 'IDR').toUpperCase();
+        const tBaru = pscTarifs[0] ? parseFloat(pscTarifs[0].tarif_dpp_utama || 0) : 0;
+        const tLama = pscTarifs[1] ? parseFloat(pscTarifs[1].tarif_dpp_utama || 0) : tBaru;
+        const multPsc = (pscTarifs[0] && pscTarifs[0].is_kena_ppn === false) ? 1 : (1 + ppnPct / 100);
+
+        const cntTarifs = matchTarif('COUNTER');
+        const curCnt = (cntTarifs[0]?.mata_uang || 'IDR').toUpperCase();
+        const tCnt = cntTarifs[0] ? parseFloat(cntTarifs[0].tarif_dpp_utama || 0) : 0;
+        const multCnt = (cntTarifs[0] && cntTarifs[0].is_kena_ppn === false) ? 1 : (1 + ppnPct / 100);
+
+        const cucsTarifs = matchTarif('CUCS');
+        const curCucs = (cucsTarifs[0]?.mata_uang || 'IDR').toUpperCase();
+        const tCucs = cucsTarifs[0] ? parseFloat(cucsTarifs[0].tarif_dpp_utama || 0) : 0;
+        const multCucs = (cucsTarifs[0] && cucsTarifs[0].is_kena_ppn === false) ? 1 : (1 + ppnPct / 100);
+
+        let promo = null;
+        for (const pr of (MASTER.promos || [])) {
+            if ((pr.sub_kategori || '').trim().toLowerCase() !== scopeLow) continue;
+            if (pr.flight_date_start && tgl < pr.flight_date_start.slice(0, 10)) continue;
+            if (pr.flight_date_end && tgl > pr.flight_date_end.slice(0, 10)) continue;
+            if (pr.kode_cabang && pr.kode_cabang.length && !pr.kode_cabang.includes(cab)) continue;
+            if (pr.id_airline && pr.id_airline.length && idAirline && !pr.id_airline.includes(parseInt(idAirline))) continue;
+            promo = pr;
+            break;
+        }
+
+        return {
+            effectiveScope,
+            curPsc, curCnt, curCucs,
+            tBaru, tLama, tCnt, tCucs, multPsc, multCnt, multCucs,
+            diskonPct: promo ? parseFloat(promo.persentase_diskon || 0) : 0,
+            promoName: promo ? promo.nama_promo : null,
+            ppnPct
+        };
+    }
+
+    function recalcNormalForm() {
+        const adult = parseInt(document.getElementById('inp_adult')?.value || 0);
+        const child = parseInt(document.getElementById('inp_child')?.value || 0);
+        const infant = parseInt(document.getElementById('inp_infant')?.value || 0);
+        const transit = parseInt(document.getElementById('inp_transit')?.value || 0);
+        const offload = parseInt(document.getElementById('inp_offload')?.value || 0);
+        const lama = parseInt(document.getElementById('inp_lama')?.value || 0);
+        const diskon = parseInt(document.getElementById('inp_diskon')?.value || 0);
+        const seat = parseInt(document.getElementById('inp_seat')?.value || 0);
+
+        const totalPax = adult + child + infant;
+        const prodPsc = adult + child + offload - transit;
+        const prodCnt = adult + child + infant + offload;
+        const prodCucs = prodCnt;
+
+        const paxNormal = prodPsc - diskon;
+        const paxBaru = prodPsc - lama;
+
+        const cab = getActiveCabang();
+        const scopeReg = document.getElementById('inp_scope_registration')?.value || 'Domestik';
+        const scopeRoute = document.getElementById('inp_scope_route')?.value || 'Domestik';
+        const tgl = document.getElementById('inp_tanggal')?.value || '';
+        const opId = document.getElementById('inp_operator')?.value || '';
+        const pr = resolveClientPricing(cab, scopeReg, scopeRoute, tgl, opId);
+
+        const discFactor = 1 - (pr.diskonPct / 100);
+        const pendNormalDpp = paxNormal * pr.tBaru;
+        const pendDiskonDpp = diskon * pr.tBaru * discFactor;
+        const selisihLamaDpp = lama * (pr.tLama - pr.tBaru);
+        const pendPsc = (pendNormalDpp + pendDiskonDpp + selisihLamaDpp) * pr.multPsc;
+
+        const pendNormal = pendNormalDpp * pr.multPsc;
+        const pendDiskon = pendDiskonDpp * pr.multPsc;
+        const pendBaru = (paxBaru * pr.tBaru) * pr.multPsc;
+        const pendLama = (lama * pr.tLama) * pr.multPsc;
+        const pendCnt = (prodCnt * pr.tCnt) * pr.multCnt;
+        const pendCucs = (prodCucs * pr.tCucs) * pr.multCucs;
+
+        const lf = seat > 0 ? ((totalPax / seat) * 100).toFixed(1) : '0';
+        const paying = seat > 0 ? ((prodPsc / seat) * 100).toFixed(1) : '0';
+
+        const scopeInfo = scopeReg.toLowerCase().includes('inter')
+            ? `Tarif: Internasional (Reg Int)`
+            : `Tarif: ${pr.effectiveScope} (Reg Dom | Rute ${scopeRoute})`;
+
+        const dppHint = `DPP PSC: ${fmtMoney(pr.tBaru, pr.curPsc)} | Cnt: ${fmtMoney(pr.tCnt, pr.curCnt)} | CUCS: ${fmtMoney(pr.tCucs, pr.curCucs)}`;
+
+        document.getElementById('prev_promo_badge').textContent = pr.promoName
+            ? `${scopeInfo} | Promo: ${pr.promoName} (-${pr.diskonPct}%) | PPN ${pr.ppnPct}%`
+            : `${scopeInfo} | PPN ${pr.ppnPct}% | ${dppHint}`;
+
+        document.getElementById('prev_prod_psc').textContent = `${prodPsc} Pax`;
+        document.getElementById('prev_pend_psc').textContent = fmtMoney(pendPsc, pr.curPsc);
+        document.getElementById('prev_lf_info').textContent = `Total Pax: ${totalPax} | LF: ${lf}% | Paying: ${paying}%`;
+
+        document.getElementById('prev_pax_normal').textContent = paxNormal;
+        document.getElementById('prev_pend_normal').textContent = fmtMoney(pendNormal, pr.curPsc);
+        document.getElementById('prev_pax_diskon').textContent = diskon;
+        document.getElementById('prev_pend_diskon').textContent = fmtMoney(pendDiskon, pr.curPsc);
+
+        document.getElementById('prev_pax_baru').textContent = paxBaru;
+        document.getElementById('prev_pend_baru').textContent = fmtMoney(pendBaru, pr.curPsc);
+        document.getElementById('prev_pax_lama').textContent = lama;
+        document.getElementById('prev_pend_lama').textContent = fmtMoney(pendLama, pr.curPsc);
+
+        document.getElementById('prev_prod_counter').textContent = `${prodCnt} Pax`;
+        document.getElementById('prev_pend_counter').textContent = fmtMoney(pendCnt, pr.curCnt);
+        document.getElementById('prev_prod_cucs').textContent = `${prodCucs} Pax`;
+        document.getElementById('prev_pend_cucs').textContent = fmtMoney(pendCucs, pr.curCucs);
+    }
+
+    document.getElementById('inp_cabang')?.addEventListener('change', function () {
+        const cab = (this.value || '').trim().toUpperCase();
+        refreshFlightOptionsByCabang(cab, '');
+        if (cab) setSelectOrTomValue('inp_origin', cab);
+        recalcNormalForm();
+    });
+
+    document.getElementById('inp_flight_number')?.addEventListener('change', function () {
+        const val = (this.value || '').trim().toUpperCase();
+        const cab = getActiveCabang();
+        const found = (MASTER.flight_numbers || []).find(f =>
+            (f.flight_number || '').trim().toUpperCase() === val &&
+            (!cab || (f.kode_cabang || '').trim().toUpperCase() === cab)
+        ) || (MASTER.flight_numbers || []).find(f => (f.flight_number || '').trim().toUpperCase() === val);
+
+        if (found) {
+            document.getElementById('inp_id_flightnumber').value = found.id_flightnumber || '';
+            if (found.origin_iata) {
+                const origLabel = found.origin_name ? `${found.origin_iata} - ${found.origin_name}` : found.origin_iata;
+                setSelectOrTomValue('inp_origin', found.origin_iata, origLabel);
+            }
+            if (found.destination_iata) {
+                const destLabel = found.destination_name ? `${found.destination_iata} - ${found.destination_name}` : found.destination_iata;
+                setSelectOrTomValue('inp_destination', found.destination_iata, destLabel);
+            }
+            if (found.destination_scope) {
+                const sc = found.destination_scope.trim();
+                const scopeSel = document.getElementById('inp_scope_route');
+                if (scopeSel) {
+                    const matchOpt = Array.from(scopeSel.options).find(o => o.value.toLowerCase() === sc.toLowerCase());
+                    if (matchOpt) scopeSel.value = matchOpt.value;
+                }
+            }
+        } else {
+            document.getElementById('inp_id_flightnumber').value = '';
+        }
+        recalcNormalForm();
+    });
+
+    document.getElementById('inp_registration')?.addEventListener('change', function () {
+        applyRegistrationSelection(this.value);
+        recalcNormalForm();
+    });
+
+    document.getElementById('inp_destination')?.addEventListener('change', function () {
+        const iata = (this.value || '').trim().toUpperCase();
+        const ap = (MASTER.airports || []).find(a => (a.iata || '').trim().toUpperCase() === iata);
+        if (ap && ap.scope) {
+            document.getElementById('inp_scope_route').value = ap.scope;
+        }
+        recalcNormalForm();
+    });
+
+    document.querySelectorAll('.calc-trigger, #inp_tanggal, #inp_scope_route').forEach(el => {
+        el.addEventListener('input', recalcNormalForm);
+        el.addEventListener('change', recalcNormalForm);
+    });
+
+    document.getElementById('btnOpenCreatePjp2u')?.addEventListener('click', function () {
+        const form = document.getElementById('formPjp2u');
+        form.reset();
+        form.action = form.getAttribute('data-create-url') || '/aeronautika/operasional/pjp2u/create';
+        document.getElementById('modalPjp2uTitle').textContent = 'Input Data Operasional PJP2U';
+        document.getElementById('inp_tanggal').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('inp_id_flightnumber').value = '';
+
+        const activeCab = getActiveCabang();
+        refreshFlightOptionsByCabang(activeCab, '');
+        if (activeCab) setSelectOrTomValue('inp_origin', activeCab);
+
+        setSelectOrTomValue('inp_registration', '');
+        applyRegistrationSelection('');
+        setSelectOrTomValue('inp_destination', '');
+
+        recalcNormalForm();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalFormPjp2u')).show();
+    });
+
+    document.getElementById('modalFormPjp2u')?.addEventListener('shown.bs.modal', function () {
+        const activeCab = getActiveCabang();
+        const flightEl = document.getElementById('inp_flight_number');
+        const currentFlight = (flightEl?.tomselect ? flightEl.tomselect.getValue() : flightEl?.value) || '';
+
+        refreshFlightOptionsByCabang(activeCab, currentFlight);
+
+        const origEl = document.getElementById('inp_origin');
+        const currentOrig = (origEl?.tomselect ? origEl.tomselect.getValue() : origEl?.value) || '';
+        if (activeCab && !currentOrig) {
+            setSelectOrTomValue('inp_origin', activeCab);
+        }
+        recalcNormalForm();
+    });
+
+    document.querySelectorAll('.btn-edit-pjp2u').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const r = JSON.parse(this.getAttribute('data-row'));
+            const form = document.getElementById('formPjp2u');
+            form.action = `/aeronautika/operasional/pjp2u/update/${r.id_pjp2u}`;
+            document.getElementById('modalPjp2uTitle').textContent = `Edit Penerbangan ${r.flight_number}`;
+
+            if (document.getElementById('inp_cabang')) setSelectOrTomValue('inp_cabang', r.cabang);
+            refreshFlightOptionsByCabang(r.cabang, r.flight_number || '');
+
+            if (document.getElementById('inp_origin')) setSelectOrTomValue('inp_origin', r.origin);
+            document.getElementById('inp_tanggal').value = r.tanggal;
+            document.getElementById('inp_boarding_time').value = (r.boarding_time || '').slice(0, 5);
+            document.getElementById('inp_id_flightnumber').value = r.id_flightnumber || '';
+
+            setSelectOrTomValue('inp_registration', r.registration || '');
+            applyRegistrationSelection(r.registration || '');
+
+            setSelectOrTomValue('inp_destination', r.destination || '');
+            document.getElementById('inp_scope_route').value = r.scope_route || 'Domestik';
+
+            document.getElementById('inp_adult').value = r.adult || 0;
+            document.getElementById('inp_child').value = r.child || 0;
+            document.getElementById('inp_infant').value = r.infant || 0;
+            document.getElementById('inp_transit').value = r.transit || 0;
+            document.getElementById('inp_crew').value = r.crew || 0;
+            document.getElementById('inp_offload').value = r.offload || 0;
+            document.getElementById('inp_lama').value = r.pax_lama || 0;
+            document.getElementById('inp_diskon').value = r.pax_diskon || 0;
+
+            recalcNormalForm();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalFormPjp2u')).show();
+        });
+    });
+
+    let activeBaseAdjRow = null;
+    function recalcAdjustmentForm() {
+        if (!activeBaseAdjRow) return;
+        const fields = ['adult', 'child', 'infant', 'transit', 'crew', 'offload', 'lama', 'diskon'];
+        const delta = {};
+        fields.forEach(f => {
+            const prevVal = parseInt(activeBaseAdjRow[f === 'lama' ? 'pax_lama' : (f === 'diskon' ? 'pax_diskon' : f)] || 0);
+            const dVal = parseInt(document.getElementById(`adj_inp_${f}`)?.value || 0);
+            delta[f] = dVal;
+            document.getElementById(`after_adj_${f}`).textContent = prevVal + dVal;
+        });
+
+        const diffPsc = delta.adult + delta.child + delta.offload - delta.transit;
+        const diffCnt = delta.adult + delta.child + delta.infant + delta.offload;
+        const paxNormalDelta = diffPsc - delta.diskon;
+        const paxBaruDelta = diffPsc - delta.lama;
+
+        const pr = resolveClientPricing(
+            activeBaseAdjRow.cabang,
+            activeBaseAdjRow.scope_registration,
+            activeBaseAdjRow.scope_route,
+            activeBaseAdjRow.tanggal,
+            activeBaseAdjRow.operator
+        );
+        const discFactor = 1 - (pr.diskonPct / 100);
+        const pendPsc = ((paxNormalDelta * pr.tBaru) + (delta.diskon * pr.tBaru * discFactor) + (delta.lama * (pr.tLama - pr.tBaru))) * pr.multPsc;
+        const pendCnt = (diffCnt * pr.tCnt) * pr.multCnt;
+        const pendCucs = (diffCnt * pr.tCucs) * pr.multCucs;
+
+        document.getElementById('adj_prev_psc').textContent = `${diffPsc >= 0 ? '+' : ''}${diffPsc} Pax`;
+        document.getElementById('adj_prev_pend_psc').textContent = fmtMoney(pendPsc, pr.curPsc);
+        document.getElementById('adj_prev_pend_counter').textContent = fmtMoney(pendCnt, pr.curCnt);
+        document.getElementById('adj_prev_pend_cucs').textContent = fmtMoney(pendCucs, pr.curCucs);
+    }
+
+    document.querySelectorAll('.btn-adjust-pjp2u').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const r = JSON.parse(this.getAttribute('data-row'));
+            activeBaseAdjRow = r;
+            const form = document.getElementById('formAdjustPjp2u');
+            form.reset();
+            form.action = `/aeronautika/operasional/pjp2u/adjust/${r.id_pjp2u}`;
+
+            document.getElementById('adj_cabang').value = r.cabang;
+            document.getElementById('adj_operator').value = r.operator || '';
+            document.getElementById('adj_id_flightnumber').value = r.id_flightnumber || '';
+            document.getElementById('adj_id_registration').value = r.id_registration || '';
+            document.getElementById('adj_origin').value = r.origin;
+            document.getElementById('adj_destination').value = r.destination;
+            document.getElementById('adj_scope_registration').value = r.scope_registration || 'Domestik';
+            document.getElementById('adj_scope_route').value = r.scope_route || 'Domestik';
+            document.getElementById('adj_seat').value = r.seat || 0;
+
+            const fnJ = (r.flight_number || '').endsWith('J') ? r.flight_number : `${r.flight_number}J`;
+            document.getElementById('adj_flight_number').value = fnJ;
+            document.getElementById('adj_tanggal').value = r.tanggal;
+            document.getElementById('adj_boarding_time').value = (r.boarding_time || '').slice(0, 5);
+            document.getElementById('adj_registration').value = r.registration || '-';
+            document.getElementById('adj_date_adjustment').value = new Date().toISOString().slice(0, 10);
+
+            document.getElementById('prev_adj_adult').textContent = r.adult || 0;
+            document.getElementById('prev_adj_child').textContent = r.child || 0;
+            document.getElementById('prev_adj_infant').textContent = r.infant || 0;
+            document.getElementById('prev_adj_transit').textContent = r.transit || 0;
+            document.getElementById('prev_adj_crew').textContent = r.crew || 0;
+            document.getElementById('prev_adj_offload').textContent = r.offload || 0;
+            document.getElementById('prev_adj_lama').textContent = r.pax_lama || 0;
+            document.getElementById('prev_adj_diskon').textContent = r.pax_diskon || 0;
+
+            recalcAdjustmentForm();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAdjustPjp2u')).show();
+        });
+    });
+
+    document.querySelectorAll('.adj-calc-trigger').forEach(el => {
+        el.addEventListener('input', recalcAdjustmentForm);
+    });
+
+    // Buka halaman cetak BA resmi saat tombol BA diklik
+    document.querySelectorAll('.btn-ba-placeholder, .btn-print-ba').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const id = this.getAttribute('data-id');
+            const rowEl = this.closest('tr, [data-cabang], [data-kode-cabang]');
+            const rawCabang = (
+                this.getAttribute('data-cabang') ||
+                this.getAttribute('data-kode-cabang') ||
+                (rowEl && (rowEl.getAttribute('data-cabang') || rowEl.getAttribute('data-kode-cabang'))) ||
+                document.body.getAttribute('data-cabang') ||
+                ''
+            ).trim().toUpperCase();
+
+            const baType = (this.getAttribute('data-ba-type') || 'NORMAL').toUpperCase();
+            let jenis = 'NORMAL';
+            if (baType.includes('OFFLOAD')) jenis = 'OFFLOAD';
+            else if (baType.includes('ADJ')) jenis = 'ADJUSTMENT';
+
+            if (id && rawCabang) {
+                window.open(`/ba/${encodeURIComponent(rawCabang)}/${jenis}/${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+            } else if (id) {
+                window.open(`/ba/${jenis}/${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+            }
+        });
+    });
+    refreshFlightOptionsByCabang(getActiveCabang(), '');
+})();
+</script>
+{% endblock %}

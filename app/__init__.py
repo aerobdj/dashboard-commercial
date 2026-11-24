@@ -62,6 +62,9 @@ def create_app():
     from app.controllers.ppn_controller import ppn_bp
     from app.controllers.tarif_aeronautika_controller import tarif_aero_bp
     from app.controllers.tools_controller import tools_aero_bp
+    from app.controllers.pjp2u_controller import pjp2u_bp
+    from app.controllers.pejabat_ba_controller import pejabat_ba_bp
+    from app.controllers.ba_document_controller import ba_doc_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -79,6 +82,9 @@ def create_app():
     app.register_blueprint(ppn_bp)
     app.register_blueprint(tarif_aero_bp)
     app.register_blueprint(tools_aero_bp)
+    app.register_blueprint(pjp2u_bp)
+    app.register_blueprint(pejabat_ba_bp)
+    app.register_blueprint(ba_doc_bp)
 
     # Handler jika file yang diunggah melebihi batas 30 MB
     @app.errorhandler(RequestEntityTooLarge)
@@ -95,6 +101,10 @@ def create_app():
                 return redirect(url_for('airline_portal.dashboard'))
             return redirect(url_for('dashboard.index'))
         return redirect(url_for('auth.login'))
+
+    @app.errorhandler(403)
+    def handle_forbidden(e):
+        return render_template('errors/403.html'), 403
 
     @app.errorhandler(404)
     def page_not_found(e):
