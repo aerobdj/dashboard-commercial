@@ -131,10 +131,6 @@ def _parse_airline_ids(raw_val) -> set[str]:
 
 
 def _get_allowed_branches_from_db(user: dict) -> tuple[bool, set[str]]:
-    """
-    Mengembalikan (is_all_branches, allowed_kode_cabang_set) berdasarkan tabel `cabang`
-    (`kode_cabang`, `nama_cabang`, `tipe_unit`, `parent_kode`).
-    """
     res = app.supabase.table("cabang").select("kode_cabang, nama_cabang, tipe_unit, parent_kode").execute()
     rows = res.data or []
 
@@ -174,10 +170,6 @@ def _get_allowed_branches_from_db(user: dict) -> tuple[bool, set[str]]:
 
 
 def _get_allowed_airline_identifiers(user: dict) -> set[str]:
-    """
-    Mengambil daftar `id_airline` (dan atribut terkait di `airline_data`) milik user
-    dari `airline_users.airlines` / session (mendukung list ID maupun list of dict).
-    """
     selected_ids = set()
     for src_key in ("airlines", "airline_ids", "allowed_airlines", "airline_code"):
         if user.get(src_key) is not None:
@@ -234,11 +226,6 @@ def _get_allowed_airline_identifiers(user: dict) -> set[str]:
 
 def _can_access_ba_record(row: dict, user: dict) -> bool:
     if not user or not row:
-        current_app.logger.warning(
-            "BA 403: user=%s, row_id=%s",
-            bool(user),
-            row.get("id_pjp2u") if isinstance(row, dict) else None,
-        )
         return False
 
     user_type = str(user.get("user_type") or user.get("account_type") or "").strip().upper()
@@ -261,31 +248,13 @@ def _can_access_ba_record(row: dict, user: dict) -> bool:
             str(row.get("iata_code") or "").strip().upper(),
             str(row.get("airline_name") or "").strip().upper(),
         } - {""}
-        matched = bool(row_airlines & allowed_airlines)
-        if not matched:
-            current_app.logger.warning(
-                "BA 403 Airline mismatch: id_pjp2u=%s, row_airlines=%s, allowed_airlines=%s, user_keys=%s",
-                row.get("id_pjp2u"),
-                sorted(row_airlines),
-                sorted(allowed_airlines),
-                list(user.keys()),
-            )
-        return matched
+        return bool(row_airlines & allowed_airlines)
 
     if role in INTERNAL_ROLES or user_type in {"INTERNAL", "STAFF", "EMPLOYEE"} or role:
         is_all, allowed_branches = _get_allowed_branches_from_db(user)
         if is_all:
             return True
-        matched = bool(row_cabang) and row_cabang in allowed_branches
-        if not matched:
-            current_app.logger.warning(
-                "BA 403 Internal mismatch: id_pjp2u=%s, row_cabang=%s, allowed_branches=%s, role=%s",
-                row.get("id_pjp2u"),
-                row_cabang,
-                sorted(allowed_branches),
-                role,
-            )
-        return matched
+        return bool(row_cabang) and row_cabang in allowed_branches
 
     return False
 
@@ -311,7 +280,7 @@ def _find_record_by_token(token: str):
     return None, None
 
 
-def _resolve_record_by_id_and_jenis(id_pjp2u: int, jenis_ba: str):
+def _resolve_record_by_id_and_jenis(id_pjp2u: int, jenis_ba: str, require_verified: bool = True):
     jenis = (jenis_ba or "NORMAL").strip().upper()
     if jenis not in TOKEN_COL_MAP:
         return None, None, None
@@ -329,21 +298,217 @@ def _resolve_record_by_id_and_jenis(id_pjp2u: int, jenis_ba: str):
         return None, None, None
 
     row = rows[0]
-    if jenis == "NORMAL" and not row.get("verification_at"):
-        return None, None, None
-    if jenis == "OFFLOAD" and not row.get("verification_offload_at"):
-        return None, None, None
-    if jenis == "ADJUSTMENT" and not row.get("verification_adjustment_at"):
-        return None, None, None
+    if require_verified:
+        if jenis == "NORMAL" and not row.get("verification_at"):
+            return None, None, None
+        if jenis == "OFFLOAD" and not row.get("verification_offload_at"):
+            return None, None, None
+        if jenis == "ADJUSTMENT" and not row.get("verification_adjustment_at"):
+            return None, None, None
 
     token_col = TOKEN_COL_MAP[jenis]
     token = row.get(token_col)
-    if not token:
+    if not token and require_verified:
         token = generate_ba_token(jenis)
         app.supabase.table(Pjp2uModel.TABLE).update({token_col: token}).eq("id_pjp2u", id_pjp2u).execute()
         row[token_col] = token
 
-    return row, jenis, token
+    return row, jenis, (token or "")
+
+
+def _extract_offload_passengers(row: dict) -> list[dict]:
+    raw = row.get("offload_passengers")
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            try:
+                raw = ast.literal_eval(raw)
+            except Exception:
+                return []
+    if not isinstance(raw, list):
+        return []
+
+    items = []
+    for p in raw:
+        if not isinstance(p, dict):
+            continue
+        status = str(p.get("status_offload") or "DITAGIH").strip().upper()
+        if status == "DITAGIH":
+            items.append({
+                "nama_pax": p.get("nama_pax") or p.get("nama") or "-",
+                "seat": p.get("seat") or "-",
+                "pnr": p.get("pnr") or p.get("no_tiket") or "-",
+                "kategori_promo": (p.get("kategori_promo") or "NORMAL").upper(),
+                "kategori_tarif": (p.get("kategori_tarif") or "BARU").upper(),
+            })
+    return items
+
+
+def _to_int(val, default=0) -> int:
+    try:
+        if val is None or val == "":
+            return default
+        return int(float(str(val).strip()))
+    except Exception:
+        return default
+
+
+def _load_parent_record_if_needed(row: dict) -> dict:
+    if isinstance(row.get("parent_record"), dict) and row["parent_record"]:
+        return row["parent_record"]
+
+    parent_id = row.get("parent_id_pjp2u") or row.get("id_pjp2u_parent") or row.get("ref_id_pjp2u")
+    if not parent_id:
+        return {}
+
+    try:
+        res = (
+            app.supabase.table(Pjp2uModel.TABLE)
+            .select("*")
+            .eq("id_pjp2u", parent_id)
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            enriched = Pjp2uModel._enrich_rows(res.data)
+            return enriched[0] if enriched else res.data[0]
+    except Exception as exc:
+        current_app.logger.warning("Gagal memuat parent_record PJP2U %s: %s", parent_id, exc)
+
+    return {}
+
+
+def _build_adjustment_summary(row: dict) -> dict:
+    parent = _load_parent_record_if_needed(row)
+
+    raw_flt = str(
+        row.get("flight_number_adjustment")
+        or row.get("adj_flight_number")
+        or row.get("flight_number")
+        or ""
+    ).strip().upper()
+    flt_adj = raw_flt if (not raw_flt or raw_flt.endswith("J")) else f"{raw_flt}J"
+
+    a_base = _to_int(parent.get("adult") if parent else row.get("adult_awal"), _to_int(row.get("adult")))
+    c_base = _to_int(parent.get("child") if parent else row.get("child_awal"), _to_int(row.get("child")))
+    i_base = _to_int(parent.get("infant") if parent else row.get("infant_awal"), _to_int(row.get("infant")))
+    tr_base = _to_int(parent.get("transit") if parent else row.get("transit_awal"), _to_int(row.get("transit")))
+    tf_base = _to_int(parent.get("transfer") if parent else row.get("transfer_awal"), _to_int(row.get("transfer")))
+    off_base = _to_int(parent.get("offload") if parent else row.get("offload_awal"), _to_int(row.get("offload")))
+
+    if parent:
+        a_d = _to_int(row.get("adult"))
+        c_d = _to_int(row.get("child"))
+        i_d = _to_int(row.get("infant"))
+        tr_d = _to_int(row.get("transit"))
+        tf_d = _to_int(row.get("transfer"))
+        off_d = _to_int(row.get("offload"))
+        lama_d = _to_int(row.get("pax_lama"))
+        baru_d = _to_int(row.get("pax_baru"))
+    else:
+        a_d = _to_int(row.get("adult_adjustment") if row.get("adult_adjustment") is not None else row.get("adj_adult"))
+        c_d = _to_int(row.get("child_adjustment") if row.get("child_adjustment") is not None else row.get("adj_child"))
+        i_d = _to_int(row.get("infant_adjustment") if row.get("infant_adjustment") is not None else row.get("adj_infant"))
+        tr_d = _to_int(row.get("transit_adjustment") if row.get("transit_adjustment") is not None else row.get("adj_transit"))
+        tf_d = _to_int(row.get("transfer_adjustment") if row.get("transfer_adjustment") is not None else row.get("adj_transfer"))
+        off_d = _to_int(row.get("offload_adjustment") if row.get("offload_adjustment") is not None else row.get("adj_offload"))
+        lama_d = _to_int(row.get("pax_lama_adjustment") if row.get("pax_lama_adjustment") is not None else row.get("adj_lama"))
+        baru_d = _to_int(row.get("pax_baru_adjustment") if row.get("pax_baru_adjustment") is not None else row.get("adj_baru"))
+
+    a_final = _to_int(row.get("final_adult"), a_base + a_d)
+    c_final = _to_int(row.get("final_child"), c_base + c_d)
+    i_final = _to_int(row.get("final_infant"), i_base + i_d)
+    tr_final = _to_int(row.get("final_transit"), tr_base + tr_d)
+    tf_final = _to_int(row.get("final_transfer"), tf_base + tf_d)
+    off_final = _to_int(row.get("final_offload"), off_base + off_d)
+
+    total_penumpang_final = a_final + c_final + i_final + tr_final + tf_final
+    wajib_bayar_psc_final = max(0, a_final + c_final + off_final - tr_final)
+    wajib_bayar_counter_final = max(0, a_final + c_final + i_final + off_final)
+
+    prev_paying = _to_int(
+        parent.get("total_prod_psc") if parent else row.get("paying_pax_sebelumnya"),
+        max(0, a_base + c_base + off_base - tr_base),
+    )
+    curr_paying = wajib_bayar_psc_final
+    selisih_paying = curr_paying - prev_paying
+
+    lama_base = _to_int(parent.get("pax_lama") if parent else row.get("pax_lama_awal"), 0)
+    raw_baru_base = parent.get("pax_baru") if parent else row.get("pax_baru_awal")
+    baru_base = _to_int(raw_baru_base, max(0, prev_paying - lama_base))
+
+    pax_lama_final = lama_base + lama_d
+    if parent:
+        # Jika selisih baru & lama dipecah di row, pakai baru_base + baru_d;
+        # jika pax_baru di row tidak terisi (0) padahal selisih_paying != lama_d, hitung dari selisih paying.
+        effective_baru_d = baru_d if (baru_d != 0 or lama_d == selisih_paying) else (selisih_paying - lama_d)
+        pax_baru_final = baru_base + effective_baru_d
+    else:
+        pax_baru_final = baru_base + (baru_d if baru_d != 0 else (selisih_paying - lama_d))
+
+    # Pastikan IV.a + IV.b konsisten dengan total wajib bayar PSC jika tidak ada nilai negatif yang disengaja
+    if pax_lama_final + pax_baru_final != wajib_bayar_psc_final and lama_base == 0 and baru_base == prev_paying:
+        pax_baru_final = max(0, wajib_bayar_psc_final - pax_lama_final)
+
+    return {
+        "flight_number_adj": flt_adj,
+        "adult": a_final,
+        "child": c_final,
+        "infant": i_final,
+        "transit": tr_final,
+        "transfer": tf_final,
+        "offload": off_final,
+        "total_penumpang": total_penumpang_final,
+        "wajib_bayar_psc": wajib_bayar_psc_final,
+        "wajib_bayar_counter": wajib_bayar_counter_final,
+        "pax_lama": pax_lama_final,
+        "pax_baru": pax_baru_final,
+        "sebelumnya_str": f"{a_base}/{c_base}/{i_base}/{tr_base}",
+        "sebelumnya_paying": prev_paying,
+        "seharusnya_str": f"{a_final}/{c_final}/{i_final}/{tr_final}",
+        "seharusnya_paying": curr_paying,
+        "selisih_paying": selisih_paying,
+        "keterangan": row.get("justifikasi_adjustment") or "-",
+        "detail_justifikasi": row.get("detail_justifikasi_adjustment") or row.get("justifikasi_adjustment") or "-",
+        "date_adjustment": row.get("date_adjustment") or row.get("tanggal") or "-",
+        "nomor_surat": row.get("adjustment_nomor_surat") or row.get("nomor_surat_adjustment") or "",
+    }
+
+
+def _resolve_airline_logo(row: dict) -> str:
+    if row.get("airline_logo"):
+        return str(row["airline_logo"]).strip()
+    if row.get("logo"):
+        return str(row["logo"]).strip()
+
+    try:
+        ad_rows = app.supabase.table("airline_data").select("*").execute().data or []
+        target_ids = {
+            str(row.get("id_airline") or "").strip().upper(),
+            str(row.get("airline_id") or "").strip().upper(),
+            str(row.get("operator") or "").strip().upper(),
+            str(row.get("kode_airline") or "").strip().upper(),
+            str(row.get("iata_code") or "").strip().upper(),
+            str(row.get("airline_name") or "").strip().upper(),
+        } - {""}
+
+        for ad in ad_rows:
+            ad_tokens = {
+                str(ad.get("id_airline") or "").strip().upper(),
+                str(ad.get("kode_airline") or "").strip().upper(),
+                str(ad.get("iata_code") or "").strip().upper(),
+                str(ad.get("nama_airline") or "").strip().upper(),
+                str(ad.get("airline_name") or "").strip().upper(),
+            } - {""}
+            if ad_tokens & target_ids and ad.get("logo"):
+                return str(ad["logo"]).strip()
+    except Exception as exc:
+        current_app.logger.warning("Gagal mengambil logo airline_data: %s", exc)
+
+    return ""
 
 
 def _build_ba_context(row: dict, jenis_ba: str, token: str):
@@ -379,8 +544,8 @@ def _build_ba_context(row: dict, jenis_ba: str, token: str):
     tgl_ref = row.get("tanggal")
     if jenis == "OFFLOAD" and row.get("verification_offload_at"):
         tgl_ref = str(row.get("verification_offload_at"))[:10]
-    elif jenis == "ADJUSTMENT" and row.get("verification_adjustment_at"):
-        tgl_ref = str(row.get("verification_adjustment_at"))[:10]
+    elif jenis == "ADJUSTMENT" and (row.get("date_adjustment") or row.get("verification_adjustment_at")):
+        tgl_ref = str(row.get("date_adjustment") or row.get("verification_adjustment_at"))[:10]
 
     pejabat_1 = PejabatBaModel.resolve_pejabat(cab_code, jenis, row.get("tanggal") or tgl_ref) or {
         "nama_pejabat": "Pejabat Aero Commercial",
@@ -417,9 +582,9 @@ def _build_ba_context(row: dict, jenis_ba: str, token: str):
         if dt_tarif:
             tgl_batas_tarif = dt_tarif.strftime("%d %b %Y")
 
-    verify_url = url_for("ba_doc.verify_public", token=token, _external=True)
-    qr_url = build_qr_image_url(verify_url, size=136)
-    integrity_hash = compute_ba_integrity_hash(row, jenis, token)
+    verify_url = url_for("ba_doc.verify_public", token=token, _external=True) if token else ""
+    qr_url = build_qr_image_url(verify_url, size=136) if verify_url else ""
+    integrity_hash = compute_ba_integrity_hash(row, jenis, token) if token else ""
 
     adult = int(row.get("adult") or 0)
     child = int(row.get("child") or 0)
@@ -430,6 +595,16 @@ def _build_ba_context(row: dict, jenis_ba: str, token: str):
     total_prod_psc = int(row.get("total_prod_psc") or (adult + child + offload - transit))
     total_prod_counter = int(row.get("total_prod_counter") or (adult + child + infant + offload))
 
+    adj_summary = _build_adjustment_summary(row)
+    airline_logo = _resolve_airline_logo(row)
+
+    if jenis == "ADJUSTMENT":
+        pax_lama_val = adj_summary["pax_lama"]
+        pax_baru_val = adj_summary["pax_baru"]
+    else:
+        pax_lama_val = int(row.get("pax_lama") or 0)
+        pax_baru_val = int(row.get("pax_baru") or 0)
+
     return {
         "row": row,
         "jenis_ba": jenis,
@@ -437,9 +612,11 @@ def _build_ba_context(row: dict, jenis_ba: str, token: str):
         "nomor_ba": build_nomor_ba(row, jenis),
         "cab_info": cab_info,
         "aircraft_type": aircraft_type,
-        "kalimat_pembuka": format_kalimat_pembuka_ba(ver_at or row.get("tanggal")),
+        "airline_logo": airline_logo,
+        "adj": adj_summary,
+        "kalimat_pembuka": format_kalimat_pembuka_ba(tgl_ref or row.get("tanggal")),
         "tanggal_penerbangan_id": format_tanggal_indonesia(row.get("tanggal")),
-        "tanggal_ttd_id": format_tanggal_indonesia(ver_at or row.get("tanggal")),
+        "tanggal_ttd_id": format_tanggal_indonesia(ver_at or tgl_ref or row.get("tanggal")),
         "tgl_batas_tarif": tgl_batas_tarif,
         "pejabat_1": pejabat_1,
         "pihak_2_nama": pihak_2_nama,
@@ -453,18 +630,19 @@ def _build_ba_context(row: dict, jenis_ba: str, token: str):
         "infant": infant,
         "transit": transit,
         "offload": offload,
+        "offload_passengers": _extract_offload_passengers(row),
         "total_pax_bayar_line": total_pax_bayar_line,
         "total_prod_psc": total_prod_psc,
         "total_prod_counter": total_prod_counter,
-        "pax_lama": int(row.get("pax_lama") or 0),
-        "pax_baru": int(row.get("pax_baru") or 0),
+        "pax_lama": pax_lama_val,
+        "pax_baru": pax_baru_val,
     }
 
 
 @ba_doc_bp.route("/ba/<cabang>/<jenis_ba>/<int:id_pjp2u>")
 @login_required_ba
 def print_ba(cabang, jenis_ba, id_pjp2u):
-    row, jenis, token = _resolve_record_by_id_and_jenis(id_pjp2u, jenis_ba)
+    row, jenis, token = _resolve_record_by_id_and_jenis(id_pjp2u, jenis_ba, require_verified=True)
     if not row:
         flash("Berita Acara belum tersedia atau data penerbangan belum diverifikasi.", "warning")
         return redirect(request.referrer or "/")
@@ -478,7 +656,61 @@ def print_ba(cabang, jenis_ba, id_pjp2u):
         abort(403)
 
     ctx = _build_ba_context(row, jenis, token)
-    return render_template("aeronautika/report/ba_verifikasi.html", **ctx)
+    if jenis == "OFFLOAD":
+        template_name = "aeronautika/report/ba_verifikasi_offload.html"
+    elif jenis == "ADJUSTMENT":
+        template_name = "aeronautika/report/ba_adjustment.html"
+    else:
+        template_name = "aeronautika/report/ba_verifikasi.html"
+    return render_template(template_name, **ctx)
+
+
+@ba_doc_bp.route("/ba/<cabang>/ADJUSTMENT/<int:id_pjp2u>/surat")
+@ba_doc_bp.route("/ba/ADJUSTMENT/<int:id_pjp2u>/surat")
+@login_required_ba
+def print_surat_adjustment(id_pjp2u, cabang=None):
+    is_blank = str(request.args.get("blank") or "").strip().lower() in {"1", "true", "yes"}
+    row, jenis, token = _resolve_record_by_id_and_jenis(
+        id_pjp2u,
+        "ADJUSTMENT",
+        require_verified=not is_blank,
+    )
+    if not row:
+        flash("Surat Adjustment belum tersedia atau belum diverifikasi.", "warning")
+        return redirect(request.referrer or "/")
+
+    row_cabang = str(row.get("cabang") or row.get("kode_cabang") or "").strip().upper()
+    if cabang and (cabang or "").strip().upper() != row_cabang:
+        abort(404)
+
+    user = _current_user()
+    if not _can_access_ba_record(row, user):
+        abort(403)
+
+    # Jika mode UPLOAD dan bukan format kosong, buka file dari static/uploads/airlines/surat/
+    if not is_blank:
+        doc_mode = str(row.get("adjustment_doc_mode") or "").strip().upper()
+        uploaded_raw = str(
+            row.get("adjustment_file_url")
+            or row.get("adjusment_file_url")
+            or ""
+        ).strip()
+
+        if doc_mode == "UPLOAD" and uploaded_raw:
+            if uploaded_raw.startswith(("http://", "https://")):
+                return redirect(uploaded_raw)
+
+            clean_rel = uploaded_raw.lstrip("/")
+            if clean_rel.startswith("static/"):
+                clean_rel = clean_rel[len("static/"):]
+            elif "/" not in clean_rel:
+                clean_rel = f"uploads/airlines/surat/{clean_rel}"
+
+            return redirect(url_for("static", filename=clean_rel))
+
+    ctx = _build_ba_context(row, "ADJUSTMENT", token)
+    ctx["blank_format"] = is_blank
+    return render_template("aeronautika/report/surat_adjustment.html", **ctx)
 
 
 @ba_doc_bp.route("/verify-ba/<token>")

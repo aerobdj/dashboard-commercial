@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set is_blank_format = (blank_format | default(false)) %}
+    {% set nama_bandara_adj = (cab_info.nama_cabang or row.cabang_adjustment or row.cabang or '') %}
+    <title>Surat Permohonan Adjustment - {{ row.airline_name }} - {{ adj.flight_number_adj }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 12mm 14mm;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #111827;
+            background: #eef2f7;
+            margin: 0;
+            padding: 14px 0;
+        }
+        .toolbar {
+            width: 210mm;
+            margin: 0 auto 10px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 8px 14px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+        .btn-print {
+            border: 0;
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 9pt;
+            font-weight: 700;
+            background: #006cb6;
+            color: #ffffff;
+            cursor: pointer;
+        }
+        .a4-sheet {
+            width: 210mm;
+            min-height: 273mm;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 12mm 15mm;
+            box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
+            display: flex;
+            flex-direction: column;
+        }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .airline-logo {
+            max-height: 54px;
+            max-width: 190px;
+            object-fit: contain;
+            display: block;
+        }
+        .letter-date {
+            font-size: 10pt;
+            font-weight: 600;
+        }
+        .meta-table {
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 10pt;
+        }
+        .meta-table td {
+            padding: 1.5px 4px 1.5px 0;
+            vertical-align: top;
+        }
+        .recipient-block {
+            margin-bottom: 12px;
+            font-size: 10pt;
+        }
+        .adj-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 8px 0;
+            font-size: 8.4pt;
+        }
+        .adj-table th,
+        .adj-table td {
+            border: 1px solid #1f2937;
+            padding: 4px 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .adj-table th {
+            background: #f3f4f6;
+            font-weight: 700;
+        }
+        .sign-area {
+            margin-top: 22px;
+            width: 260px;
+        }
+        .sign-blank-space {
+            height: 68px;
+        }
+        .disclaimer-box {
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid #cbd5e1;
+            font-size: 7.2pt;
+            line-height: 1.32;
+            color: #475569;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        @media print {
+            body { background: #ffffff; padding: 0; }
+            .toolbar { display: none !important; }
+            .a4-sheet {
+                width: 100%;
+                min-height: 273mm;
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div>
+            <strong>{{ 'Format Kosong Surat Adjustment' if is_blank_format else 'Surat Permohonan Adjustment Pax PSC' }}</strong>
+            <span style="color:#64748b; font-size: 8.5pt;"> &bull; {{ row.airline_name }}</span>
+        </div>
+        <button type="button" onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
+    </div>
+
+    <div class="a4-sheet">
+        {% set _raw_logo = (airline_logo or row.airline_logo or row.logo or '')|trim %}
+        {% if _raw_logo.startswith('http://') or _raw_logo.startswith('https://') or _raw_logo.startswith('/') %}
+            {% set _logo_url = _raw_logo %}
+        {% elif _raw_logo %}
+            {% set _logo_url = url_for('static', filename=_raw_logo.lstrip('/')) %}
+        {% else %}
+            {% set _logo_url = '' %}
+        {% endif %}
+        <div class="header-row">
+            <div>
+                {% if _logo_url %}
+                <img src="{{ _logo_url }}" alt="{{ row.airline_name }}" class="airline-logo">
+                {% else %}
+                <div style="font-size: 14pt; font-weight: 800; color: #0f172a;">{{ row.airline_name }}</div>
+                {% endif %}
+            </div>
+            <div class="letter-date">
+                {{ cab_info.kota or row.cabang }}, {{ tanggal_ttd_id or adj.date_adjustment }}
+            </div>
+        </div>
+
+        <table class="meta-table">
+            <tr>
+                <td style="width: 82px;">Nomor</td>
+                <td style="width: 12px;">:</td>
+                <td>{{ '' if is_blank_format else adj.nomor_surat }}</td>
+            </tr>
+            <tr>
+                <td>Lampiran</td>
+                <td>:</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Perihal</td>
+                <td>:</td>
+                <td><strong>Permohonan Adjustment Pax PSC</strong></td>
+            </tr>
+        </table>
+
+        <div class="recipient-block">
+            <div>Dengan Hormat,</div>
+            <div style="margin-top: 6px;">Kepada Yth</div>
+            <div><strong>GENERAL MANAGER</strong></div>
+            <div><strong>PT. ANGKASA PURA INDONESIA</strong></div>
+            <div>{{ nama_bandara_adj }}</div>
+            <div>Di.</div>
+            <div>Tempat</div>
+        </div>
+
+        <p style="margin: 0 0 6px 0;">
+            Bersama ini kami sampaikan permohonan Adjustment untuk selisih data Paying Pax (PSC) tanggal {{ adj.date_adjustment }} dengan rincian sebagai berikut:
+        </p>
+
+        <table class="adj-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">Tanggal</th>
+                    <th rowspan="2">No Flight</th>
+                    <th rowspan="2">From to</th>
+                    <th colspan="2">Sebelumnya</th>
+                    <th colspan="2">Seharusnya</th>
+                    <th rowspan="2">Selisih</th>
+                    <th rowspan="2">Keterangan</th>
+                </tr>
+                <tr>
+                    <th>Verify</th>
+                    <th>Paying</th>
+                    <th>Verify</th>
+                    <th>Paying</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ row.tanggal }}</td>
+                    <td>{{ adj.flight_number_adj }}</td>
+                    <td>{{ row.origin }}-{{ row.destination }}</td>
+                    <td>{{ adj.sebelumnya_str }}</td>
+                    <td>{{ adj.sebelumnya_paying }}</td>
+                    <td>{{ adj.seharusnya_str }}</td>
+                    <td>{{ adj.seharusnya_paying }}</td>
+                    <td>{{ adj.selisih_paying }}</td>
+                    <td>{{ adj.keterangan }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin: 6px 0 10px 0;">
+            <strong>Justifikasi:</strong> {{ adj.detail_justifikasi }}
+        </p>
+
+        <p style="margin: 0 0 8px 0;">
+            Demikian disampaikan, atas bantuan dan kerjasamanya diucapkan Terima Kasih.
+        </p>
+
+        <div class="sign-area">
+            <div>Hormat Kami</div>
+            <div style="font-weight: 700;">{{ row.airline_name }}</div>
+
+            {% if not is_blank_format %}
+                {% if qr_url %}
+                <div style="margin: 8px 0 6px 0; display: inline-block; text-align: center;">
+                    <div style="width: 86px; height: 86px; padding: 3px; border: 1px solid #cbd5e1; background: #ffffff;">
+                        <img src="{{ qr_url }}"
+                             alt="TTE {{ row.airline_name }}"
+                             data-token="{{ token or '' }}"
+                             style="width: 100%; height: 100%; display: block;"
+                             onerror="renderSuratQrFallback(this);">
+                    </div>
+                    <div style="font-size: 6.8pt; color: #0f766e; font-weight: 700; margin-top: 2px;">
+                        TTE {{ row.airline_name }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="sign-blank-space"></div>
+                {% endif %}
+                <div style="font-weight: 700; text-decoration: underline;">{{ pihak_2_nama }}</div>
+                <div>{{ pihak_2_jabatan }}</div>
+            {% else %}
+                <div class="sign-blank-space"></div>
+            {% endif %}
+        </div>
+        {% if not is_blank_format %}
+        <div class="disclaimer-box">
+            <strong>Pernyataan Keabsahan Dokumen (TTE Internal / Sistem):</strong> Dokumen Berita Acara ini dihasilkan dan disahkan secara elektronik melalui sistem RISA PT Angkasa Pura Indonesia sebagai Tanda Tangan Elektronik (TTE) Tidak Tersertifikasi / TTE Internal berdasarkan <strong>UU No. 11 Tahun 2008 jo. UU No. 19 Tahun 2016 / UU No. 1 Tahun 2024 (UU ITE)</strong> dan <strong>Peraturan Pemerintah No. 71 Tahun 2019 tentang Penyelenggaraan Sistem dan Transaksi Elektronik (PP PSTE) Pasal 59–60</strong>. Keaslian serta kesesuaian data penumpang dapat diperiksa secara terbuka melalui pemindaian QR Code atau tautan: <span>{{ verify_url or '-' }}</span>{% if integrity_hash %} &bull; <em>SHA-256:</em> <span style="font-family:monospace;">{{ integrity_hash[:16] }}...</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        function renderSuratQrFallback(imgEl) {
+            if (!imgEl || imgEl.dataset.fallbackApplied) return;
+            imgEl.dataset.fallbackApplied = "1";
+            var tokenVal = imgEl.getAttribute("data-token") || "";
+            var box = document.createElement("div");
+            box.style.width = "100%";
+            box.style.height = "100%";
+            box.style.display = "flex";
+            box.style.alignItems = "center";
+            box.style.justifyContent = "center";
+            box.style.fontSize = "7pt";
+            box.style.fontWeight = "700";
+            box.style.color = "#0f766e";
+            box.style.textAlign = "center";
+            box.style.lineHeight = "1.2";
+            box.style.wordBreak = "break-all";
+            box.textContent = tokenVal ? ("TERVERIFIKASI\nTTE\n" + tokenVal) : "TERVERIFIKASI\nTTE";
+            imgEl.replaceWith(box);
+        }
+    </script>
+</body>
+</html>

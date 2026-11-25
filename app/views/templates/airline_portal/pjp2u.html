@@ -3,9 +3,111 @@
 
 {% block content %}
 <style>
+    /* =========================================================================
+       MODERN FLOATING ROW TABLE & WRAPPED HEADER (FULL FIT WITHOUT HORIZ SCROLL)
+       ========================================================================= */
+    .ap-modern-table-wrap {
+        padding: 0.25rem;
+    }
+    .ap-modern-table {
+        width: 100%;
+        border-collapse: separate !important;
+        border-spacing: 0 7px !important;
+        margin-top: -7px;
+        table-layout: auto;
+    }
+    .ap-modern-table thead th {
+        background: var(--bs-tertiary-bg, #f1f5f9) !important;
+        color: var(--bs-secondary-color, #475569);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        line-height: 1.25;
+        border: none !important;
+        padding: 0.65rem 0.55rem;
+        white-space: normal !important;
+        vertical-align: middle;
+    }
+    .ap-modern-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+        border-bottom-left-radius: 0.75rem;
+    }
+    .ap-modern-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+        border-bottom-right-radius: 0.75rem;
+    }
+    .ap-modern-table tbody tr.ap-data-row {
+        background: var(--bs-body-bg, #ffffff);
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+    .ap-modern-table tbody tr.ap-data-row:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(4, 176, 192, 0.12);
+        background: rgba(4, 176, 192, 0.02);
+    }
+    .ap-modern-table tbody tr.ap-data-row td {
+        border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+        padding: 0.68rem 0.55rem;
+        vertical-align: middle;
+    }
+    .ap-modern-table tbody tr.ap-data-row td:first-child {
+        border-left: 1px solid rgba(148, 163, 184, 0.18) !important;
+        border-top-left-radius: 0.85rem;
+        border-bottom-left-radius: 0.85rem;
+    }
+    .ap-modern-table tbody tr.ap-data-row td:last-child {
+        border-right: 1px solid rgba(148, 163, 184, 0.18) !important;
+        border-top-right-radius: 0.85rem;
+        border-bottom-right-radius: 0.85rem;
+    }
+
     .airline-group-header {
-        background: linear-gradient(90deg, rgba(4, 176, 192, 0.12), rgba(0, 108, 182, 0.05)) !important;
+        background: linear-gradient(90deg, rgba(4, 176, 192, 0.13), rgba(0, 108, 182, 0.04)) !important;
         border-left: 4px solid var(--ij-turquoise, #04b0c0);
+        border-radius: 0.75rem;
+    }
+    .airline-group-header td {
+        border: none !important;
+        padding-top: 0.7rem !important;
+        padding-bottom: 0.7rem !important;
+    }
+    .airline-group-header td:first-child {
+        border-top-left-radius: 0.75rem;
+        border-bottom-left-radius: 0.75rem;
+    }
+    .airline-group-header td:last-child {
+        border-top-right-radius: 0.75rem;
+        border-bottom-right-radius: 0.75rem;
+    }
+
+    /* Clickable Offload Badge (View Only) */
+    .btn-view-offload-pax {
+        cursor: pointer;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .btn-view-offload-pax:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+    }
+
+    /* Action Buttons Desktop & Tablet */
+    .ap-action-group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.3rem;
+        max-width: 195px;
+    }
+    .ap-action-group .btn {
+        border-radius: 0.5rem !important;
+        padding: 0.26rem 0.48rem;
+        font-size: 0.73rem;
+        line-height: 1.2;
+        white-space: nowrap;
     }
 
     /* Horizontal Swipe NavTabs Mobile & Tablet */
@@ -35,18 +137,27 @@
     }
 
     /* Mobile Flight Card Polish */
+    .ap-mobile-list {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
     .ap-mobile-card {
         border: 1px solid var(--bs-border-color);
         border-radius: 1rem;
         background: var(--bs-body-bg);
         padding: 0.9rem 1rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
     .ap-airline-banner {
         border-left: 4px solid var(--ij-turquoise, #04b0c0);
         border-radius: 0.75rem;
         background: linear-gradient(90deg, rgba(4, 176, 192, 0.12) 0%, rgba(0, 108, 182, 0.04) 100%);
         padding: 0.65rem 0.85rem;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     @media (max-width: 767.98px) {
@@ -71,31 +182,38 @@
         </div>
     {% else %}
         <!-- DESKTOP & TABLET (>= 768px) -->
-        <div class="table-responsive ap-desktop-table">
-            <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                <thead class="table-light">
+        <div class="table-responsive ap-desktop-table ap-modern-table-wrap">
+            <table class="table align-middle mb-0 ap-modern-table" style="font-size: 0.8rem;">
+                <thead>
                     <tr>
-                        <th>Tanggal &amp; Jam</th>
-                        <th>Flight &amp; Reg</th>
-                        <th>Rute</th>
-                        <th class="text-center">Pax (A/C/I/Tr/Cr)</th>
-                        <th class="text-center">Offload / Disc</th>
-                        <th class="text-end">Prod PSC</th>
-                        <th class="text-end">Tagihan PSC (Inc. PPN)</th>
-                        <th class="text-end">Counter &amp; CUCS (Inc. PPN)</th>
-                        <th>Status Verifikasi</th>
-                        <th class="text-end">Aksi Airline</th>
+                        <th style="width: 92px;">Tanggal &amp; Jam</th>
+                        <th style="width: 92px;">Flight &amp; Reg</th>
+                        <th style="width: 95px;">Rute</th>
+                        <th class="text-center" style="width: 102px;">Pax<br><span class="fw-normal text-muted">(A/C/I/Tr/Cr)</span></th>
+                        <th class="text-center" style="width: 126px;">Offload / Norm-Disc / Baru-Lama</th>
+                        <th class="text-end" style="width: 118px;">Produksi<br><span class="fw-normal text-muted">(PSC / Cnt / CUCS)</span></th>
+                        <th class="text-end" style="width: 128px;">Tagihan PSC<br><span class="fw-normal text-muted">(Inc. PPN)</span></th>
+                        <th class="text-end" style="width: 116px;">Counter &amp; CUCS<br><span class="fw-normal text-muted">(Inc. PPN)</span></th>
+                        <th style="width: 118px;">Status Verifikasi</th>
+                        <th class="text-end" style="width: 130px;">Aksi Airline</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for grp in groups %}
+                    {% set grp_cnt = grp.sum_counter if grp.sum_counter is defined else (grp.rows | sum(attribute='adult') + grp.rows | sum(attribute='child') + grp.rows | sum(attribute='infant') + grp.rows | sum(attribute='offload')) %}
+                    {% set grp_cucs = grp.sum_cucs if grp.sum_cucs is defined else grp_cnt %}
                     <tr class="airline-group-header">
-                        <td colspan="5" class="py-2 px-3">
-                            <span class="badge bg-primary me-1">{{ grp.airline_code_2 }}</span>
-                            <strong class="text-primary">~ {{ grp.airline_name }}</strong>
-                            <span class="badge bg-light text-dark border ms-1">{{ grp.rows|length }} Flight</span>
+                        <td colspan="5" class="px-3">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-primary rounded-pill px-2 py-1">{{ grp.airline_code_2 }}</span>
+                                <strong class="text-primary">{{ grp.airline_name }}</strong>
+                                <span class="badge bg-body text-dark border rounded-pill">{{ grp.rows|length }} Flight</span>
+                            </div>
                         </td>
-                        <td class="text-end fw-bold text-primary">{{ "{:,}".format(grp.sum_psc) }} Pax</td>
+                        <td class="text-end">
+                            <div class="fw-bold text-primary">PSC: {{ "{:,}".format(grp.sum_psc) }} Pax</div>
+                            <div class="small text-muted">Cnt: {{ "{:,}".format(grp_cnt) }} | CUCS: {{ "{:,}".format(grp_cucs) }}</div>
+                        </td>
                         <td class="text-end fw-bold text-success">Rp {{ "{:,.0f}".format(grp.sum_pend_psc) }}</td>
                         <td class="text-end fw-semibold text-info">
                             <div>Rp {{ "{:,.0f}".format(grp.sum_pend_counter_cucs) }}</div>
@@ -106,70 +224,128 @@
                         <td colspan="2"></td>
                     </tr>
                     {% for r in grp.rows %}
-                    <tr class="ap-search-row" data-search="{{ (grp.airline_name ~ ' ' ~ r.flight_number ~ ' ' ~ (r.registration or '') ~ ' ' ~ r.origin ~ ' ' ~ r.destination ~ ' ' ~ r.cabang)|lower }}">
+                    {% set prod_cnt = r.total_prod_counter if r.total_prod_counter is defined else ((r.adult or 0)|int + (r.child or 0)|int + (r.infant or 0)|int + (r.offload or 0)|int) %}
+                    {% set prod_cucs = r.total_prod_cucs if r.total_prod_cucs is defined else prod_cnt %}
+                    {% set pax_norm = r.pax_normal if r.pax_normal is defined else ((r.total_prod_psc or 0)|int - (r.pax_diskon or 0)|int) %}
+                    {% set pax_baru_val = r.pax_baru if r.pax_baru is defined else ((r.total_prod_psc or 0)|int - (r.pax_lama or 0)|int) %}
+
+                    {% set ver_pax_tip = 'Diverifikasi oleh: ' ~ (r.name_verification or '-') ~ (' (' ~ r.jabatan_verification ~ ')' if r.jabatan_verification else '') %}
+                    {% set ver_off_tip = 'Diverifikasi oleh: ' ~ (r.name_verification_offload or '-') ~ (' (' ~ r.jabatan_verification_offload ~ ')' if r.jabatan_verification_offload else '') %}
+                    {% set ver_adj_tip = 'Diverifikasi oleh: ' ~ (r.name_verification_adjustment or '-') ~ (' (' ~ r.jabatan_verification_adjustment ~ ')' if r.jabatan_verification_adjustment else '') %}
+
+                    <tr class="ap-data-row ap-search-row" data-search="{{ (grp.airline_name ~ ' ' ~ r.flight_number ~ ' ' ~ (r.registration or '') ~ ' ' ~ r.origin ~ ' ' ~ r.destination ~ ' ' ~ r.cabang)|lower }}">
                         <td>
-                            <div class="fw-semibold">{{ r.tanggal }}</div>
+                            <div class="fw-semibold text-dark">{{ r.tanggal }}</div>
                             <small class="text-muted">
                                 {{ (r.boarding_time or '-')[:5] }}
                                 {% if not is_single_cabang %}
-                                    &bull; <span class="badge bg-secondary-subtle text-secondary">{{ r.cabang }}</span>
+                                    &bull; <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ r.cabang }}</span>
                                 {% endif %}
                             </small>
                         </td>
                         <td>
-                            <div class="fw-bold">{{ r.flight_number }}</div>
-                            <small class="text-muted">{{ r.registration or '-' }}</small>
+                            <div class="fw-bold text-dark">{{ r.flight_number }}</div>
+                            <small class="text-muted font-monospace">{{ r.registration or '-' }}</small>
                         </td>
                         <td>
-                            <div>{{ r.origin }} &rarr; {{ r.destination }}</div>
-                            <span class="badge bg-light text-dark border">{{ r.scope_route }}</span>
+                            <div class="fw-semibold text-dark">{{ r.origin }} &rarr; {{ r.destination }}</div>
+                            <span class="badge rounded-pill {{ 'bg-info-subtle text-info' if (r.scope_registration == 'Internasional' or r.scope_route == 'Internasional') else ('bg-warning-subtle text-warning-emphasis' if r.scope_route == 'Haji' else 'bg-success-subtle text-success') }}">
+                                {{ r.scope_route or 'Domestik' }}
+                            </span>
                         </td>
-                        <td class="text-center">{{ r.adult }} / {{ r.child }} / {{ r.infant }} / {{ r.transit }} / {{ r.crew }}</td>
                         <td class="text-center">
-                            <span class="badge bg-warning-subtle text-warning-emphasis">Off: {{ r.offload }}</span>
-                            <span class="badge bg-danger-subtle text-danger">Disc: {{ r.pax_diskon }}</span>
+                            <span class="badge bg-body-tertiary text-dark border rounded-pill px-2" title="Adult / Child / Infant / Transit / Crew">
+                                {{ r.adult }}/{{ r.child }}/{{ r.infant }}/{{ r.transit }}/{{ r.crew }}
+                            </span>
+                            <div class="small text-muted mt-1">Total: <strong>{{ r.jumlah_pax }}</strong></div>
                         </td>
-                        <td class="text-end fw-bold">{{ "{:,}".format(r.total_prod_psc) }} Pax</td>
-                        <td class="text-end fw-bold text-success">Rp {{ "{:,.0f}".format(r.pend_psc) }}</td>
+                        <td class="text-center">
+                            <div class="mb-1">
+                                {% if (r.offload or 0)|int != 0 %}
+                                <button type="button"
+                                        class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle btn-view-offload-pax"
+                                        data-flight="{{ r.flight_number }}"
+                                        data-cabang="{{ r.cabang }}"
+                                        data-tanggal="{{ r.tanggal }}"
+                                        data-rute="{{ r.origin }} → {{ r.destination }} ({{ r.scope_route or 'Domestik' }})"
+                                        data-reg="{{ r.registration or '-' }}"
+                                        data-offload-count="{{ r.offload }}"
+                                        data-is-adj="{{ '1' if is_adj else '0' }}"
+                                        data-offload-pax='{{ (r.offload_passengers or []) | tojson | safe }}'
+                                        title="Klik untuk melihat detail penumpang offload">
+                                    <i class="bi bi-eye-fill me-1"></i>Offload: {{ r.offload }}
+                                </button>
+                                {% else %}
+                                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle">Offload: {{ r.offload }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-center gap-1 mb-1">
+                                <span class="badge rounded-pill bg-light text-dark border" title="Pax Normal">Norm: {{ pax_norm }}</span>
+                                <span class="badge rounded-pill bg-danger-subtle text-danger" title="Pax Diskon">Disc: {{ r.pax_diskon or 0 }}</span>
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-center gap-1">
+                                <span class="badge rounded-pill bg-primary-subtle text-primary" title="Tarif Baru">Baru: {{ pax_baru_val }}</span>
+                                <span class="badge rounded-pill bg-secondary-subtle text-secondary" title="Tarif Lama">Lama: {{ r.pax_lama or 0 }}</span>
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <div class="fw-bold text-primary">PSC: {{ "{:,}".format(r.total_prod_psc) }} Pax</div>
+                            <div class="small text-muted">Cnt: <strong>{{ "{:,}".format(prod_cnt) }}</strong> Pax</div>
+                            <div class="small text-muted">CUCS: <strong>{{ "{:,}".format(prod_cucs) }}</strong> Pax</div>
+                        </td>
+                        <td class="text-end">
+                            <div class="fw-bold text-success">Rp {{ "{:,.0f}".format(r.pend_psc) }}</div>
+                            <small class="text-muted d-block" style="font-size: 0.69rem;">Norm: {{ "{:,.0f}".format(r.pend_psc_normal or 0) }} | Disc: {{ "{:,.0f}".format(r.pend_psc_diskon or 0) }}</small>
+                            <small class="text-muted d-block" style="font-size: 0.69rem;">Baru: {{ "{:,.0f}".format(r.pend_psc_baru or 0) }} | Lama: {{ "{:,.0f}".format(r.pend_psc_lama or 0) }}</small>
+                        </td>
                         <td class="text-end">
                             <div class="small">
                                 Cnt:
                                 {% if r.mata_uang_counter == 'USD' %}
                                     <span class="fw-semibold text-primary">USD {{ "{:,.2f}".format(r.pend_counter) }}</span>
                                 {% else %}
-                                    Rp {{ "{:,.0f}".format(r.pend_counter) }}
+                                    <span class="fw-medium">Rp {{ "{:,.0f}".format(r.pend_counter) }}</span>
                                 {% endif %}
                             </div>
-                            <div class="small">CUCS: Rp {{ "{:,.0f}".format(r.pend_cucs) }}</div>
+                            <div class="small text-muted">CUCS: Rp {{ "{:,.0f}".format(r.pend_cucs) }}</div>
                         </td>
                         <td>
                             {% if not is_adj %}
                                 {% if r.verification_at %}
-                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Verified</span>
-                                    <div class="small text-muted">{{ r.name_verification }}</div>
+                                    <div>
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_pax_tip }}" style="cursor: help;">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Verified Pax
+                                        </span>
+                                    </div>
                                 {% else %}
-                                    <span class="badge bg-warning text-dark">Belum Verifikasi</span>
+                                    <div>
+                                        <span class="badge rounded-pill bg-warning text-dark">Belum Verifikasi Pax</span>
+                                    </div>
                                 {% endif %}
+
                                 {% if r.offload|int > 0 %}
                                     <div class="mt-1">
                                         {% if r.verification_offload_at %}
-                                            <span class="badge bg-info">Offload Verified</span>
+                                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_off_tip }}" style="cursor: help;">
+                                                <i class="bi bi-check2-all me-1"></i>Verified Offload
+                                            </span>
                                         {% else %}
-                                            <span class="badge bg-secondary">Offload Belum Verifikasi</span>
+                                            <span class="badge rounded-pill bg-secondary">Belum Verifikasi Offload</span>
                                         {% endif %}
                                     </div>
                                 {% endif %}
                             {% else %}
                                 {% if r.verification_adjustment_at %}
-                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Adj Verified</span>
-                                    <div class="small text-muted">{{ r.name_verification_adjustment }}</div>
+                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_adj_tip }}" style="cursor: help;">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Verified Adjustment
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-warning text-dark">Menunggu Station Manager</span>
+                                    <span class="badge rounded-pill bg-warning text-dark">Menunggu Verifikasi Adjustment</span>
                                 {% endif %}
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <div class="d-flex flex-wrap justify-content-end gap-1">
+                            <div class="ap-action-group ms-auto">
                                 {% if not is_adj %}
                                     {% if not r.verification_at %}
                                     <button type="button" class="btn btn-sm btn-primary btn-open-pjp2u-verify"
@@ -181,17 +357,17 @@
                                             data-rute="{{ r.origin }} &rarr; {{ r.destination }} ({{ r.scope_route }})"
                                             data-reg="{{ r.registration or '-' }}"
                                             data-pax="Adult: {{ r.adult }}, Child: {{ r.child }}, Infant: {{ r.infant }}, Transit: {{ r.transit }}"
-                                            data-prod="{{ r.total_prod_psc }} Pax"
+                                            data-prod="PSC: {{ r.total_prod_psc }} Pax | Cnt/CUCS: {{ prod_cnt }} Pax"
                                             data-tagihan="Rp {{ '{:,.0f}'.format(r.pend_psc) }}">
-                                        <i class="bi bi-check2-circle me-1"></i>Verifikasi
+                                        <i class="bi bi-check2-circle me-1"></i>Verifikasi Pax
                                     </button>
                                     {% else %}
                                     <button type="button" class="btn btn-sm btn-outline-success btn-ap-ba"
                                             data-id="{{ r.id_pjp2u }}"
                                             data-cabang="{{ r.cabang }}"
                                             data-ba-type="NORMAL"
-                                            data-ba="BA Verifikasi {{ r.flight_number }}">
-                                        <i class="bi bi-file-earmark-check me-1"></i>BA Verifikasi
+                                            data-ba="BA Pax {{ r.flight_number }}">
+                                        <i class="bi bi-file-earmark-check me-1"></i>BA Pax
                                     </button>
                                     {% endif %}
 
@@ -206,6 +382,7 @@
                                                 data-rute="{{ r.origin }} &rarr; {{ r.destination }} ({{ r.scope_route }})"
                                                 data-reg="{{ r.registration or '-' }}"
                                                 data-pax="Jumlah Offload: {{ r.offload }} Pax"
+                                                data-offload-pax='{{ (r.offload_passengers or []) | tojson | safe }}'
                                                 data-prod="{{ r.offload }} Pax Offload"
                                                 data-tagihan="Rp {{ '{:,.0f}'.format(r.pend_psc) }}">
                                             <i class="bi bi-person-dash me-1"></i>Verifikasi Offload
@@ -215,19 +392,25 @@
                                                 data-id="{{ r.id_pjp2u }}"
                                                 data-cabang="{{ r.cabang }}"
                                                 data-ba-type="OFFLOAD"
-                                                data-ba="BA Verifikasi Offload {{ r.flight_number }}">
-                                            BA Offload
+                                                data-ba="BA Offload {{ r.flight_number }}">
+                                            <i class="bi bi-file-earmark-text me-1"></i>BA Offload
                                         </button>
                                         {% endif %}
                                     {% endif %}
                                 {% else %}
                                     {% if r.verification_adjustment_at %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary btn-ap-surat"
+                                                data-id="{{ r.id_pjp2u }}"
+                                                data-cabang="{{ r.cabang }}"
+                                                title="Preview Surat Permohonan Adjustment">
+                                            <i class="bi bi-envelope-paper me-1"></i>Surat
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-success btn-ap-ba"
                                                 data-id="{{ r.id_pjp2u }}"
                                                 data-cabang="{{ r.cabang }}"
                                                 data-ba-type="ADJUSTMENT"
-                                                data-ba="BA Verifikasi Adjustment {{ r.flight_number }}">
-                                            <i class="bi bi-file-earmark-diff me-1"></i>BA Adjustment
+                                                data-ba="BA Adjustment {{ r.flight_number }}">
+                                            <i class="bi bi-file-earmark-diff me-1"></i>BA Adj
                                         </button>
                                     {% elif is_airline_admin %}
                                         <button type="button" class="btn btn-sm btn-info text-white btn-open-adj-verify"
@@ -239,7 +422,7 @@
                                             <i class="bi bi-shield-check me-1"></i>Verifikasi Adjustment
                                         </button>
                                     {% else %}
-                                        <span class="badge bg-light text-muted border">View Only (Admin Only)</span>
+                                        <span class="badge rounded-pill bg-light text-muted border">View Only (Admin Only)</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -255,24 +438,30 @@
         <div class="ap-mobile-list flex-column gap-3">
             {% for grp in groups %}
             <div class="ap-airline-group">
-                <!-- Header Maskapai -->
                 <div class="ap-airline-banner d-flex justify-content-between align-items-center gap-2 mb-2">
-                    <div class="d-flex align-items-center gap-2 min-w-0">
+                    <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1 1 auto;">
                         <span class="badge bg-primary fw-bold px-2 py-1 flex-shrink-0">{{ grp.airline_code_2 }}</span>
-                        <div class="fw-bold text-primary text-truncate">{{ grp.airline_name }}</div>
+                        <div class="fw-bold text-primary text-truncate" style="font-size: 0.9rem;">{{ grp.airline_name }}</div>
                     </div>
-                    <div class="text-end flex-shrink-0">
-                        <div class="text-muted" style="font-size: 0.68rem;">Total PSC ({{ grp.rows|length }} Flt)</div>
-                        <div class="fw-bold text-success small text-nowrap">Rp {{ "{:,.0f}".format(grp.sum_pend_psc) }}</div>
+                    <div class="text-end flex-shrink-0" style="max-width: 48%;">
+                        <div class="text-muted lh-1 mb-1" style="font-size: 0.66rem;">Total PSC ({{ grp.rows|length }} Flt)</div>
+                        <div class="fw-bold text-success lh-1 text-nowrap" style="font-size: 0.8rem;">Rp {{ "{:,.0f}".format(grp.sum_pend_psc) }}</div>
                     </div>
                 </div>
 
-                <!-- Kartu Penerbangan -->
                 <div class="d-flex flex-column gap-2">
                     {% for r in grp.rows %}
+                    {% set prod_cnt = r.total_prod_counter if r.total_prod_counter is defined else ((r.adult or 0)|int + (r.child or 0)|int + (r.infant or 0)|int + (r.offload or 0)|int) %}
+                    {% set prod_cucs = r.total_prod_cucs if r.total_prod_cucs is defined else prod_cnt %}
+                    {% set pax_norm = r.pax_normal if r.pax_normal is defined else ((r.total_prod_psc or 0)|int - (r.pax_diskon or 0)|int) %}
+                    {% set pax_baru_val = r.pax_baru if r.pax_baru is defined else ((r.total_prod_psc or 0)|int - (r.pax_lama or 0)|int) %}
+
+                    {% set ver_pax_tip = 'Diverifikasi oleh: ' ~ (r.name_verification or '-') ~ (' (' ~ r.jabatan_verification ~ ')' if r.jabatan_verification else '') %}
+                    {% set ver_off_tip = 'Diverifikasi oleh: ' ~ (r.name_verification_offload or '-') ~ (' (' ~ r.jabatan_verification_offload ~ ')' if r.jabatan_verification_offload else '') %}
+                    {% set ver_adj_tip = 'Diverifikasi oleh: ' ~ (r.name_verification_adjustment or '-') ~ (' (' ~ r.jabatan_verification_adjustment ~ ')' if r.jabatan_verification_adjustment else '') %}
+
                     <div class="ap-mobile-card ap-search-row"
                          data-search="{{ (grp.airline_name ~ ' ' ~ r.flight_number ~ ' ' ~ (r.registration or '') ~ ' ' ~ r.origin ~ ' ' ~ r.destination ~ ' ' ~ r.cabang)|lower }}">
-                        <!-- Baris 1: No Flight + Rute -->
                         <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
                             <div class="fw-bold fs-6 text-dark text-nowrap">{{ r.flight_number }}</div>
                             <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle text-truncate" style="max-width: 65%;">
@@ -280,7 +469,6 @@
                             </span>
                         </div>
 
-                        <!-- Baris 2: Cabang, Tanggal, Jam, Registrasi -->
                         <div class="d-flex flex-wrap align-items-center gap-1 text-muted small mb-2">
                             {% if not is_single_cabang %}
                                 <span class="badge bg-light text-dark border fw-semibold">{{ r.cabang }}</span>
@@ -294,26 +482,51 @@
                             <span class="font-monospace fw-semibold text-dark text-nowrap">{{ r.registration or '-' }}</span>
                         </div>
 
-                        <!-- Baris 3: Ringkasan Pax (3 Kolom Rapi) -->
                         <div class="row g-1 text-center bg-body-tertiary rounded-3 py-2 px-1 mb-2 mx-0">
                             <div class="col-4 border-end">
-                                <div class="text-muted" style="font-size: 0.7rem;">Total Pax</div>
-                                <div class="fw-bold text-dark">{{ r.jumlah_pax }}</div>
+                                <div class="text-muted" style="font-size: 0.68rem;">Prod PSC</div>
+                                <div class="fw-bold text-primary">{{ r.total_prod_psc }} Pax</div>
                             </div>
                             <div class="col-4 border-end">
-                                <div class="text-muted" style="font-size: 0.7rem;">Prod PSC</div>
-                                <div class="fw-bold text-primary">{{ r.total_prod_psc }}</div>
+                                <div class="text-muted" style="font-size: 0.68rem;">Prod Counter</div>
+                                <div class="fw-bold text-dark">{{ prod_cnt }} Pax</div>
                             </div>
                             <div class="col-4">
-                                <div class="text-muted" style="font-size: 0.7rem;">Offload / Disc</div>
-                                <div class="fw-bold text-dark">{{ r.offload }} / {{ r.pax_diskon }}</div>
+                                <div class="text-muted" style="font-size: 0.68rem;">Prod CUCS</div>
+                                <div class="fw-bold text-dark">{{ prod_cucs }} Pax</div>
                             </div>
                         </div>
 
-                        <!-- Baris 4: Rincian Tagihan -->
-                        <div class="d-flex justify-content-between align-items-center small mb-1">
+                        <div class="d-flex flex-wrap align-items-center gap-1 bg-body-tertiary rounded-3 p-2 mb-2" style="font-size: 0.72rem;">
+                            {% if (r.offload or 0)|int != 0 %}
+                            <button type="button"
+                                    class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle btn-view-offload-pax"
+                                    data-flight="{{ r.flight_number }}"
+                                    data-cabang="{{ r.cabang }}"
+                                    data-tanggal="{{ r.tanggal }}"
+                                    data-rute="{{ r.origin }} → {{ r.destination }} ({{ r.scope_route or 'Domestik' }})"
+                                    data-reg="{{ r.registration or '-' }}"
+                                    data-offload-count="{{ r.offload }}"
+                                    data-is-adj="{{ '1' if is_adj else '0' }}"
+                                    data-offload-pax='{{ (r.offload_passengers or []) | tojson | safe }}'>
+                                <i class="bi bi-eye-fill me-1"></i>Offload: {{ r.offload }}
+                            </button>
+                            {% else %}
+                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle">Offload: {{ r.offload }}</span>
+                            {% endif %}
+                            <span class="badge rounded-pill bg-light text-dark border">Norm: {{ pax_norm }}</span>
+                            <span class="badge rounded-pill bg-danger-subtle text-danger">Disc: {{ r.pax_diskon or 0 }}</span>
+                            <span class="badge rounded-pill bg-primary-subtle text-primary">Baru: {{ pax_baru_val }}</span>
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary">Lama: {{ r.pax_lama or 0 }}</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center small">
                             <span class="text-muted">Tagihan PSC (Inc. PPN)</span>
                             <span class="fw-bold text-success text-nowrap">Rp {{ "{:,.0f}".format(r.pend_psc) }}</span>
+                        </div>
+                        <div class="text-end text-muted mb-1" style="font-size: 0.7rem;">
+                            Norm: Rp {{ "{:,.0f}".format(r.pend_psc_normal or 0) }} | Disc: Rp {{ "{:,.0f}".format(r.pend_psc_diskon or 0) }}<br>
+                            Baru: Rp {{ "{:,.0f}".format(r.pend_psc_baru or 0) }} | Lama: Rp {{ "{:,.0f}".format(r.pend_psc_lama or 0) }}
                         </div>
                         <div class="d-flex justify-content-between align-items-center small border-bottom pb-2 mb-2">
                             <span class="text-muted">Counter &amp; CUCS</span>
@@ -326,39 +539,47 @@
                             </span>
                         </div>
 
-                        <!-- Baris 5: Status Verifikasi & Tombol Aksi -->
-                        <div class="d-flex justify-content-between align-items-center gap-2">
-                            <div class="d-flex flex-wrap gap-1">
+                        <div class="d-flex flex-column gap-2 pt-1">
+                            <div class="d-flex flex-wrap align-items-center gap-1">
                                 {% if not is_adj %}
                                     {% if r.verification_at %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                            <i class="bi bi-check-circle-fill me-1"></i>Verified
-                                        </span>
+                                        <div>
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_pax_tip }}" style="cursor: help;">
+                                                <i class="bi bi-check-circle-fill me-1"></i>Verified Pax
+                                            </span>
+                                        </div>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">Belum Verifikasi</span>
+                                        <div>
+                                            <span class="badge rounded-pill bg-warning text-dark">Belum Verifikasi Pax</span>
+                                        </div>
                                     {% endif %}
+
                                     {% if r.offload|int > 0 %}
-                                        {% if r.verification_offload_at %}
-                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">Offload OK</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary-subtle text-secondary">Offload Pending</span>
-                                        {% endif %}
+                                        <div class="mt-1">
+                                            {% if r.verification_offload_at %}
+                                                <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_off_tip }}" style="cursor: help;">
+                                                    <i class="bi bi-check2-all me-1"></i>Verified Offload
+                                                </span>
+                                            {% else %}
+                                                <span class="badge rounded-pill bg-secondary">Belum Verifikasi Offload</span>
+                                            {% endif %}
+                                        </div>
                                     {% endif %}
                                 {% else %}
                                     {% if r.verification_adjustment_at %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                            <i class="bi bi-check-circle-fill me-1"></i>Adj Verified
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle tooltip-top" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ ver_adj_tip }}" style="cursor: help;">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Verified Adjustment
                                         </span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">Menunggu SM</span>
+                                        <span class="badge rounded-pill bg-warning text-dark">Menunggu Verifikasi Adjustment</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
 
-                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            <div class="d-flex flex-wrap justify-content-end align-items-center gap-1 pt-2 border-top">
                                 {% if not is_adj %}
                                     {% if not r.verification_at %}
-                                    <button type="button" class="btn btn-sm btn-primary rounded-3 px-2 fw-semibold btn-open-pjp2u-verify"
+                                    <button type="button" class="btn btn-sm btn-primary rounded-3 px-2 py-1 fw-semibold text-nowrap btn-open-pjp2u-verify"
                                             data-action="{{ url_for('airline_portal.verify_pjp2u', id_pjp2u=r.id_pjp2u) }}"
                                             data-type="NORMAL"
                                             data-flight="{{ r.flight_number }}"
@@ -367,20 +588,22 @@
                                             data-rute="{{ r.origin }} &rarr; {{ r.destination }} ({{ r.scope_route }})"
                                             data-reg="{{ r.registration or '-' }}"
                                             data-pax="Adult: {{ r.adult }}, Child: {{ r.child }}, Infant: {{ r.infant }}, Transit: {{ r.transit }}"
-                                            data-prod="{{ r.total_prod_psc }} Pax"
+                                            data-prod="PSC: {{ r.total_prod_psc }} Pax | Cnt/CUCS: {{ prod_cnt }} Pax"
                                             data-tagihan="Rp {{ '{:,.0f}'.format(r.pend_psc) }}">
-                                        Verifikasi
+                                        <i class="bi bi-check2-circle me-1"></i>Verifikasi Pax
                                     </button>
                                     {% else %}
-                                    <button type="button" class="btn btn-sm btn-outline-success rounded-3 px-2 btn-ap-ba"
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-3 px-2 py-1 text-nowrap btn-ap-ba"
                                             data-id="{{ r.id_pjp2u }}"
                                             data-cabang="{{ r.cabang }}"
                                             data-ba-type="NORMAL"
-                                            data-ba="BA Verifikasi {{ r.flight_number }}">BA</button>
+                                            data-ba="BA Pax {{ r.flight_number }}">
+                                        <i class="bi bi-file-earmark-check me-1"></i>BA Pax
+                                    </button>
                                     {% endif %}
 
                                     {% if r.offload|int > 0 and not r.verification_offload_at %}
-                                    <button type="button" class="btn btn-sm btn-warning text-dark rounded-3 px-2 fw-semibold btn-open-pjp2u-verify"
+                                    <button type="button" class="btn btn-sm btn-warning text-dark rounded-3 px-2 py-1 fw-semibold text-nowrap btn-open-pjp2u-verify"
                                             data-action="{{ url_for('airline_portal.verify_offload', id_pjp2u=r.id_pjp2u) }}"
                                             data-type="OFFLOAD"
                                             data-flight="{{ r.flight_number }}"
@@ -389,33 +612,43 @@
                                             data-rute="{{ r.origin }} &rarr; {{ r.destination }} ({{ r.scope_route }})"
                                             data-reg="{{ r.registration or '-' }}"
                                             data-pax="Jumlah Offload: {{ r.offload }} Pax"
+                                            data-offload-pax='{{ (r.offload_passengers or []) | tojson | safe }}'
                                             data-prod="{{ r.offload }} Pax Offload"
                                             data-tagihan="Rp {{ '{:,.0f}'.format(r.pend_psc) }}">
-                                        Offload
+                                        <i class="bi bi-person-dash me-1"></i>Verifikasi Offload
                                     </button>
                                     {% elif r.offload|int > 0 and r.verification_offload_at %}
-                                    <button type="button" class="btn btn-sm btn-outline-info rounded-3 px-2 btn-ap-ba"
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-3 px-2 py-1 text-nowrap btn-ap-ba"
                                             data-id="{{ r.id_pjp2u }}"
                                             data-cabang="{{ r.cabang }}"
                                             data-ba-type="OFFLOAD"
-                                            data-ba="BA Offload {{ r.flight_number }}">BA Off</button>
+                                            data-ba="BA Offload {{ r.flight_number }}">
+                                        <i class="bi bi-file-earmark-text me-1"></i>BA Offload
+                                    </button>
                                     {% endif %}
                                 {% else %}
                                     {% if r.verification_adjustment_at %}
-                                    <button type="button" class="btn btn-sm btn-outline-success rounded-3 px-2 btn-ap-ba"
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3 px-2 py-1 text-nowrap btn-ap-surat"
+                                            data-id="{{ r.id_pjp2u }}"
+                                            data-cabang="{{ r.cabang }}">
+                                        <i class="bi bi-envelope-paper me-1"></i>Surat
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-3 px-2 py-1 text-nowrap btn-ap-ba"
                                             data-id="{{ r.id_pjp2u }}"
                                             data-cabang="{{ r.cabang }}"
                                             data-ba-type="ADJUSTMENT"
-                                            data-ba="BA Adjustment {{ r.flight_number }}">BA Adj</button>
+                                            data-ba="BA Adjustment {{ r.flight_number }}">
+                                        <i class="bi bi-file-earmark-diff me-1"></i>BA Adj
+                                    </button>
                                     {% elif is_airline_admin %}
-                                    <button type="button" class="btn btn-sm btn-info text-white rounded-3 px-2 fw-semibold btn-open-adj-verify"
+                                    <button type="button" class="btn btn-sm btn-info text-white rounded-3 px-2 py-1 fw-semibold text-nowrap btn-open-adj-verify"
                                             data-id="{{ r.id_pjp2u }}" data-cabang="{{ r.cabang }}"
                                             data-flight="{{ r.flight_number }}" data-tanggal="{{ r.tanggal }}"
                                             data-justifikasi="{{ r.justifikasi_adjustment or '-' }}">
-                                        Verif Adj
+                                        <i class="bi bi-shield-check me-1"></i>Verif Adj
                                     </button>
                                     {% else %}
-                                    <span class="badge bg-light text-muted border">View Only</span>
+                                    <span class="badge rounded-pill bg-light text-muted border">View Only</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -437,7 +670,6 @@
 <!-- ==================== FILTER BAR (DESKTOP INLINE + MOBILE BOTTOM SHEET TRIGGER) ==================== -->
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
-        <!-- Mobile Search + Sliders Button (< 768px) -->
         <div class="d-flex gap-2 d-md-none">
             <div class="input-group flex-grow-1">
                 <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
@@ -458,7 +690,6 @@
             </button>
         </div>
 
-        <!-- Desktop Inline Filter Form (>= 768px) -->
         <form method="GET" action="{{ url_for('airline_portal.pjp2u') }}" class="row g-2 align-items-end d-none d-md-flex">
             <div class="col-md-{{ '4' if not is_single_cabang else '6' }}">
                 <label class="form-label small fw-semibold mb-1">Cari Cepat</label>
@@ -492,7 +723,7 @@
                 <button type="submit" class="btn btn-primary rounded-3 flex-fill fw-semibold">
                     <i class="bi bi-funnel-fill me-1"></i>Filter
                 </button>
-                <a href="{{ url_for('airline_portal.pjp2u') }}" class="btn btn-light border rounded-3" title="Reset Filter">
+                <a href="{{ url_for('airline_portal.pjp2u') }}" class="btn btn-light border rounded-3" title="Reset ke Hari Ini">
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </a>
             </div>
@@ -577,6 +808,53 @@
     </div>
 </div>
 
+<!-- ==================== MODAL DETAIL PENUMPANG OFFLOAD (VIEW ONLY - TANPA TOMBOL) ==================== -->
+<div class="modal fade" id="modalViewOffloadPassengers" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom bg-warning-subtle px-3 px-md-4 py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge rounded-circle p-2 bg-warning text-dark">
+                        <i class="bi bi-person-lines-fill fs-5"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Detail Penumpang Offload</h5>
+                        <small class="text-muted" id="vop_subtitle">-</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4">
+                <div class="bg-body-tertiary border rounded-4 p-3 mb-3 small">
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <div class="text-muted" style="font-size: 0.7rem;">No. Penerbangan</div>
+                            <div class="fw-bold text-dark" id="vop_flight">-</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-muted" style="font-size: 0.7rem;">Tanggal</div>
+                            <div class="fw-semibold text-dark" id="vop_tanggal">-</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-muted" style="font-size: 0.7rem;">Registrasi</div>
+                            <div class="fw-semibold font-monospace text-dark" id="vop_reg">-</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-muted" style="font-size: 0.7rem;">Jumlah Offload</div>
+                            <div class="fw-bold text-warning-emphasis" id="vop_count">0 Pax</div>
+                        </div>
+                        <div class="col-12 border-top pt-2 mt-2">
+                            <span class="text-muted">Rute:</span> <strong class="text-dark" id="vop_rute">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vop_pax_list" class="d-flex flex-column gap-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ==================== MODAL VERIFIKASI NORMAL & OFFLOAD ==================== -->
 <div class="modal fade" id="modalVerifyPjp2uNormal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
@@ -588,7 +866,7 @@
                             <i class="bi bi-check2-circle fs-5" id="vp_icon"></i>
                         </span>
                         <div>
-                            <h5 class="modal-title fw-bold mb-0" id="vp_title">Verifikasi Data PJP2U</h5>
+                            <h5 class="modal-title fw-bold mb-0" id="vp_title">Verifikasi Pax PJP2U</h5>
                             <small class="text-muted" id="vp_subtitle">Pastikan rincian produksi penumpang sudah sesuai</small>
                         </div>
                     </div>
@@ -602,7 +880,7 @@
                                 <div class="text-muted" style="font-size: 0.72rem;">Nomor Penerbangan</div>
                                 <div class="fw-bold fs-5 text-dark" id="vp_flight">-</div>
                             </div>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="vp_cabang">-</span>
+                            <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="vp_cabang">-</span>
                         </div>
 
                         <div class="row g-2 small">
@@ -623,13 +901,18 @@
                                 <div class="fw-semibold text-dark" id="vp_pax">-</div>
                             </div>
                         </div>
+
+                        <div id="vp_offload_list_wrap" class="border-top pt-2 mt-2 d-none">
+                            <div class="text-muted mb-1" style="font-size: 0.72rem;">Daftar Penumpang Offload:</div>
+                            <div id="vp_offload_list" class="d-flex flex-column gap-1 small"></div>
+                        </div>
                     </div>
 
                     <div class="row g-2 text-center mb-3">
                         <div class="col-6">
                             <div class="border rounded-3 p-2 bg-primary-subtle">
                                 <div class="text-muted" style="font-size: 0.72rem;">Produksi Terverifikasi</div>
-                                <div class="fw-bold text-primary fs-6" id="vp_prod">-</div>
+                                <div class="fw-bold text-primary small" id="vp_prod">-</div>
                             </div>
                         </div>
                         <div class="col-6">
@@ -649,7 +932,7 @@
                 <div class="modal-footer border-top px-3 px-md-4 py-3 d-flex gap-2">
                     <button type="button" class="btn btn-light border rounded-pill flex-fill py-2" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary rounded-pill flex-fill py-2 fw-semibold" id="vp_submit_btn">
-                        <i class="bi bi-check2-circle me-1"></i>Konfirmasi Verifikasi
+                        <i class="bi bi-check2-circle me-1"></i>Verifikasi Pax
                     </button>
                 </div>
             </form>
@@ -678,7 +961,7 @@
                     <div class="bg-body-tertiary border rounded-4 p-3 small mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="fw-bold fs-6 text-dark" id="vadj_flight">-</span>
-                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" id="vadj_cabang">-</span>
+                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle" id="vadj_cabang">-</span>
                         </div>
                         <div class="text-muted mb-2"><i class="bi bi-calendar3 me-1"></i><span id="vadj_tanggal">-</span></div>
                         <div class="border-top pt-2">
@@ -711,9 +994,15 @@
                     </div>
 
                     <div id="boxUploadSurat" class="d-none">
-                        <label class="form-label small fw-bold">File Surat Persetujuan (PDF/JPG/PNG) <span class="text-danger">*</span></label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-bold mb-0">File Surat Persetujuan (PDF/JPG/PNG) <span class="text-danger">*</span></label>
+                            <a href="#" id="btnDownloadBlankSuratAdj" target="_blank" rel="noopener noreferrer"
+                            class="btn btn-sm btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.75rem;">
+                                <i class="bi bi-download me-1"></i>Download Format
+                            </a>
+                        </div>
                         <input type="file" name="surat_file" id="inp_surat_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-                        <small class="text-muted d-block mt-1">Maksimal ukuran file 5 MB.</small>
+                        <small class="text-muted d-block mt-1">Maksimal ukuran file 5 MB. Format kosong tanpa nomor surat &amp; tanda tangan.</small>
                     </div>
                 </div>
                 <div class="modal-footer border-top px-3 px-md-4 py-3 d-flex gap-2">
@@ -729,6 +1018,109 @@
 
 <script>
 (function () {
+    function getLocalTodayIso() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    (function ensureDefaultTodayFilterInputs() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('date_from') && !params.has('date_to')) {
+            const today = getLocalTodayIso();
+            document.querySelectorAll('input[name="date_from"], input[name="date_to"]').forEach(inp => {
+                if (!inp.value) inp.value = today;
+            });
+        }
+    })();
+
+    if (window.bootstrap && bootstrap.Tooltip) {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            bootstrap.Tooltip.getOrCreateInstance(el, {
+                placement: el.getAttribute('data-bs-placement') || 'top'
+            });
+        });
+    }
+
+    // =========================================================================
+    // VIEW-ONLY MODAL DETAIL PENUMPANG OFFLOAD (TANPA TOMBOL)
+    // =========================================================================
+    document.querySelectorAll('.btn-view-offload-pax').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const flight = this.getAttribute('data-flight') || '-';
+            const cabang = this.getAttribute('data-cabang') || '-';
+            const tanggal = this.getAttribute('data-tanggal') || '-';
+            const rute = this.getAttribute('data-rute') || '-';
+            const reg = this.getAttribute('data-reg') || '-';
+            const count = this.getAttribute('data-offload-count') || '0';
+            const isAdj = this.getAttribute('data-is-adj') === '1';
+
+            let paxItems = [];
+            try {
+                paxItems = JSON.parse(this.getAttribute('data-offload-pax') || '[]');
+            } catch (e) {
+                paxItems = [];
+            }
+
+            document.getElementById('vop_subtitle').textContent = `Cabang ${cabang} • ${flight}`;
+            document.getElementById('vop_flight').textContent = flight;
+            document.getElementById('vop_tanggal').textContent = tanggal;
+            document.getElementById('vop_reg').textContent = reg;
+            document.getElementById('vop_count').textContent = `${count} Pax`;
+            document.getElementById('vop_rute').textContent = rute;
+
+            const listEl = document.getElementById('vop_pax_list');
+            if (!paxItems.length) {
+                listEl.innerHTML = `
+                    <div class="text-center text-muted py-4 border rounded-3 bg-body-tertiary small">
+                        <i class="bi bi-person-x fs-4 d-block mb-1 opacity-50"></i>
+                        Rincian nama penumpang offload belum diinputkan oleh petugas bandara.
+                    </div>
+                `;
+            } else {
+                listEl.innerHTML = paxItems.map((p, idx) => {
+                    const promo = (p.kategori_promo || 'NORMAL').toUpperCase();
+                    const tarif = (p.kategori_tarif || 'BARU').toUpperCase();
+                    const status = (p.status_offload || 'DITAGIH').toUpperCase();
+                    const doiPromo = p.doi_promo ? ` &bull; DOI Promo: <strong>${escapeHtml(String(p.doi_promo).slice(0, 10))}</strong>` : '';
+                    const doiLama = p.doi_lama ? ` &bull; DOI Lama: <strong>${escapeHtml(String(p.doi_lama).slice(0, 10))}</strong>` : '';
+                    const statusBadge = isAdj
+                        ? `<span class="badge rounded-pill ${status === 'ADJUSTMENT' ? 'bg-info-subtle text-info-emphasis border border-info-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}">${escapeHtml(status)}</span>`
+                        : '';
+
+                    return `
+                        <div class="border rounded-3 p-2 px-3 bg-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-bold text-dark">${idx + 1}. ${escapeHtml(p.nama_pax || '-')}</div>
+                                <div class="text-muted small">
+                                    Seat: <span class="font-monospace fw-semibold text-dark">${escapeHtml(p.seat || '-')}</span> &bull;
+                                    PNR / No. Tiket: <span class="font-monospace fw-semibold text-dark">${escapeHtml(p.pnr || '-')}</span>${doiPromo}${doiLama}
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center gap-1">
+                                <span class="badge rounded-pill ${promo === 'DISKON' ? 'bg-danger-subtle text-danger' : 'bg-light text-dark border'}">${escapeHtml(promo)}</span>
+                                <span class="badge rounded-pill ${tarif === 'LAMA' ? 'bg-secondary-subtle text-secondary' : 'bg-primary-subtle text-primary'}">${escapeHtml(tarif)}</span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalViewOffloadPassengers')).show();
+        });
+    });
+
     function handleApQuickSearch(val) {
         const q = (val || '').trim().toLowerCase();
         document.querySelectorAll('.ap-search-row').forEach(el => {
@@ -760,7 +1152,6 @@
         });
     });
 
-    // Pop-up Verifikasi Normal & Offload
     document.querySelectorAll('.btn-open-pjp2u-verify').forEach(btn => {
         btn.addEventListener('click', function () {
             const isOffload = this.getAttribute('data-type') === 'OFFLOAD';
@@ -772,21 +1163,47 @@
             const submitBtn = document.getElementById('vp_submit_btn');
             const iconWrap = document.getElementById('vp_icon_wrap');
             const iconEl = document.getElementById('vp_icon');
+            const offloadWrap = document.getElementById('vp_offload_list_wrap');
+            const offloadListEl = document.getElementById('vp_offload_list');
 
             if (isOffload) {
-                titleEl.textContent = 'Verifikasi Penumpang Offload';
-                subEl.textContent = 'Konfirmasi jumlah penumpang batal terbang (offload)';
+                titleEl.textContent = 'Verifikasi Offload PJP2U';
+                subEl.textContent = 'Konfirmasi jumlah & rincian penumpang offload';
                 submitBtn.className = 'btn btn-warning text-dark rounded-pill flex-fill py-2 fw-semibold';
                 submitBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Verifikasi Offload';
                 iconWrap.className = 'badge rounded-circle p-2 bg-warning-subtle text-warning-emphasis';
                 iconEl.className = 'bi bi-person-dash fs-5';
+
+                let paxItems = [];
+                try {
+                    paxItems = JSON.parse(this.getAttribute('data-offload-pax') || '[]')
+                        .filter(p => (p.status_offload || 'DITAGIH').toUpperCase() === 'DITAGIH');
+                } catch (e) {
+                    paxItems = [];
+                }
+
+                if (paxItems.length && offloadWrap && offloadListEl) {
+                    offloadWrap.classList.remove('d-none');
+                    offloadListEl.innerHTML = paxItems.map((p, idx) => `
+                        <div class="d-flex justify-content-between align-items-center bg-body rounded-2 px-2 py-1 border">
+                            <span><strong>${idx + 1}. ${escapeHtml(p.nama_pax || '-')}</strong> (Seat: ${escapeHtml(p.seat || '-')}, PNR/Tiket: ${escapeHtml(p.pnr || '-')})</span>
+                            <span>
+                                <span class="badge rounded-pill ${p.kategori_promo === 'DISKON' ? 'bg-danger-subtle text-danger' : 'bg-light text-dark border'}">${escapeHtml(p.kategori_promo || 'NORMAL')}</span>
+                                <span class="badge rounded-pill ${p.kategori_tarif === 'LAMA' ? 'bg-secondary-subtle text-secondary' : 'bg-primary-subtle text-primary'}">${escapeHtml(p.kategori_tarif || 'BARU')}</span>
+                            </span>
+                        </div>
+                    `).join('');
+                } else if (offloadWrap) {
+                    offloadWrap.classList.add('d-none');
+                }
             } else {
-                titleEl.textContent = 'Verifikasi Data PJP2U';
+                titleEl.textContent = 'Verifikasi Pax PJP2U';
                 subEl.textContent = 'Pastikan rincian produksi penumpang sudah sesuai';
                 submitBtn.className = 'btn btn-primary rounded-pill flex-fill py-2 fw-semibold';
-                submitBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Konfirmasi Verifikasi';
+                submitBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Verifikasi Pax';
                 iconWrap.className = 'badge rounded-circle p-2 bg-primary-subtle text-primary';
                 iconEl.className = 'bi bi-check2-circle fs-5';
+                if (offloadWrap) offloadWrap.classList.add('d-none');
             }
 
             document.getElementById('vp_flight').textContent = this.getAttribute('data-flight') || '-';
@@ -802,7 +1219,6 @@
         });
     });
 
-    // Toggle Mode Dokumen Adjustment & Atribut Required Dinamis
     const modeAuto = document.getElementById('modeAutoSurat');
     const modeUpload = document.getElementById('modeUploadSurat');
     const inpNomorSurat = document.getElementById('inp_nomor_surat');
@@ -822,6 +1238,13 @@
         btn.addEventListener('click', function () {
             const id = this.getAttribute('data-id');
             const form = document.getElementById('formVerifyAdjustment');
+            const btnBlank = document.getElementById('btnDownloadBlankSuratAdj');
+            if (btnBlank && id) {
+                const cab = encodeURIComponent((this.getAttribute('data-cabang') || '').trim().toUpperCase());
+                btnBlank.href = cab
+                    ? `/ba/${cab}/ADJUSTMENT/${encodeURIComponent(id)}/surat?blank=1`
+                    : `/ba/ADJUSTMENT/${encodeURIComponent(id)}/surat?blank=1`;
+            }
             form.reset();
             form.action = `/airline/pjp2u/verify-adjustment/${id}`;
             if (modeAuto) modeAuto.checked = true;
@@ -835,7 +1258,6 @@
         });
     });
 
-    // Buka halaman cetak BA resmi (Normal / Offload / Adjustment)
     document.querySelectorAll('.btn-ap-ba').forEach(btn => {
         btn.addEventListener('click', function () {
             const id = this.getAttribute('data-id');
@@ -857,6 +1279,18 @@
                 window.open(`/ba/${encodeURIComponent(rawCabang)}/${jenis}/${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
             } else if (id) {
                 window.open(`/ba/${jenis}/${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-ap-surat').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const id = this.getAttribute('data-id');
+            const rawCabang = (this.getAttribute('data-cabang') || '').trim().toUpperCase();
+            if (id && rawCabang) {
+                window.open(`/ba/${encodeURIComponent(rawCabang)}/ADJUSTMENT/${encodeURIComponent(id)}/surat`, '_blank', 'noopener,noreferrer');
+            } else if (id) {
+                window.open(`/ba/ADJUSTMENT/${encodeURIComponent(id)}/surat`, '_blank', 'noopener,noreferrer');
             }
         });
     });

@@ -11,52 +11,117 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='compiled/css/error.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='extensions/bootstrap-icons/font/bootstrap-icons.css') }}">
     <style>
+        :root {
+            --ij-turquoise: #42c1c7;
+            --ij-green: #a2c02f;
+            --ij-amber: #fbb040;
+            --ij-coral: #f26657;
+            --ij-charcoal: #414142;
+            --ij-calm-bg: #f3fafb;
+        }
+
+        body {
+            background: linear-gradient(160deg, var(--ij-calm-bg) 0%, #ffffff 55%, rgba(162, 192, 47, 0.08) 100%);
+            color: var(--ij-charcoal);
+            min-height: 100vh;
+        }
+
+        .ij-accent-bar {
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--ij-turquoise) 0%, var(--ij-green) 50%, var(--ij-amber) 78%, var(--ij-coral) 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        .error-card-box {
+            max-width: 580px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid rgba(66, 193, 199, 0.25);
+            border-top: 4px solid var(--ij-turquoise);
+            border-radius: 1.25rem;
+            padding: 2.25rem 1.75rem;
+            box-shadow: 0 14px 36px rgba(65, 65, 66, 0.07);
+        }
+
         .error-code-badge {
             display: inline-flex;
             align-items: center;
             gap: 0.45rem;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
-            padding: 0.4rem 0.9rem;
+            padding: 0.42rem 0.95rem;
             border-radius: 999px;
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
+            background: rgba(66, 193, 199, 0.14);
+            color: #268c91;
+            border: 1px solid rgba(66, 193, 199, 0.35);
             margin-bottom: 1rem;
         }
-        .error-card-box {
-            max-width: 560px;
-            margin: 0 auto;
+
+        .ij-error-title {
+            color: var(--ij-charcoal);
+            font-weight: 800;
+        }
+
+        .btn-ij-primary {
+            background: linear-gradient(135deg, var(--ij-turquoise) 0%, #2da8ae 100%);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 6px 16px rgba(66, 193, 199, 0.32);
+        }
+
+        .btn-ij-primary:hover,
+        .btn-ij-primary:focus {
+            background: linear-gradient(135deg, #35aeb4 0%, #239298 100%);
+            color: #ffffff;
+        }
+
+        .btn-ij-secondary {
+            border: 1.5px solid rgba(162, 192, 47, 0.65);
+            color: var(--ij-charcoal);
+            background: rgba(162, 192, 47, 0.08);
+        }
+
+        .btn-ij-secondary:hover,
+        .btn-ij-secondary:focus {
+            background: rgba(162, 192, 47, 0.18);
+            border-color: var(--ij-green);
+            color: var(--ij-charcoal);
         }
     </style>
 </head>
 
 <body>
+    <div class="ij-accent-bar"></div>
     <div id="error">
         <div class="error-page container">
             <div class="col-md-10 col-lg-8 mx-auto text-center error-card-box">
                 <div class="mb-3">
                     <img src="{{ url_for('static', filename='static/images/logo/color_injourneyairports.png') }}"
                          alt="InJourney Airports"
-                         style="height: 52px; width: auto; object-fit: contain;"
+                         style="height: 120px; width: auto; object-fit: contain;"
                          onerror="this.style.display='none';">
                 </div>
 
                 <span class="error-code-badge">
-                    <i class="bi bi-shield-lock-fill"></i> HTTP 403 &bull; Forbidden
+                    <i class="bi bi-shield-lock-fill" style="color: var(--ij-coral);"></i> HTTP 403 &bull; Forbidden
                 </span>
 
-                <h1 class="error-title">Akses Ditolak</h1>
+                <h1 class="error-title ij-error-title">Akses Ditolak</h1>
                 <p class="fs-5 text-gray-600 mb-4">
                     {{ message or 'Anda tidak memiliki hak akses untuk membuka halaman atau dokumen ini.' }}
                 </p>
 
                 <div class="d-flex flex-wrap justify-content-center gap-2">
-                    <button type="button" onclick="window.history.back();" class="btn btn-lg btn-outline-secondary rounded-pill px-4">
-                        <i class="bi bi-arrow-left me-1"></i> Kembali
+                    <button type="button" onclick="window.history.back();" class="btn btn-lg btn-ij-secondary rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-arrow-left me-1" style="color: #7c941f;"></i> Kembali
                     </button>
-                    <a href="/" class="btn btn-lg btn-primary rounded-pill px-4">
+                    <a href="/" class="btn btn-lg btn-ij-primary rounded-pill px-4 fw-semibold">
                         <i class="bi bi-house-door me-1"></i> Ke Beranda
                     </a>
                 </div>

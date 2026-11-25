@@ -962,6 +962,19 @@
             });
         };
 
+        /* =====================================================================
+        0b. GLOBAL TOOLTIP (MAZER / BOOTSTRAP 5)
+        ===================================================================== */
+        window.initAllTooltips = function (root) {
+            if (!window.bootstrap || !bootstrap.Tooltip) return;
+            const scope = root || document;
+            scope.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                bootstrap.Tooltip.getOrCreateInstance(el, {
+                    placement: el.getAttribute('data-bs-placement') || 'top'
+                });
+            });
+        };
+
         window.setSearchSelectValue = function (elOrId, val, silent = true) {
             const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
             if (!el) return;
@@ -1099,6 +1112,7 @@
                     const onDraw = function () {
                         window.jQuery('.dataTables_paginate > .pagination').addClass('pagination-primary');
                         window.renderMobileCardsForTable($tbl, dt);
+                        window.initAllTooltips(document);
                     };
 
                     dt.on('draw', onDraw);
@@ -1576,11 +1590,13 @@
 
                 if (newContent && currentContent) {
                     document.title = doc.title;
+                    document.querySelectorAll('.tooltip').forEach(t => t.remove());
                     currentContent.innerHTML = newContent.innerHTML;
                     toggleGlobalSkeleton(false);
                     relocateModals(currentContent);
                     window.initAllDataTables();
                     window.initAllSearchSelects(document);
+                    window.initAllTooltips(document);
                     executeContentScripts(currentContent);
                     syncSidebarFromDoc(doc);
                     buildMobileBottomNav();
@@ -1805,6 +1821,7 @@
             // 9. Inisialisasi DataTables & Searchable Select saat halaman awal selesai dimuat
             window.initAllDataTables();
             window.initAllSearchSelects(document);
+            window.initAllTooltips(document);
         });
     </script>
 

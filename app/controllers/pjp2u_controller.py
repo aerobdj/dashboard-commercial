@@ -1,5 +1,4 @@
-from datetime import datetime, timezone, date
-from collections import OrderedDict
+from datetime import datetime, timezone, timedelta, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 import app
 from app.models.pjp2u_model import Pjp2uModel
@@ -23,13 +22,12 @@ def _get_actor(user):
     return email or nama or 'System'
 
 
+def _get_local_today_iso():
+    wita_now = datetime.now(timezone(timedelta(hours=8)))
+    return wita_now.strftime('%Y-%m-%d')
+
+
 def _get_accessible_cabangs(user):
-    """
-    Hierarki akses cabang:
-    - None          : HO / Superadmin -> semua cabang + filter cabang
-    - List > 1 item : Regional -> hanya cabang di bawah regional tsb + filter cabang
-    - List 1 item   : Cabang tunggal -> otomatis cabang tsb (tanpa filter cabang)
-    """
     role = _get_role(user)
     query = (
         app.supabase.table('cabang')
@@ -68,84 +66,16 @@ def _get_accessible_cabangs(user):
     return [user_cabang], single
 
 
-def _parse_iso_dt(dt_str):
-    if not dt_str:
-        return None
-    try:
-        clean = str(dt_str).replace('Z', '+00:00')
-        parsed = datetime.fromisoformat(clean)
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed
-    except Exception:
-        return None
-
-
-def _compute_row_permissions(row, role):
-    """
-    Aturan hak tombol internal:
-    - NORMAL:
-      - Edit hilang jika: sudah diverifikasi airline ATAU role 'user'/'users' > 1.5 hari (36 jam)
-        ATAU role 'admin' > 2.5 hari (60 jam). Pengawas & Superadmin bisa edit selama belum diverifikasi.
-      - Hapus hilang jika: sudah diverifikasi airline ATAU lewat 3 hari (72 jam) untuk role user/admin.
-        Untuk 'pengawas' & 'superadmin', tombol hapus TETAP TAMPIL (meski > 3 hari atau sudah diverifikasi).
-      - Adjustment: hanya 'pengawas' & 'superadmin'.
-    - ADJUSTMENT:
-      - Edit: hanya 'pengawas' & 'superadmin' selama belum diverifikasi adjustment.
-      - Hapus: hanya 'pengawas' & 'superadmin' (tetap ada meski sudah diverifikasi).
-    """
-    now = datetime.now(timezone.utc)
-    created_dt = _parse_iso_dt(row.get('created_at')) or now
-    age_hours = (now - created_dt).total_seconds() / 3600.0
-    status = (row.get('status') or 'NORMAL').upper()
-
-    is_privileged = role in ('superadmin', 'pengawas')
-    is_admin = role == 'admin'
-
-    if status == 'NORMAL':
-        is_verified = bool(row.get('verification_at'))
-        is_offload_verified = bool(row.get('verification_offload_at'))
-
-        if is_verified:
-            can_edit = False
-        elif is_privileged:
-            can_edit = True
-        elif is_admin:
-            can_edit = age_hours <= 60.0  # 2.5 hari
-        else:
-            can_edit = age_hours <= 36.0  # 1.5 hari
-
-        if is_privileged:
-            can_delete = True
-        else:
-            can_delete = (not is_verified) and (age_hours <= 72.0)  # 3 hari
-
-        can_adjust = is_privileged
-        can_ba_normal = is_verified
-        can_ba_offload = (int(row.get('offload') or 0) > 0) and is_offload_verified
-        can_ba_adjustment = False
-    else:
-        is_adj_verified = bool(row.get('verification_adjustment_at'))
-        can_edit = is_privileged and (not is_adj_verified)
-        can_delete = is_privileged
-        can_adjust = False
-        can_ba_normal = False
-        can_ba_offload = False
-        can_ba_adjustment = is_adj_verified
-
-    row['perm'] = {
-        'can_edit': can_edit,
-        'can_delete': can_delete,
-        'can_adjust': can_adjust,
-        'can_ba_normal': can_ba_normal,
-        'can_ba_offload': can_ba_offload,
-        'can_ba_adjustment': can_ba_adjustment,
-    }
-    return row
+def _compute_row_permissions(row, role, active_adjusted_parent_ids=None):
+    return Pjp2uModel.compute_row_permissions(
+        row=row,
+        role=role,
+        active_adjusted_parent_ids=active_adjusted_parent_ids,
+        now_utc=datetime.now(timezone.utc),
+    )
 
 
 def _group_by_airline(rows):
-    """Mengelompokkan list data PJP2U per maskapai (operator) beserta subtotal."""
     groups_map = {}
     for r in rows:
         op_id = r.get('operator') or 0
@@ -202,7 +132,6 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
     if not flight_number:
         raise ValueError("Nomor penerbangan (Flight Number) wajib diisi.")
 
-    # Pada mode Adjustment, pastikan akhiran "J" terpasang
     if is_adjustment and not flight_number.endswith('J'):
         flight_number = f"{flight_number}J"
 
@@ -210,7 +139,6 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
     id_registration = Pjp2uModel._to_int(form.get('id_registration'), 0) or None
     registration = (form.get('registration') or '').strip().upper() or None
 
-    # Wajib cocok dengan master airline_registration (tidak boleh input registrasi baru dari menu PJP2U)
     reg_obj = next(
         (r for r in master_bundle['registrations']
          if (id_registration and r['id_registration'] == id_registration)
@@ -226,7 +154,6 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
     scope_registration = reg_obj.get('scope') or 'Domestik'
     seat = int(reg_obj.get('seat') or 0)
 
-    # Auto-resolve flight_number jika cocok dengan master
     fn_clean = flight_number[:-1] if (is_adjustment and flight_number.endswith('J')) else flight_number
     fn_obj = next(
         (f for f in master_bundle['flight_numbers']
@@ -239,14 +166,12 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
         if not operator_id:
             operator_id = fn_obj.get('id_airline')
 
-    # Origin otomatis sama dengan cabang untuk user cabang; untuk HO/Regional mengikuti input origin (default cabang)
     origin = cabang if is_single_cabang else ((form.get('origin') or cabang).strip().upper())
     destination = (form.get('destination') or '').strip().upper()
     if not destination:
         raise ValueError("Bandara tujuan (Destination) wajib diisi.")
 
     dest_ap = master_bundle['airport_by_iata'].get(destination)
-    # Prioritaskan pilihan scope_route dari form (mis. Haji / Internasional / Domestik), fallback ke master bandara/flight
     scope_route = (
         (form.get('scope_route') or '').strip()
         or (dest_ap.get('scope') if dest_ap else None)
@@ -263,8 +188,23 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
         scope_registration=scope_registration,
     )
 
+    raw_pax_json = (form.get('offload_passengers_json') or '').strip()
+    parsed_pax = Pjp2uModel.parse_offload_passengers_json(raw_pax_json, pricing) if raw_pax_json else None
+
     form_with_seat = dict(form)
     form_with_seat['seat'] = seat
+
+    if parsed_pax is not None:
+        summary = Pjp2uModel.summarize_offload_passengers(parsed_pax)
+        if is_adjustment and parent_row:
+            base_pax = parent_row.get('offload_passengers') or []
+            base_summary = Pjp2uModel.summarize_offload_passengers(base_pax)
+            form_with_seat['offload'] = summary['offload_count'] - base_summary['offload_count']
+            form_with_seat['diskon'] = summary['promo_count'] - base_summary['promo_count']
+            form_with_seat['lama'] = summary['lama_count'] - base_summary['lama_count']
+        else:
+            form_with_seat['offload'] = summary['offload_count']
+
     metrics = Pjp2uModel.compute_metrics(form_with_seat, pricing, is_adjustment=is_adjustment)
 
     payload = {
@@ -299,9 +239,9 @@ def _build_payload_from_form(form, master_bundle, allowed_codes, is_adjustment=F
     if is_adjustment:
         payload['justifikasi_adjustment'] = (form.get('justifikasi_adjustment') or '').strip() or None
         payload['detail_justifikasi_adjustment'] = (form.get('detail_justifikasi_adjustment') or '').strip() or None
-        payload['date_adjustment'] = (form.get('date_adjustment') or date.today().isoformat()).strip()[:10]
+        payload['date_adjustment'] = (form.get('date_adjustment') or _get_local_today_iso()).strip()[:10]
 
-    return payload
+    return payload, parsed_pax
 
 
 @pjp2u_bp.route('/')
@@ -316,11 +256,15 @@ def index():
     allowed_codes, cabang_list = _get_accessible_cabangs(user)
     is_single_cabang = (allowed_codes is not None and len(allowed_codes) == 1)
 
-    # Filter query params (tanggal & cabang)
-    today_str = date.today().isoformat()
-    first_day_str = date.today().replace(day=1).isoformat()
-    date_from = (request.args.get('date_from') or first_day_str).strip()
-    date_to = (request.args.get('date_to') or today_str).strip()
+    today_str = _get_local_today_iso()
+    has_date_param = ('date_from' in request.args) or ('date_to' in request.args)
+    if not has_date_param:
+        date_from = today_str
+        date_to = today_str
+    else:
+        date_from = (request.args.get('date_from') or '').strip()
+        date_to = (request.args.get('date_to') or '').strip()
+
     filter_cabang = '' if is_single_cabang else (request.args.get('cabang') or '').strip().upper()
 
     if filter_cabang and allowed_codes is not None and filter_cabang not in allowed_codes:
@@ -334,11 +278,21 @@ def index():
         include_deleted=is_superadmin,
     )
 
+    active_adjusted_parent_ids = Pjp2uModel.get_active_adjusted_parent_ids(allowed_cabangs=allowed_codes)
+
     active_rows = [r for r in all_rows if not r.get('deleted_at')]
     deleted_rows = [r for r in all_rows if r.get('deleted_at')] if is_superadmin else []
 
-    normal_rows = [_compute_row_permissions(r, role) for r in active_rows if (r.get('status') or 'NORMAL').upper() == 'NORMAL']
-    adjustment_rows = [_compute_row_permissions(r, role) for r in active_rows if (r.get('status') or '').upper() == 'ADJUSTMENT']
+    normal_rows = [
+        _compute_row_permissions(r, role, active_adjusted_parent_ids)
+        for r in active_rows
+        if (r.get('status') or 'NORMAL').upper() == 'NORMAL'
+    ]
+    adjustment_rows = [
+        _compute_row_permissions(r, role, active_adjusted_parent_ids)
+        for r in active_rows
+        if (r.get('status') or '').upper() == 'ADJUSTMENT'
+    ]
     deleted_normal_rows = [r for r in deleted_rows if (r.get('status') or 'NORMAL').upper() == 'NORMAL']
     deleted_adjustment_rows = [r for r in deleted_rows if (r.get('status') or '').upper() == 'ADJUSTMENT']
 
@@ -375,8 +329,8 @@ def create():
     master_bundle = Pjp2uModel.get_master_bundle(allowed_cabangs=allowed_codes)
 
     try:
-        payload = _build_payload_from_form(request.form, master_bundle, allowed_codes, is_adjustment=False)
-        Pjp2uModel.create(payload, created_by=_get_actor(user))
+        payload, parsed_pax = _build_payload_from_form(request.form, master_bundle, allowed_codes, is_adjustment=False)
+        Pjp2uModel.create(payload, created_by=_get_actor(user), offload_passengers=parsed_pax)
         flash('Data operasional PJP2U berhasil ditambahkan!', 'success')
     except Exception as e:
         flash(f'Gagal menyimpan data PJP2U: {str(e)}', 'danger')
@@ -400,7 +354,8 @@ def update(id_pjp2u):
         flash('Anda tidak memiliki wewenang mengubah data cabang ini.', 'danger')
         return redirect(url_for('pjp2u.index'))
 
-    _compute_row_permissions(existing, role)
+    active_adjusted_parent_ids = Pjp2uModel.get_active_adjusted_parent_ids(allowed_cabangs=allowed_codes)
+    _compute_row_permissions(existing, role, active_adjusted_parent_ids)
     if not existing['perm']['can_edit']:
         flash('Batas waktu edit telah habis atau data sudah diverifikasi oleh Airline.', 'danger')
         return redirect(url_for('pjp2u.index'))
@@ -409,12 +364,85 @@ def update(id_pjp2u):
     master_bundle = Pjp2uModel.get_master_bundle(allowed_cabangs=allowed_codes)
 
     try:
-        payload = _build_payload_from_form(request.form, master_bundle, allowed_codes, is_adjustment=is_adj)
+        payload, parsed_pax = _build_payload_from_form(request.form, master_bundle, allowed_codes, is_adjustment=is_adj)
         payload['parent_id_pjp2u'] = existing.get('parent_id_pjp2u')
-        Pjp2uModel.update(id_pjp2u, payload, updated_by=_get_actor(user))
+        Pjp2uModel.update(id_pjp2u, payload, updated_by=_get_actor(user), offload_passengers=parsed_pax)
         flash('Data PJP2U berhasil diperbarui!', 'success')
     except Exception as e:
         flash(f'Gagal memperbarui data PJP2U: {str(e)}', 'danger')
+
+    return redirect(url_for('pjp2u.index'))
+
+
+@pjp2u_bp.route('/offload-passengers/<int:id_pjp2u>', methods=['POST'])
+@airport_required
+@menu_required('aeronautika_pjp2u')
+def save_offload_passengers(id_pjp2u):
+    user = session.get('user', {})
+    role = _get_role(user)
+    existing = Pjp2uModel.get_by_id(id_pjp2u)
+    if not existing:
+        flash('Data PJP2U tidak ditemukan.', 'warning')
+        return redirect(url_for('pjp2u.index'))
+
+    allowed_codes, _ = _get_accessible_cabangs(user)
+    if allowed_codes is not None and existing['cabang'] not in allowed_codes:
+        flash('Anda tidak memiliki wewenang mengubah data cabang ini.', 'danger')
+        return redirect(url_for('pjp2u.index'))
+
+    active_adjusted_parent_ids = Pjp2uModel.get_active_adjusted_parent_ids(allowed_cabangs=allowed_codes)
+    _compute_row_permissions(existing, role, active_adjusted_parent_ids)
+    if not existing['perm']['can_edit_offload']:
+        flash('Verifikasi Offload sudah diproses oleh Airline atau batas waktu edit telah habis.', 'danger')
+        return redirect(url_for('pjp2u.index'))
+
+    master_bundle = Pjp2uModel.get_master_bundle(allowed_cabangs=allowed_codes)
+    pricing = Pjp2uModel.resolve_pricing_snapshot(
+        master_bundle=master_bundle,
+        cabang=existing.get('cabang'),
+        scope_route=existing.get('scope_route'),
+        tanggal_str=existing.get('tanggal'),
+        id_airline=existing.get('operator'),
+        scope_registration=existing.get('scope_registration'),
+    )
+
+    try:
+        raw_pax_json = (request.form.get('offload_passengers_json') or '[]').strip()
+        parsed_pax = Pjp2uModel.parse_offload_passengers_json(raw_pax_json, pricing)
+        summary = Pjp2uModel.summarize_offload_passengers(parsed_pax)
+
+        delta_offload = summary['offload_count'] - int(existing.get('offload') or 0)
+        delta_diskon = summary['promo_count'] - int(existing.get('pax_diskon') or 0)
+        delta_lama = summary['lama_count'] - int(existing.get('pax_lama') or 0)
+
+        new_form = {
+            'adult': existing.get('adult') or 0,
+            'child': existing.get('child') or 0,
+            'infant': existing.get('infant') or 0,
+            'transit': existing.get('transit') or 0,
+            'crew': existing.get('crew') or 0,
+            'offload': summary['offload_count'],
+            'diskon': max(0, int(existing.get('pax_diskon') or 0) + delta_diskon),
+            'lama': max(0, int(existing.get('pax_lama') or 0) + delta_lama),
+            'seat': existing.get('seat') or 0,
+        }
+        metrics = Pjp2uModel.compute_metrics(new_form, pricing, is_adjustment=False)
+        update_payload = {
+            **metrics,
+            'id_promo': pricing['id_promo'] if summary['promo_count'] > 0 else existing.get('id_promo'),
+            'id_tarif_lama': pricing['id_tarif_lama'] if summary['lama_count'] > 0 else existing.get('id_tarif_lama'),
+            'persentase_diskon': pricing['persentase_diskon'] if summary['promo_count'] > 0 else existing.get('persentase_diskon'),
+            'tarif_psc_dpp_lama': pricing['tarif_psc_dpp_lama'] if summary['lama_count'] > 0 else existing.get('tarif_psc_dpp_lama'),
+        }
+        if delta_offload != 0:
+            update_payload['verification_offload_at'] = None
+            update_payload['name_verification_offload'] = None
+            update_payload['jabatan_verification_offload'] = None
+
+        Pjp2uModel.update(id_pjp2u, update_payload, updated_by=_get_actor(user), offload_passengers=parsed_pax)
+        flash(f"Rincian penumpang offload ({summary['offload_count']} pax ditagih) berhasil disimpan!", 'success')
+    except Exception as e:
+        flash(f'Gagal menyimpan penumpang offload: {str(e)}', 'danger')
 
     return redirect(url_for('pjp2u.index'))
 
@@ -439,14 +467,26 @@ def adjust(id_pjp2u):
         flash('Anda tidak memiliki wewenang membuat adjustment cabang ini.', 'danger')
         return redirect(url_for('pjp2u.index'))
 
+    active_adjusted_parent_ids = Pjp2uModel.get_active_adjusted_parent_ids(allowed_cabangs=allowed_codes)
+    if id_pjp2u in active_adjusted_parent_ids:
+        flash('Penerbangan ini sudah memiliki Adjustment aktif. Hapus adjustment lama terlebih dahulu jika ingin membuat ulang.', 'warning')
+        return redirect(url_for('pjp2u.index'))
+
     master_bundle = Pjp2uModel.get_master_bundle(allowed_cabangs=allowed_codes)
 
     try:
-        payload = _build_payload_from_form(
+        payload, parsed_pax = _build_payload_from_form(
             request.form, master_bundle, allowed_codes, is_adjustment=True, parent_row=parent_row
         )
-        Pjp2uModel.create(payload, created_by=_get_actor(user))
-        flash(f"Adjustment {payload['flight_number']} berhasil disimpan ke tab Adjustment!", 'success')
+        created_adj = Pjp2uModel.create(payload, created_by=_get_actor(user), offload_passengers=parsed_pax)
+        if parsed_pax is not None:
+            Pjp2uModel.sync_offload_passengers(
+                id_pjp2u=parent_row['id_pjp2u'],
+                cabang=parent_row.get('cabang'),
+                pax_list=parsed_pax,
+                actor=_get_actor(user),
+            )
+        flash(f"Adjustment {created_adj['flight_number']} berhasil disimpan ke tab Adjustment!", 'success')
     except Exception as e:
         flash(f'Gagal menyimpan Adjustment PJP2U: {str(e)}', 'danger')
 
@@ -469,9 +509,10 @@ def delete(id_pjp2u):
         flash('Anda tidak memiliki wewenang menghapus data cabang ini.', 'danger')
         return redirect(url_for('pjp2u.index'))
 
-    _compute_row_permissions(existing, role)
+    active_adjusted_parent_ids = Pjp2uModel.get_active_adjusted_parent_ids(allowed_cabangs=allowed_codes)
+    _compute_row_permissions(existing, role, active_adjusted_parent_ids)
     if not existing['perm']['can_delete']:
-        flash('Batas waktu hapus (3 hari) telah terlewati atau data sudah diverifikasi Airline.', 'danger')
+        flash('Batas waktu hapus (3 hari) telah terlewati.', 'danger')
         return redirect(url_for('pjp2u.index'))
 
     try:

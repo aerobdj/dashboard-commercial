@@ -368,10 +368,10 @@
             {% else %}
                 <div class="doc-title-sub">PERHITUNGAN JUMLAH PENUMPANG WAJIB BAYAR PJP2U</div>
                 <div class="doc-title-sub">BERDASARKAN PASSENGER MANIFEST, ACTUAL PASSENGER ON BOARD</div>
-                <div class="doc-title-sub">AIRPORTS ANGKUTAN UDARA DALAM / LUAR NEGERI (PJP2U) YANG DISATUKAN DENGAN TIKET</div>
+                <div class="doc-title-sub">ANGKUTAN UDARA DALAM / LUAR NEGERI (PJP2U) YANG DISATUKAN DENGAN TIKET</div>
             {% endif %}
             <div class="doc-airport">
-                BANDAR UDARA {{ (cab_info.nama_cabang or row.cabang)|upper }}{% if cab_info.kota %} - {{ cab_info.kota|upper }}{% endif %}
+                {{ (cab_info.nama_cabang or row.cabang)|upper }}{% if cab_info.kota %} - {{ cab_info.kota|upper }}{% endif %}
             </div>
         </div>
 

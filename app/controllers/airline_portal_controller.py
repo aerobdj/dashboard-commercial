@@ -1,5 +1,8 @@
-from datetime import date
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+import os
+import uuid
+from datetime import datetime, timezone, timedelta
+from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 import app
 from app.utils.decorators import airline_required, menu_required
 from app.models.airline_user_model import AirlineUserModel
@@ -8,6 +11,14 @@ from app.controllers.auth_controller import sync_airline_session
 from app.controllers.pjp2u_controller import _group_by_airline
 
 airline_portal_bp = Blueprint('airline_portal', __name__, url_prefix='/airline')
+
+ALLOWED_SURAT_EXT = {".pdf", ".jpg", ".jpeg", ".png"}
+MAX_SURAT_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def _get_local_today_iso():
+    wita_now = datetime.now(timezone(timedelta(hours=8)))
+    return wita_now.strftime('%Y-%m-%d')
 
 
 def _get_airline_actor():
@@ -39,7 +50,6 @@ def _get_airline_pjp2u_context():
     raw_airlines = active_user.get('airlines') or []
     airline_id_set = set()
 
-    # 1. Gunakan resolver resmi yang sama dengan Account Profile & Dashboard
     try:
         auth_airlines = AirlineUserModel.get_authorized_airlines(
             raw_airlines,
@@ -51,7 +61,6 @@ def _get_airline_pjp2u_context():
     except Exception:
         pass
 
-    # 2. Fallback parsing langsung dari kolom airlines (list/string/dict)
     if isinstance(raw_airlines, str):
         for x in raw_airlines.strip('[]{}').replace('"', '').split(','):
             if x.strip().isdigit():
@@ -87,7 +96,7 @@ def _is_row_authorized_for_airline(row, airline_ids, allowed_cabangs):
 @menu_required('airline_dashboard')
 def dashboard():
     user = session.get('user', {})
-    allowed_cabang = user.get('allowed_cabang')  # None berarti HO (Semua Cabang)
+    allowed_cabang = user.get('allowed_cabang')
     fresh_user = AirlineUserModel.get_by_id(user.get('id_airlineusers'))
     raw_airlines = fresh_user.get('airlines') if fresh_user else user.get('airlines', [])
     authorized_airlines = AirlineUserModel.get_authorized_airlines(
@@ -174,15 +183,20 @@ def profile():
 def pjp2u():
     _, airline_ids, allowed_cabangs, role = _get_airline_pjp2u_context()
 
-    first_day_str = date.today().replace(day=1).isoformat()
-    date_from = (request.args.get('date_from') or first_day_str).strip()
-    date_to = (request.args.get('date_to') or '').strip()
+    today_str = _get_local_today_iso()
+    has_date_param = ('date_from' in request.args) or ('date_to' in request.args)
+    if not has_date_param:
+        date_from = today_str
+        date_to = today_str
+    else:
+        date_from = (request.args.get('date_from') or '').strip()
+        date_to = (request.args.get('date_to') or '').strip()
+
     filter_cabang = (request.args.get('cabang') or '').strip().upper()
 
     if filter_cabang and allowed_cabangs is not None and filter_cabang not in allowed_cabangs:
         filter_cabang = ''
 
-    # Daftar cabang untuk filter jika akun maskapai punya akses > 1 cabang / HO
     cabang_query = (
         app.supabase.table('cabang')
         .select('kode_cabang, nama_cabang')
@@ -286,8 +300,11 @@ def verify_adjustment(id_pjp2u):
         flash('Akses ditolak.', 'danger')
         return redirect(url_for('airline_portal.pjp2u'))
 
-    doc_mode = (request.form.get('doc_mode') or 'AUTO').upper()
-    nomor_surat = (request.form.get('nomor_surat') or '').strip() or None
+    doc_mode = (request.form.get('doc_mode') or 'AUTO').strip().upper()
+    if doc_mode not in {'AUTO', 'UPLOAD'}:
+        doc_mode = 'AUTO'
+
+    nomor_surat = None
     file_url = None
 
     try:
@@ -296,17 +313,41 @@ def verify_adjustment(id_pjp2u):
             if not uploaded or not uploaded.filename:
                 flash('Silakan pilih file surat persetujuan adjustment untuk diunggah.', 'warning')
                 return redirect(url_for('airline_portal.pjp2u'))
-            cab_folder = (row.get('cabang') or 'GENERAL').upper()
-            storage_path = f"adjustment/{cab_folder}/{id_pjp2u}_{uploaded.filename}"
-            file_bytes = uploaded.read()
-            app.supabase.storage.from_('pjp2u-documents').upload(
-                storage_path, file_bytes, {"content-type": uploaded.content_type or "application/pdf"}
+
+            safe_orig = secure_filename(uploaded.filename)
+            ext = os.path.splitext(safe_orig)[1].lower()
+            if ext not in ALLOWED_SURAT_EXT:
+                flash('Format file surat harus PDF, JPG, JPEG, atau PNG.', 'warning')
+                return redirect(url_for('airline_portal.pjp2u'))
+
+            uploaded.seek(0, os.SEEK_END)
+            file_size = uploaded.tell()
+            uploaded.seek(0)
+            if file_size > MAX_SURAT_BYTES:
+                flash('Ukuran file surat maksimal 5 MB.', 'warning')
+                return redirect(url_for('airline_portal.pjp2u'))
+
+            upload_dir = os.path.join(
+                current_app.root_path,
+                'static',
+                'static',
+                'uploads',
+                'airlines',
+                'surat',
             )
-            file_url = app.supabase.storage.from_('pjp2u-documents').get_public_url(storage_path)
+            os.makedirs(upload_dir, exist_ok=True)
+
+            stored_name = f"surat_adj_{id_pjp2u}_{uuid.uuid4().hex[:10]}{ext}"
+            save_path = os.path.join(upload_dir, stored_name)
+            uploaded.save(save_path)
+
+            file_url = f"static/static/uploads/airlines/surat/{stored_name}"
         else:
+            nomor_surat = (request.form.get('nomor_surat') or '').strip()
             if not nomor_surat:
                 flash('Nomor surat wajib diisi untuk pembuatan surat otomatis.', 'warning')
                 return redirect(url_for('airline_portal.pjp2u'))
+            file_url = None
 
         Pjp2uModel.verify_adjustment(
             id_pjp2u,
